@@ -8,8 +8,21 @@ authors = ["Mikołaj Kuranowski <mkuranowski@gmail.com>"]
 python = "^3.10"
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^7.1"
+flake8 = "^4.0.1"
+black = "^22.6.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 99
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+reportUnusedImport = false
+reportPrivateUsage = false
