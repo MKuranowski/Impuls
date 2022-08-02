@@ -100,7 +100,7 @@ class Route(ImpulsBase):
     agency_id: str = field(
         compare=False,
         repr=False,
-        metadata={"foreign_key": "agencies(agency_id)"},
+        metadata={"foreign_key": "agencies(agency_id)", "indexed": True},
     )
 
     short_name: str = field(compare=False)
@@ -161,8 +161,15 @@ class Trip(ImpulsBase):
         INBOUND = 1
 
     id: str = field(compare=True, metadata={"primary_key": True})
-    route_id: str = field(compare=False, metadata={"foreign_key": "routes(route_id)"})
-    calendar_id: str = field(compare=False, metadata={"foreign_key": "calendars(calendar_id)"})
+
+    route_id: str = field(
+        compare=False, metadata={"foreign_key": "routes(route_id)", "indexed": True}
+    )
+
+    calendar_id: str = field(
+        compare=False, metadata={"foreign_key": "calendars(calendar_id)", "indexed": True}
+    )
+
     headsign: str = field(default="", compare=False)
     short_name: str = field(default="", compare=False, repr=False)
     direction: Optional[Direction] = field(
@@ -198,7 +205,10 @@ class StopTime(ImpulsBase):
         compare=True, metadata={"primary_key": True, "foreign_key": "trips(trip_id)"}
     )
 
-    stop_id: str = field(compare=False, metadata={"foreign_key": "stops(stop_id)"})
+    stop_id: str = field(
+        compare=False,
+        metadata={"foreign_key": "stops(stop_id)", "indexed": True, "force_not_null": True},
+    )
 
     stop_sequence: int = field(
         compare=True, repr=False, metadata={"primary_key": True, "gtfs_no_entity_prefix": True}
@@ -290,18 +300,6 @@ class Attribution(ImpulsBase):
 
     is_data_source: bool = field(
         default=False, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    agency_id: str = field(
-        default="", compare=False, repr=False, metadata={"foreign_key": "agencies(agency_id)"}
-    )
-
-    route_id: str = field(
-        default="", compare=False, repr=False, metadata={"foreign_key": "routes(route_id)"}
-    )
-
-    trip_id: str = field(
-        default="", compare=False, repr=False, metadata={"foreign_key": "trips(trip_id)"}
     )
 
     url: str = field(default="", compare=False, repr=False)

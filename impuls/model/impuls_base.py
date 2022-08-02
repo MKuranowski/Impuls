@@ -17,20 +17,12 @@ from typing import get_args as get_type_args
 from typing import get_origin as get_type_origin
 
 from ..tools.strings import camel_to_snake
+from ..tools.types import Self, SQLNativeType
 from .utility_types import Date, TimePoint
-
-if TYPE_CHECKING:
-    from typing_extensions import Self
-else:
-    Self = TypeVar("Self")
-
 
 _T = TypeVar("_T")
 _IB = TypeVar("_IB", bound="ImpulsBase")
 _IntEnum = TypeVar("_IntEnum", bound=IntEnum)
-
-
-SQLSupportedType = None | int | float | str
 
 
 class SQLFieldDescription(NamedTuple):
@@ -43,8 +35,8 @@ class SQLFieldDescription(NamedTuple):
     not_null: bool
     indexed: bool
 
-    marshall: Callable[[Any], SQLSupportedType]
-    unmarshall: Callable[[SQLSupportedType], Any]
+    marshall: Callable[[Any], SQLNativeType]
+    unmarshall: Callable[[SQLNativeType], Any]
 
 
 class GTFSFieldDescription(NamedTuple):
@@ -84,15 +76,21 @@ class FieldMetadata(TypedDict, total=False):
     gtfs_column_name: str
 
     # Whether to explicitly index this field in the database.
-    # Defaults to true for primary and foreign keys; false for other fields.
+    # Primary keys are indexed by default by the database engine -
+    # explicit indexing usually needs to be applied for foreign keys
+    # that do not constitute the prefix of primary key
     index: bool
+
+    # Forces NOT NULL on `str` columns - which by default are nullable
+    # if they are not a part of the primary key
+    force_not_null: bool
 
 
 def _identity(x: _T) -> _T:
     return x
 
 
-_sql_marshallers: dict[type, Callable[[Any], SQLSupportedType]] = {
+_sql_marshallers: dict[type, Callable[[Any], SQLNativeType]] = {
     NoneType: _identity,
     str: lambda x: x or None,  # coalesce empty strings into None
     int: _identity,
@@ -103,7 +101,7 @@ _sql_marshallers: dict[type, Callable[[Any], SQLSupportedType]] = {
     # IntEnum - special case - added by the impuls_base decorator
 }
 
-_sql_unmarshallers: dict[type, Callable[[SQLSupportedType], Any]] = {
+_sql_unmarshallers: dict[type, Callable[[SQLNativeType], Any]] = {
     NoneType: _identity,
     str: lambda x: x or "",  # coalesce NULL into ""
     int: _identity,
@@ -185,18 +183,18 @@ class ImpulsBase:
     def _sql_primary_key_columns(cls) -> dict[str, SQLFieldDescription]:
         raise NotImplementedError("ImpulsBase protocol not implemented")
 
-    def _sql_primary_key(self) -> tuple[SQLSupportedType, ...]:
+    def _sql_primary_key(self) -> tuple[SQLNativeType, ...]:
         return tuple(
             f.marshall(getattr(self, f.field_name)) for f in self._sql_primary_key_columns.values()
         )
 
     @classmethod
-    def _sql_unmarshall(cls: Type[Self], row: tuple[SQLSupportedType, ...]) -> Self:
+    def _sql_unmarshall(cls: Type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **{f.field_name: f.unmarshall(elem) for elem, f in zip(row, cls._sql_fields.values())}
         )
 
-    def _sql_marshall(self) -> tuple[SQLSupportedType, ...]:
+    def _sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return tuple(f.marshall(getattr(self, f.field_name)) for f in self._sql_fields.values())
 
 
@@ -232,7 +230,8 @@ def impuls_base(typ: Type[_IB]) -> Type[_IB]:
         gtfs_column_name = field.metadata.get("gtfs_column_name") or _generate_gtfs_column_name(
             field.name, entity_snake_case, gtfs_no_entity_prefix
         )
-        index = field.metadata.get("index", False) or bool(foreign_key)
+        force_not_null = field.metadata.get("indexed", False)
+        index = field.metadata.get("indexed", False)
 
         # Rules for dealing with SQL null:
         # - `Optional[...]` can be NULL
@@ -246,8 +245,10 @@ def impuls_base(typ: Type[_IB]) -> Type[_IB]:
         # - Everything else is not an optional column.
 
         field_type, maybe_none = _concrete_type(field.type)
-        sql_optional = maybe_none or (field.type is str and not primary_key)
         gtfs_optional = maybe_none or field.default != dataclasses.MISSING
+        sql_optional = (
+            maybe_none or (field.type is str and not primary_key)
+        ) and not force_not_null
 
         if maybe_none and field.default is not None:
             raise ValueError(
@@ -267,7 +268,7 @@ def impuls_base(typ: Type[_IB]) -> Type[_IB]:
 
         sql_fields[field.name] = SQLFieldDescription(
             field_name=field.name,
-            column_name=field.name,
+            column_name=f"{entity_snake_case}_id" if field.name == "id" else field.name,
             sql_type=_sql_type(field_type),
             primary_key=primary_key,
             foreign_key=foreign_key,
@@ -379,7 +380,7 @@ def _sql_type(typ: type) -> str:
 
 def _nice_sql_marshaller(
     typ: type, maybe_none: bool, class_name: str, field_name: str
-) -> Callable[[Any], SQLSupportedType]:
+) -> Callable[[Any], SQLNativeType]:
     """Returns a function that marshalls entities of type `typ` into
     their SQL counterparts.
 
@@ -389,12 +390,12 @@ def _nice_sql_marshaller(
     for nicer error reporting.
     """
     # Find the function converting type
-    converter: Callable[[Any], SQLSupportedType] = _sql_marshallers[typ]
+    converter: Callable[[Any], SQLNativeType] = _sql_marshallers[typ]
     if maybe_none:
         converter = lambda x: None if x is None else converter(x)
 
     # Create a nice function that catches creates better errors
-    def f(x: Any) -> SQLSupportedType:
+    def f(x: Any) -> SQLNativeType:
         try:
             return converter(x)
         except ValueError as e:
@@ -409,7 +410,7 @@ def _nice_sql_marshaller(
 
 def _nice_sql_unmarshaller(
     typ: type, sql_optional: bool, class_name: str, field_name: str
-) -> Callable[[SQLSupportedType], Any]:
+) -> Callable[[SQLNativeType], Any]:
     """Returns a function that unmarshalls entities to type `typ` from
     their SQL counterparts.
 
@@ -419,12 +420,12 @@ def _nice_sql_unmarshaller(
     for nicer error reporting.
     """
     # Find the function converting type
-    converter: Callable[[SQLSupportedType], Any] = _sql_unmarshallers[typ]
+    converter: Callable[[SQLNativeType], Any] = _sql_unmarshallers[typ]
     if sql_optional and typ is not str:
         converter = lambda x: None if x is None else converter(x)
 
     # Create a nice function that catches creates better errors
-    def f(x: SQLSupportedType) -> Any:
+    def f(x: SQLNativeType) -> Any:
         try:
             return converter(x)
         except ValueError as e:

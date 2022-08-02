@@ -1,0 +1,58 @@
+import logging
+import sys
+
+from . import color
+
+
+class ColoredFormatter(logging.Formatter):
+    default_time_format = "%H:%M:%S"
+    default_msec_format = "%s.%03d"
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    @staticmethod
+    def get_msg_color(level: int) -> str:
+        if level >= logging.CRITICAL:
+            return color.WHITE + color.BG_RED
+        elif level >= logging.ERROR:
+            return color.RED
+        elif level >= logging.WARNING:
+            return color.YELLOW
+        elif level >= logging.INFO:
+            # White is usually slightly dimmed than the normal style
+            return color.RESET
+        else:
+            return color.DIM
+
+    def usesTime(self) -> bool:
+        return True
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.message = record.getMessage()
+        record.asctime = self.formatTime(record)
+        msg_color = self.get_msg_color(record.levelno)
+        return (
+            f"{color.BLUE}[{color.CYAN}{record.levelname}{color.BLUE} {record.asctime}] "
+            f"{color.GREEN}{record.name}{color.RESET}: {msg_color}{record.message}{color.RESET}"
+        )
+
+
+def initialize(verbose: bool) -> None:
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+
+    # Remove any loggers that dump onto stdout/stderr
+    handlers_to_remove: list[logging.Handler] = [
+        handler for handler in root_logger.handlers
+        if isinstance(handler, logging.StreamHandler)
+        and (handler.stream is sys.stdout or handler.stream is sys.stderr)  # type: ignore
+    ]
+
+    for handler in handlers_to_remove:
+        root_logger.removeHandler(handler)
+
+    # Add our own handler for stderr
+    new_handler = logging.StreamHandler(sys.stderr)
+    new_handler.setFormatter(ColoredFormatter())
+    root_logger.addHandler(new_handler)
