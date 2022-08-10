@@ -27,17 +27,8 @@ class PipelineOptions(NamedTuple):
 
 
 class Task(Protocol):
-    @property
-    def name(self) -> str:
-        ...
-
-    @property
-    def logger(self) -> logging.Logger:
-        ...
-
-    @logger.setter
-    def logger(self, __new_logger: logging.Logger) -> None:
-        ...
+    name: str
+    logger: logging.Logger
 
     def execute(self, db: DBConnection, options: PipelineOptions) -> None:
         ...

@@ -1,14 +1,13 @@
+from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator, NamedTuple, Protocol
+from typing import Iterator, Protocol
 import requests
 
 
 class Resource(Protocol):
-    @property
-    def name(self) -> str:
-        ...
+    name: str
 
     def date_modified(self) -> datetime:
         ...
@@ -17,7 +16,8 @@ class Resource(Protocol):
         ...
 
 
-class HTTPResource(NamedTuple):
+@dataclass(frozen=True, slots=True)
+class HTTPResource(Resource):
     name: str
     url: str
 
@@ -32,7 +32,8 @@ class HTTPResource(NamedTuple):
             yield from r.iter_content(8192, decode_unicode=False)
 
 
-class LocalResource(NamedTuple):
+@dataclass(frozen=True, slots=True)
+class LocalResource(Resource):
     name: str
     file: Path
 
