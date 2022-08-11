@@ -27,7 +27,7 @@ __all__ = [
 @impuls_base
 @dataclass(unsafe_hash=True)
 class Agency(ImpulsBase):
-    _metadata: ClassVar[TypeMetadata] = {"table_name": "agencies"}
+    _metadata: ClassVar[TypeMetadata] = {"table_name": "agency"}
 
     id: str = field(compare=True, metadata={"primary_key": True})
     name: str = field(compare=False)
@@ -100,7 +100,7 @@ class Route(ImpulsBase):
     agency_id: str = field(
         compare=False,
         repr=False,
-        metadata={"foreign_key": "agencies(agency_id)", "indexed": True},
+        metadata={"foreign_key": "agency(agency_id)", "indexed": True},
     )
 
     short_name: str = field(compare=False)
@@ -122,6 +122,8 @@ class Calendar(ImpulsBase):
     wednesday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
     thursday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
     friday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
+    saturday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
+    sunday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
     start_date: Date = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
     end_date: Date = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
 
@@ -167,7 +169,12 @@ class Trip(ImpulsBase):
     )
 
     calendar_id: str = field(
-        compare=False, metadata={"foreign_key": "calendars(calendar_id)", "indexed": True}
+        compare=False,
+        metadata={
+            "foreign_key": "calendars(calendar_id)",
+            "gtfs_column_name": "service_id",
+            "indexed": True,
+        },
     )
 
     headsign: str = field(default="", compare=False)
@@ -236,6 +243,13 @@ class StopTime(ImpulsBase):
         metadata={"gtfs_no_entity_prefix": True},
     )
 
+    stop_headsign: str = field(
+        default="",
+        compare=False,
+        repr=False,
+        metadata={"gtfs_no_entity_prefix": True},
+    )
+
     # shape_dist_traveled: Optional[float] = field(
     #     default=None, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
     # )
@@ -249,14 +263,6 @@ class StopTime(ImpulsBase):
 @dataclass(unsafe_hash=True)
 class FeedInfo(ImpulsBase):
     _metadata: ClassVar[TypeMetadata] = {"table_name": "feed_info"}
-
-    id: str = field(
-        default="0",
-        init=False,
-        compare=False,
-        repr=False,
-        metadata={"primary_key": True},
-    )
 
     publisher_name: str = field(
         compare=False, metadata={"gtfs_column_name": "feed_publisher_name"}
@@ -278,11 +284,18 @@ class FeedInfo(ImpulsBase):
         default="", compare=False, repr=False, metadata={"gtfs_column_name": "feed_contact_url"}
     )
 
+    id: str = field(
+        default="0",
+        compare=False,
+        repr=False,
+        metadata={"primary_key": True},
+    )
+
 
 @impuls_base
 @dataclass(unsafe_hash=True)
 class Attribution(ImpulsBase):
-    id: str = field(compare=True, metadata={"primary_key": True, "implicit_generation": True})
+    id: str = field(compare=True, metadata={"primary_key": True})
 
     organization_name: str = field(compare=False, metadata={"gtfs_no_entity_prefix": True})
 

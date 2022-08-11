@@ -1,0 +1,2 @@
+class InputNotModified(Exception):
+    pass

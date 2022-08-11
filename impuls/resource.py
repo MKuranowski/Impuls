@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Iterator, Protocol
 import requests
 
+from .errors import InputNotModified
+
 
 class Resource(Protocol):
     name: str
@@ -42,5 +44,35 @@ class LocalResource(Resource):
 
     def fetch(self) -> Iterator[bytes]:
         with self.file.open(mode="rb") as f:
-            while (chunk := f.read(8192)):
+            while chunk := f.read(8192):
                 yield chunk
+
+
+def ensure_resource_downloaded(
+    resource: Resource, workspace_dir: Path, ignore_not_modified: bool
+) -> Path:
+    """Ensures that a resource is cached, and returns a Path to the cached file.
+    Raises InputNotModified, if appropriate."""
+    # Get the path to the cached file
+    cached_file = workspace_dir / f"input_{resource.name}"
+
+    # Try to check when cached file was downloaded
+    try:
+        cached_modified_time = datetime.fromtimestamp(
+            cached_file.stat().st_mtime,
+            timezone.utc,
+        )
+    except FileNotFoundError:
+        cached_modified_time = datetime.min.replace(tzinfo=timezone.utc)
+
+    if cached_modified_time < resource.date_modified():
+        # If the cached version is stale - update it
+        with cached_file.open(mode="wb") as f:
+            for chunk in resource.fetch():
+                f.write(chunk)
+
+    elif not ignore_not_modified:
+        # If the cached version is not stale - raise InputNotModified (if asked)
+        raise InputNotModified
+
+    return cached_file

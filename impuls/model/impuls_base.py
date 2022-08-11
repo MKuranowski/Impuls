@@ -226,7 +226,7 @@ def impuls_base(typ: Type[_IB]) -> Type[_IB]:
             assert isinstance(field.metadata, FieldMetadata)
         primary_key = field.metadata.get("primary_key", False)
         foreign_key = field.metadata.get("foreign_key", "")
-        gtfs_no_entity_prefix = field.metadata.get("gtfs_no_entity_prefix", False)
+        gtfs_no_entity_prefix = field.metadata.get("gtfs_no_entity_prefix", bool(foreign_key))
         gtfs_column_name = field.metadata.get("gtfs_column_name") or _generate_gtfs_column_name(
             field.name, entity_snake_case, gtfs_no_entity_prefix
         )
@@ -390,9 +390,12 @@ def _nice_sql_marshaller(
     for nicer error reporting.
     """
     # Find the function converting type
-    converter: Callable[[Any], SQLNativeType] = _sql_marshallers[typ]
+    original_converter: Callable[[Any], SQLNativeType] = _sql_marshallers[typ]
+    converter: Callable[[Any], SQLNativeType]
     if maybe_none:
-        converter = lambda x: None if x is None else converter(x)
+        converter = lambda x: None if x is None else original_converter(x)
+    else:
+        converter = original_converter
 
     # Create a nice function that catches creates better errors
     def f(x: Any) -> SQLNativeType:
@@ -420,9 +423,12 @@ def _nice_sql_unmarshaller(
     for nicer error reporting.
     """
     # Find the function converting type
-    converter: Callable[[SQLNativeType], Any] = _sql_unmarshallers[typ]
+    original_converter: Callable[[SQLNativeType], Any] = _sql_unmarshallers[typ]
+    converter: Callable[[SQLNativeType], Any]
     if sql_optional and typ is not str:
-        converter = lambda x: None if x is None else converter(x)
+        converter = lambda x: None if x is None else original_converter(x)
+    else:
+        converter = original_converter
 
     # Create a nice function that catches creates better errors
     def f(x: SQLNativeType) -> Any:
@@ -450,9 +456,12 @@ def _nice_gtfs_marshaller(
     for nicer error reporting.
     """
     # Find the function converting type
-    converter: Callable[[Any], str] = _gtfs_marshallers[typ]
+    original_converter: Callable[[Any], str] = _gtfs_marshallers[typ]
+    converter: Callable[[Any], str]
     if maybe_none:
-        converter = lambda x: "" if x is None else converter(x)
+        converter = lambda x: "" if x is None else original_converter(x)
+    else:
+        converter = original_converter
 
     # Create a nice function that catches creates better errors
     def f(x: Any) -> str:
@@ -481,9 +490,12 @@ def _nice_gtfs_unmarshaller(
     for nicer error reporting.
     """
     # Find the function converting type
-    converter: Callable[[str], Any] = _gtfs_unmarshallers[typ]
+    original_converter: Callable[[str], Any] = _gtfs_unmarshallers[typ]
+    converter: Callable[[str], Any]
     if default is not dataclasses.MISSING:
-        converter = lambda x: default if x == "" else converter(x)
+        converter = lambda x: default if x == "" else original_converter(x)
+    else:
+        converter = original_converter
 
     # Create a nice function that catches creates better errors
     def f(x: str) -> Any:

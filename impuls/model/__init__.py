@@ -21,6 +21,6 @@ ALL_MODEL_ENTITIES: list[_Type[ImpulsBase]] = [
     FeedInfo,
     Route,
     Stop,
-    StopTime,
     Trip,
+    StopTime,
 ]
