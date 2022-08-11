@@ -174,7 +174,7 @@ class DBConnection:
         # NOTE: We assume that impuls_base decorator has generated safe field descriptions
 
         # List of top-level statements (mostly CREATE TABLE)
-        creates: list[str] = ["PRAGMA foreign_keys=1;"]
+        creates: list[str] = ["PRAGMA foreign_keys=1;", "PRAGMA locking_mode=EXCLUSIVE;"]
 
         # Create a table for every entity of the model
         for typ in ALL_MODEL_ENTITIES:
