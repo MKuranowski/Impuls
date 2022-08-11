@@ -56,11 +56,14 @@ class Pipeline:
         self.options.workspace_directory.mkdir(parents=True, exist_ok=True)
 
         # Open the database
-        self.db: DBConnection = DBConnection.create_with_schema(
-            str(self.options.workspace_directory / "impuls.db")
-            if self.options.save_db_in_workspace
-            else ":memory:"
-        )
+        if self.options.save_db_in_workspace:
+            db_path_obj = self.options.workspace_directory / "impuls.db"
+            db_path_obj.unlink(missing_ok=True)
+            db_path = str(db_path_obj)
+        else:
+            db_path = ":memory:"
+
+        self.db: DBConnection = DBConnection.create_with_schema(db_path)
 
     def close(self) -> None:
         self.db.close()
