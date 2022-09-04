@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "impuls"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Mikołaj Kuranowski <mkuranowski@gmail.com>"]
 
