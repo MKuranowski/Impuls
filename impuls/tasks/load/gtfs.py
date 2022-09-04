@@ -22,7 +22,7 @@ class LoadGTFS(Task):
         self.fetch_time = None
 
         self.name = "LoadGTFS"
-        self.logger = logging.getLogger(self.name)
+        self.logger = logging.getLogger(f"Task.{self.name}")
 
     def execute(self, db: DBConnection, options: PipelineOptions) -> None:
         self.logger.info(f"Downloading the input GTFS file ({self.source.name})")
@@ -31,6 +31,7 @@ class LoadGTFS(Task):
             options.workspace_directory,
             options.ignore_not_modified,
         )
+        self.fetch_time = datetime.today()
 
         # Try to import every table
         # NOTE: neither calendar nor calendar_dates are required,
