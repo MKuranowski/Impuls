@@ -126,6 +126,7 @@ class Calendar(ImpulsBase):
     sunday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
     start_date: Date = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
     end_date: Date = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
+    desc: str = field(default="", compare=False, repr=False)
 
 
 @impuls_base
