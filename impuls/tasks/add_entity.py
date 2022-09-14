@@ -13,9 +13,9 @@ class AddEntity(Task):
     name: str
     logger: logging.Logger
 
-    def __init__(self, entity: model.ImpulsBase) -> None:
+    def __init__(self, entity: model.ImpulsBase, task_name: str = "AddEntity") -> None:
         self.entity = entity
-        self.name = "AddAgency"
+        self.name = task_name
         self.logger = logging.getLogger(f"Task.{self.name}")
 
     def execute(

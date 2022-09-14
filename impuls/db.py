@@ -161,11 +161,25 @@ class DBConnection:
     DBConnection can be used in a `with` statement - and such connection
     will be automatically closed upon exit from the with block.
     (Note that this behavior is different to sqlite3.Connection)
+
+    ### New sqlite functions
+
+    For convenience several additional SQL function are provided,
+    apart from those described at <https://www.sqlite.org/lang_corefunc.html>.
+    - `unicode_lower` - equivalent to Python's str.lower
+    - `unicode_upper` - equivalent to Python's str.upper
+    - `unicode_casefold` - equivalent to Python's str.casefold
+    - `unicode_title` - equivalent to Python's str.title
     """
 
     def __init__(self, path: str = ":memory:") -> None:
         self._con: sqlite3.Connection = sqlite3.connect(path)
         self._con.isolation_level = None
+
+        self._con.create_function("unicode_lower", 1, str.lower, deterministic=True)
+        self._con.create_function("unicode_upper", 1, str.upper, deterministic=True)
+        self._con.create_function("unicode_casefold", 1, str.casefold, deterministic=True)
+        self._con.create_function("unicode_title", 1, str.title, deterministic=True)
 
     @classmethod
     def create_with_schema(cls: Type[Self], path: str = ":memory:") -> Self:
