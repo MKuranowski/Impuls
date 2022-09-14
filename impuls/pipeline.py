@@ -5,6 +5,7 @@ from typing import Any, NamedTuple, Protocol
 from .db import DBConnection
 from .tools import machine_load
 from .tools.types import Self
+from .resource import Resource, ResourceManager
 
 
 class PipelineOptions(NamedTuple):
@@ -30,7 +31,9 @@ class Task(Protocol):
     name: str
     logger: logging.Logger
 
-    def execute(self, db: DBConnection, options: PipelineOptions) -> None:
+    def execute(
+        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
+    ) -> None:
         ...
 
 
@@ -38,12 +41,14 @@ class Pipeline:
     def __init__(
         self,
         tasks: list[Task],
+        resources: list[Resource] | None = None,
         options: PipelineOptions = PipelineOptions(),
         name: str = "",
     ) -> None:
         # Set parameters
         self.name: str = name
         self.logger: logging.Logger = logging.getLogger(f"{name}.Pipeline" if name else "Pipeline")
+        self.resources: ResourceManager = ResourceManager(resources or [])
         self.tasks: list[Task] = tasks
         self.options: PipelineOptions = options
 
@@ -75,10 +80,15 @@ class Pipeline:
         self.close()
 
     def run(self) -> None:
+        self.resources.cache_resources(
+            self.options.workspace_directory,
+            self.options.ignore_not_modified,
+        )
+
         for task in self.tasks:
             self.logger.info(f"Executing task {task.name}")
 
             with machine_load.LoadTracker() as resource_usage, self.db.transaction():
-                task.execute(self.db, self.options)
+                task.execute(self.db, self.options, self.resources)
 
             self.logger.debug(f"Task {task.name} finished; {resource_usage}")

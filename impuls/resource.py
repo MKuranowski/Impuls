@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
+import logging
 from pathlib import Path
 from typing import Iterator, Protocol
 import requests
@@ -48,11 +49,41 @@ class LocalResource(Resource):
                 yield chunk
 
 
+class ResourceManager:
+    def __init__(self, resources: list[Resource]) -> None:
+        self.remote: dict[str, Resource] = {i.name: i for i in resources}
+        self.cached: dict[str, LocalResource] = {}
+        self.logger: logging.Logger = logging.getLogger("ResourceManager")
+
+    def cache_resources(self, workspace_dir: Path, ignore_not_modified: bool) -> None:
+        self.logger.info("Caching all resources")
+        for resource in self.remote.values():
+            self.logger.debug(f"Caching resource {resource.name}")
+            self.cached[resource.name] = ensure_resource_downloaded(
+                resource,
+                workspace_dir,
+                ignore_not_modified,
+            )
+
+    def get_resource_path(self, resource_name: str) -> Path:
+        return self.cached[resource_name].file
+
+    def get_resource_download_time(self, resource_name: str) -> datetime:
+        return self.cached[resource_name].date_modified()
+
+    def get_resource_modified_time(self, resource_name: str) -> datetime:
+        return self.remote[resource_name].date_modified()
+
+
 def ensure_resource_downloaded(
     resource: Resource, workspace_dir: Path, ignore_not_modified: bool
-) -> Path:
-    """Ensures that a resource is cached, and returns a Path to the cached file.
-    Raises InputNotModified, if appropriate."""
+) -> LocalResource:
+    """Ensures that a resource is cached, and returns a LocalResource representing
+    the cached version."""
+    # Don't cache local resources to avoid file copying
+    if isinstance(resource, LocalResource):
+        return resource
+
     # Get the path to the cached file
     cached_file = workspace_dir / f"input_{resource.name}"
 
@@ -75,4 +106,4 @@ def ensure_resource_downloaded(
         # If the cached version is not stale - raise InputNotModified (if asked)
         raise InputNotModified
 
-    return cached_file
+    return LocalResource(resource.name, cached_file)

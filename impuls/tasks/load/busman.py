@@ -2,7 +2,6 @@ import csv
 import logging
 import shutil
 import subprocess
-from datetime import datetime
 from pathlib import Path
 from typing import Generator, Mapping
 
@@ -11,7 +10,7 @@ from impuls.model.utility_types import TimePoint
 
 from ...db import DBConnection
 from ...pipeline import PipelineOptions, Task
-from ...resource import Resource, ensure_resource_downloaded
+from ...resource import ResourceManager
 
 
 def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, str], None, None]:
@@ -62,17 +61,12 @@ class LoadBusManMDB(Task):
         instead of the BusMan internal ID
     - `ignore_stop_id`: use stop_code as the ID,
         instead of the BusMan internal ID
-
-    Attributes set by `execute()`:
-    - `fetch_time` - set to the download time of the resource
     """
 
-    source: Resource
+    source: str
     agency_id: str
     ignore_route_id: bool
     ignore_stop_id: bool
-
-    fetch_time: datetime | None
 
     _route_id_map: dict[str, str]
     _stop_id_map: dict[str, str]
@@ -82,7 +76,7 @@ class LoadBusManMDB(Task):
 
     def __init__(
         self,
-        source: Resource,
+        source: str,
         agency_id: str,
         ignore_route_id: bool = False,
         ignore_stop_id: bool = False,
@@ -99,17 +93,12 @@ class LoadBusManMDB(Task):
         self.name = "LoadBusManMDB"
         self.logger = logging.getLogger(f"Task.{self.name}")
 
-    def execute(self, db: DBConnection, options: PipelineOptions) -> None:
+    def execute(
+        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
+    ) -> None:
         self._route_id_map.clear()
         self._stop_id_map.clear()
-
-        self.logger.info(f"Downloading the input BusMan MDB file {self.source.name}")
-        mdb_path = ensure_resource_downloaded(
-            self.source,
-            options.workspace_directory,
-            options.ignore_not_modified,
-        )
-        self.fetch_time = datetime.now()
+        mdb_path = resources.get_resource_path(self.source)
 
         # Brief description on the BusMan MDB format
         # | Table Name | Impuls equiv. entity | Comments |

@@ -6,31 +6,28 @@ from csv import DictReader as CSVDictReader
 
 from ...db import DBConnection
 from ...pipeline import PipelineOptions, Task
-from ...resource import Resource, ensure_resource_downloaded
+from ...resource import ResourceManager
 from ... import model
 
 
 class LoadGTFS(Task):
-    source: Resource
+    source: str
     fetch_time: datetime | None
 
     name: str
     logger: logging.Logger
 
-    def __init__(self, source: Resource) -> None:
+    def __init__(self, source: str) -> None:
         self.source = source
         self.fetch_time = None
 
         self.name = "LoadGTFS"
         self.logger = logging.getLogger(f"Task.{self.name}")
 
-    def execute(self, db: DBConnection, options: PipelineOptions) -> None:
-        self.logger.info(f"Downloading the input GTFS file ({self.source.name})")
-        gtfs_path = ensure_resource_downloaded(
-            self.source,
-            options.workspace_directory,
-            options.ignore_not_modified,
-        )
+    def execute(
+        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
+    ) -> None:
+        gtfs_path = resources.get_resource_path(self.source)
         self.fetch_time = datetime.today()
 
         # Try to import every table
