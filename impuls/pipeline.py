@@ -9,8 +9,9 @@ from .tools.types import Self
 
 
 class PipelineOptions(NamedTuple):
-    # By default import tasks are supposed to raise InputNotModified
-    # if their input resource has not changed.
+    # By default the resource manager will raise InputNotModified if all input resources
+    # remained unchanged since last run. Setting this flag to True will force the pipeline
+    # to always run.
     ignore_not_modified: bool = False
 
     # Directory where tasks can cache their workload to preserve it across

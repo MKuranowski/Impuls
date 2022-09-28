@@ -57,6 +57,12 @@ class ResourceManager:
         self.logger: logging.Logger = logging.getLogger("ResourceManager")
 
     def cache_resources(self, workspace_dir: Path, ignore_not_modified: bool) -> None:
+        # FIXME: Properly handle `ignore_not_modified`
+        # - it should be raised if **all** resources were not modified.
+        # In other words, if at least one resource has changed - the pipeline should run anyway.
+        if not ignore_not_modified:
+            raise NotImplementedError("Support for (ignore_not_modified = False) is broken")
+
         self.logger.info("Caching all resources")
         for resource in self.remote.values():
             self.logger.debug(f"Caching resource {resource.name}")
