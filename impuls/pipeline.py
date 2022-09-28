@@ -1,4 +1,5 @@
 import logging
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol
 
@@ -14,9 +15,8 @@ class PipelineOptions(NamedTuple):
     # to always run.
     ignore_not_modified: bool = False
 
-    # Directory where tasks can cache their workload to preserve it across
-    # multiple runs. Intended to be used by import tasks to avoid
-    # re-downloading of files that were retrieved in the past.
+    # Directory where input resources are cached, and where tasks may store their workload
+    # to preserve it across runs.
     #
     # If the given directory doesn't exists, Pipeline attempts
     # to create it (and its parents)
