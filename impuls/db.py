@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 import sqlite3
+from contextlib import contextmanager
 from itertools import repeat
 from typing import Any, Generator, Generic, Iterable, Sequence, Type, TypeVar
 

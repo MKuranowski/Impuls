@@ -1,9 +1,10 @@
-from dataclasses import dataclass
-from email.utils import parsedate_to_datetime
-from datetime import datetime, timezone
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Iterator, Protocol
+
 import requests
 
 from .errors import InputNotModified

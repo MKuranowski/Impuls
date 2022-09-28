@@ -44,7 +44,8 @@ def initialize(verbose: bool) -> None:
 
     # Remove any loggers that dump onto stdout/stderr
     handlers_to_remove: list[logging.Handler] = [
-        handler for handler in root_logger.handlers
+        handler
+        for handler in root_logger.handlers
         if isinstance(handler, logging.StreamHandler)
         and (handler.stream is sys.stdout or handler.stream is sys.stderr)  # type: ignore
     ]

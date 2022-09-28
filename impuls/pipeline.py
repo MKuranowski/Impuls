@@ -3,9 +3,9 @@ from pathlib import Path
 from typing import Any, NamedTuple, Protocol
 
 from .db import DBConnection
+from .resource import Resource, ResourceManager
 from .tools import machine_load
 from .tools.types import Self
-from .resource import Resource, ResourceManager
 
 
 class PipelineOptions(NamedTuple):

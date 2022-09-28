@@ -1,13 +1,13 @@
-from datetime import datetime
 import logging
-from zipfile import ZipFile
-from io import TextIOWrapper
 from csv import DictReader as CSVDictReader
+from datetime import datetime
+from io import TextIOWrapper
+from zipfile import ZipFile
 
+from ... import model
 from ...db import DBConnection
 from ...pipeline import PipelineOptions, Task
 from ...resource import ResourceManager
-from ... import model
 
 
 class LoadGTFS(Task):

@@ -5,9 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Generator, Mapping
 
-from impuls import model
-from impuls.model.utility_types import TimePoint
-
+from ... import model
 from ...db import DBConnection
 from ...pipeline import PipelineOptions, Task
 from ...resource import ResourceManager
@@ -203,7 +201,7 @@ class LoadBusManMDB(Task):
 
     def load_stop_times(self, mdb_path: Path, db: DBConnection) -> None:
         for row in dump_mdb_table(mdb_path, "tPassages"):
-            time = TimePoint(seconds=int(row["nTime"]) * 60)
+            time = model.TimePoint(seconds=int(row["nTime"]) * 60)
             db.save(
                 model.StopTime(
                     trip_id=row["nDept"],

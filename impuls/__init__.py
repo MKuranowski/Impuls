@@ -1,7 +1,23 @@
-from . import errors, model, tasks
+from . import errors, model, tools
 from .db import DBConnection
 from .pipeline import Pipeline, PipelineOptions, Task
 from .resource import HTTPResource, LocalResource, Resource, ResourceManager
 from .tools.logs import initialize as initialize_logging
 
-__version__ = '0.1.0'
+__all__ = [
+    "errors",
+    "model",
+    "tools",
+    "DBConnection",
+    "Pipeline",
+    "PipelineOptions",
+    "Task",
+    "HTTPResource",
+    "LocalResource",
+    "Resource",
+    "ResourceManager",
+    "initialize_logging",
+]
+
+__name__ = "Impuls"
+__version__ = "0.1.0"
