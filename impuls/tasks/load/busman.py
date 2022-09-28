@@ -5,10 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Generator, Mapping
 
-from ... import model
-from ...db import DBConnection
-from ...pipeline import PipelineOptions, Task
-from ...resource import ResourceManager
+from ... import DBConnection, PipelineOptions, ResourceManager, Task, model
 
 
 def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, str], None, None]:

@@ -1,7 +1,6 @@
 import logging
-from ..db import DBConnection
-from ..pipeline import PipelineOptions, Task
-from ..resource import ResourceManager
+
+from .. import DBConnection, PipelineOptions, ResourceManager, Task
 
 
 class ExecuteSQL(Task):

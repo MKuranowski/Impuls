@@ -1,9 +1,6 @@
 import logging
 
-from .. import model
-from ..db import DBConnection
-from ..pipeline import Task, PipelineOptions
-from ..resource import ResourceManager
+from .. import DBConnection, PipelineOptions, ResourceManager, Task, model
 
 
 class AddEntity(Task):

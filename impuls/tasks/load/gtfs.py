@@ -4,10 +4,7 @@ from datetime import datetime
 from io import TextIOWrapper
 from zipfile import ZipFile
 
-from ... import model
-from ...db import DBConnection
-from ...pipeline import PipelineOptions, Task
-from ...resource import ResourceManager
+from ... import DBConnection, PipelineOptions, ResourceManager, Task, model
 
 
 class LoadGTFS(Task):
