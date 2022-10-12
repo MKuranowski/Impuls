@@ -227,9 +227,7 @@ class DBConnection:
 
             # Generate the CREATE TABLE statement
             col_sep = ",\n\t"
-            creates.append(
-                f"CREATE TABLE {typ._sql_table_name} (\n\t{col_sep.join(columns)}\n) STRICT;"
-            )
+            creates.append(f"CREATE TABLE {typ._sql_table_name} (\n\t{col_sep.join(columns)}\n);")
 
             # Generate the CREATE INDEX statements
             for column_to_index in columns_to_index:
