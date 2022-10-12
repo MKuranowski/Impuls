@@ -165,7 +165,7 @@ class LoadBusManMDB(Task):
         for row in dump_mdb_table(mdb_path, "tStakes"):
             # Coalesce the stop_id
             if self.ignore_stop_id:
-                stop_id = row["nSymbol"].rstrip("_").replace("-", "")
+                stop_id = row["nSymbol"]
                 self._stop_id_map[row["ID"]] = stop_id
             else:
                 stop_id = row["ID"]
@@ -177,7 +177,7 @@ class LoadBusManMDB(Task):
                     name=row["nName"],
                     lat=float(row["nLat"]) if row["nLat"] else 0.0,
                     lon=float(row["nLong"]) if row["nLong"] else 0.0,
-                    code=row["nSymbol"].rstrip("_").replace("-", ""),
+                    code=row["nSymbol"],
                 )
             )
 
