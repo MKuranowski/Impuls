@@ -142,7 +142,7 @@ class LoadBusManMDB(Task):
                 route_id = row["ID"]
 
             # Create the new route
-            db.save(
+            db.create(
                 model.Route(
                     id=route_id,
                     agency_id=self.agency_id,
@@ -154,7 +154,7 @@ class LoadBusManMDB(Task):
 
     def load_calendars(self, mdb_path: Path, db: DBConnection) -> None:
         for row in dump_mdb_table(mdb_path, "tDayTypes"):
-            db.save(
+            db.create(
                 model.Calendar(
                     id=row["ID"],
                     monday=False,
@@ -189,7 +189,7 @@ class LoadBusManMDB(Task):
                 stop_id = row["ID"]
 
             # Create the new stop
-            db.save(
+            db.create(
                 model.Stop(
                     id=stop_id,
                     name=row["nName"],
@@ -206,7 +206,7 @@ class LoadBusManMDB(Task):
         }
 
         for row in dump_mdb_table(mdb_path, "tDepts"):
-            db.save(
+            db.create(
                 model.Trip(
                     id=row["ID"],
                     route_id=pattern_to_route_id[row["nDir"]],
@@ -217,7 +217,7 @@ class LoadBusManMDB(Task):
     def load_stop_times(self, mdb_path: Path, db: DBConnection) -> None:
         for row in dump_mdb_table(mdb_path, "tPassages"):
             time = model.TimePoint(seconds=int(row["nTime"]) * 60)
-            db.save(
+            db.create(
                 model.StopTime(
                     trip_id=row["nDept"],
                     stop_id=self._stop_id_map.get(row["nStake"], row["nStake"]),

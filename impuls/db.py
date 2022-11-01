@@ -153,6 +153,12 @@ class DBConnection:
     Such query will be automatically expanded to the following:
     `INSERT INTO calendar_exceptions (calendar_id, date, exception_type) VALUES (?, ?, ?);`
 
+    #### Note on SQL Injection safety
+
+    This class assumes that strings in the _sql_* methods and properties
+    in the ImpulsBase implementations are safe to use.
+    It's the programmer's responsibility to ensure so.
+
     ### Closing the DB
 
     DBConnection's close() method releases resources held by the DBConnection.
@@ -428,7 +434,31 @@ class DBConnection:
         """Retrieves all objects of specific type from the database"""
         return self.typed_out_execute("SELECT * FROM :table", typ)
 
-    def save(self, entity: ImpulsBase) -> None:
-        """Ensures given entity is stored in the database by executing an
-        `INSERT OR REPLACE` query."""
-        self.typed_in_execute("INSERT OR REPLACE INTO :table VALUES :vals", entity)
+    def create(self, entity: ImpulsBase) -> None:
+        """Creates a new entity in the database"""
+        self.typed_in_execute("INSERT INTO :table VALUES :vals", entity)
+
+    def create_many(self, typ: Type[_IB], entities: Iterable[_IB]) -> None:
+        """Creates multiple entries in the database"""
+        self.typed_in_execute_many("INSERT INTO :table VALUES :vals", typ, entities)
+
+    def update(self, entity: ImpulsBase) -> None:
+        """Updates the attributes of an entity in the database"""
+        typ = type(entity)
+        self.raw_execute(
+            self._sql_substitute_typed(
+                f"UPDATE :table SET :cols = :vals WHERE {self._sql_pk_where_body(typ)}",
+                typ,
+            ),
+            (*entity._sql_marshall(), *entity._sql_primary_key()),
+        )
+
+    def update_many(self, typ: Type[_IB], entities: Iterable[_IB]) -> None:
+        """Updates the attributes of multiple entries in the database"""
+        self.raw_execute_many(
+            self._sql_substitute_typed(
+                f"UPDATE :table SET :cols = :vals WHERE {self._sql_pk_where_body(typ)}",
+                typ,
+            ),
+            ((*i._sql_marshall(), *i._sql_primary_key()) for i in entities),
+        )

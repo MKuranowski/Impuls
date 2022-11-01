@@ -65,7 +65,7 @@ class LoadGTFS(Task):
                             typ is model.CalendarException
                             and db.retrieve(model.Calendar, row["service_id"]) is None
                         ):
-                            db.save(
+                            db.create(
                                 model.Calendar(
                                     row["service_id"],
                                     monday=False,
@@ -85,4 +85,4 @@ class LoadGTFS(Task):
                             row["attribution_id"] = str(reader.line_num)
 
                         # Persist the entity
-                        db.save(typ._gtfs_unmarshall(row))
+                        db.create(typ._gtfs_unmarshall(row))

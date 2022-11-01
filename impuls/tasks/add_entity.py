@@ -18,4 +18,4 @@ class AddEntity(Task):
     def execute(
         self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
     ) -> None:
-        db.save(self.entity)
+        db.create(self.entity)
