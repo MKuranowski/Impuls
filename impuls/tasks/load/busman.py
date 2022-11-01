@@ -124,11 +124,20 @@ class LoadBusManMDB(Task):
         self.load_stop_times(mdb_path, db)
 
     def load_routes(self, mdb_path: Path, db: DBConnection) -> None:
+        # Fix for duplicate routes when using ignore_route_id
+        seen_numbers: set[str] = set()
+
         for row in dump_mdb_table(mdb_path, "tLines"):
             # coalesce the route_id
             if self.ignore_route_id:
                 route_id = row["nNumber"]
                 self._route_id_map[row["ID"]] = route_id
+
+                if route_id in seen_numbers:
+                    continue
+                else:
+                    seen_numbers.add(route_id)
+
             else:
                 route_id = row["ID"]
 
@@ -162,11 +171,20 @@ class LoadBusManMDB(Task):
             )
 
     def load_stops(self, mdb_path: Path, db: DBConnection) -> None:
+        # Fix for duplicate stops when using ignore_stop_id
+        seen_symbols: set[str] = set()
+
         for row in dump_mdb_table(mdb_path, "tStakes"):
             # Coalesce the stop_id
             if self.ignore_stop_id:
                 stop_id = row["nSymbol"]
                 self._stop_id_map[row["ID"]] = stop_id
+
+                if stop_id in seen_symbols:
+                    continue
+                else:
+                    seen_symbols.add(stop_id)
+
             else:
                 stop_id = row["ID"]
 
