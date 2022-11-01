@@ -38,8 +38,6 @@ class LoadTracker:
     True
     >>> 0.0 < load.delta_time < 1.0
     True
-    >>> 10_000 < load.delta_rss < 200_000
-    True
     """
 
     def __init__(self) -> None:
