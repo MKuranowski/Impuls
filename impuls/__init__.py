@@ -19,5 +19,5 @@ __all__ = [
     "initialize_logging",
 ]
 
-__name__ = "Impuls"
-__version__ = "0.1.0"
+__name__ = "impuls"
+__version__ = "0.2.0"
