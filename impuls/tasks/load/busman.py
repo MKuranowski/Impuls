@@ -44,7 +44,7 @@ class LoadBusManMDB(Task):
     BusMan MDB database.
 
     Only the following entities are loaded:
-    Lines, Stops, Calendars, Trips, StopTimes.
+    Routes, Stops, Calendars, Trips, StopTimes.
 
     Agency has to be manually curated beforehand.
     Calendar or CalendarExceptions have to be manually curated after the import.
@@ -98,7 +98,7 @@ class LoadBusManMDB(Task):
         # Brief description on the BusMan MDB format
         # | Table Name | Impuls equiv. entity | Comments |
         # |------------|----------------------|----------|
-        # | tLines     | Line                 |
+        # | tLines     | Route                |
         # | tDirs      | -                    | Pattern
         # | tStakes    | Stop                 |
         # | tRoutes    | -                    | Pattern Stop
