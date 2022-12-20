@@ -1,5 +1,4 @@
 import logging
-from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol
 
