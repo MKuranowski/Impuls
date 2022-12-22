@@ -59,7 +59,8 @@ class UntypedQueryResult:
         return r
 
     def many(self) -> list[SQLRow]:
-        """Returns an arbitrary number (selected of optimum performance) of rows from the query result.
+        """Returns an arbitrary number of rows from the query result,
+        selected for optimum performance.
         If the returned list has no elements - there are no more rows in the result set."""
         return self._cur.fetchmany()
 
@@ -114,7 +115,8 @@ class TypedQueryResult(Generic[_IB]):
         return r
 
     def many(self) -> list[_IB]:
-        """Returns an arbitrary number (selected of optimum performance) of rows from the query result.
+        """Returns an arbitrary number of rows from the query result,
+        selected for optimum performance.
         If the returned list has no elements - there are no more rows in the result set."""
         return [self._typ._sql_unmarshall(i) for i in self._cur.fetchmany()]
 
