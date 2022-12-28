@@ -33,6 +33,7 @@ class PolishRegion(Enum):
 
 class CalendarExceptionType(Enum):
     """Identifies the type ("severity") of calendar exception"""
+
     HOLIDAY = "holiday"
     NO_SCHOOL = "no_school"
     COMMERCIAL_SUNDAY = "commercial_sunday"
@@ -40,24 +41,31 @@ class CalendarExceptionType(Enum):
 
 class CalendarException(NamedTuple):
     """Describes a single calendar exception"""
+
     typ: frozenset[CalendarExceptionType]
     summer_holiday: bool = False
     holiday_name: str = ""
 
 
+def _do_load_exceptions_csv() -> io.StringIO:
+    """Actually performs the request to Google Sheet
+    and returns a text file-like object with raw CSV data"""
+    with requests.get(
+        "https://docs.google.com/spreadsheets/d/1kSCBQyIE8bz2NgqpzyS75I7ndnlp4dhD3TmEY2jO7K0"
+        "/export?format=csv"
+    ) as r:
+        r.raise_for_status()
+        r.encoding = "utf-8"
+        return io.StringIO(r.text)
+
+
 def load_exceptions_for(region: PolishRegion) -> dict[Date, CalendarException]:
     """Loads all known calendar exceptions for a specific voivodeship
     from an external Google Sheet."""
-    r = requests.get(
-        "https://docs.google.com/spreadsheets/d/1kSCBQyIE8bz2NgqpzyS75I7ndnlp4dhD3TmEY2jO7K0"
-        "/export?format=csv"
-    )
-    r.raise_for_status()
-    r.encoding = "utf-8"
-
     exceptions: dict[Date, CalendarException] = {}
+    exceptions_csv_stream = _do_load_exceptions_csv()
 
-    for row in csv.DictReader(io.StringIO(r.text)):
+    for row in csv.DictReader(exceptions_csv_stream):
         date = Date.from_ymd_str(row["date"])
 
         # Check if the exception applies in requested region
