@@ -289,8 +289,10 @@ class DBConnection:
     def transaction(self: Self) -> Generator[Self, None, None]:
         """Abstracts transactions in a `with` block.
 
-        >>> with database.transaction():  # doctest: +SKIP
-        ...     do_something_on(database)
+        ```
+        with database.transaction():
+            do_something_on(database)
+        ```
 
         A transaction is opened at the entry to the with block.
         If an exception is raised in the body, the changes are rolled back.
@@ -324,8 +326,10 @@ class DBConnection:
         The parameters and results are passed unchanged to/from the sqlite3 module.
 
         Logically equivalent to
-        >>> for parameter in parameters:  # doctest: +SKIP
-        ...     raw_execute(sql, parameter)
+        ```
+        for parameter in parameters:
+            raw_execute(sql, parameter)
+        ```
         Except that results are collected into a single Cursor -
         which means SELECT queries can't be used with this function.
         """
@@ -375,8 +379,10 @@ class DBConnection:
         sqlite3 module. Results are passed unchanged.
 
         Logically equivalent to
-        >>> for parameter in parameters:  # doctest: +SKIP
-        ...     raw_execute(sql, parameter)
+        ```
+        for parameter in parameters:
+            raw_execute(sql, parameter)
+        ```
         Except that results are collected into a single Cursor -
         which means SELECT queries can't be used with this function.
         """
