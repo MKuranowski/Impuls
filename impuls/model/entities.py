@@ -1,86 +1,17 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import ClassVar, Optional
+from typing import Mapping, Optional, Sequence
+from typing import Type as TypeOf
+from typing import cast, final
 
-from .impuls_base import ImpulsBase, TypeMetadata, impuls_base
+from typing_extensions import LiteralString
+
+from ..tools.types import Self, SQLNativeType
+from .impuls_base import ImpulsBase
 from .utility_types import Date, Maybe, TimePoint
 
-__all__ = [
-    "Agency",
-    "Stop",
-    "Route",
-    "Calendar",
-    "CalendarException",
-    "Trip",
-    "StopTime",
-    "FeedInfo",
-    "Attribution",
-]
 
-# Metadata used in the classes comes in 2 forms - Type-based and Field-based
-# Type-based metadata is stored in the class-variable called `_metadata`
-# Field-based metadata is stored in the dataclass field.
-#
-# See the _TypeMetadata and _FieldMetadata types in the impuls_base module.
-
-
-@impuls_base
-@dataclass(unsafe_hash=True)
-class Agency(ImpulsBase):
-    _metadata: ClassVar[TypeMetadata] = {"table_name": "agency"}
-
-    id: str = field(compare=True, metadata={"primary_key": True})
-    name: str = field(compare=False)
-    url: str = field(compare=False, repr=False)
-    timezone: str = field(compare=False, repr=False)
-    lang: str = field(default="", compare=False, repr=False)
-    phone: str = field(default="", compare=False, repr=False)
-    fare_url: str = field(default="", compare=False, repr=False)
-
-
-@impuls_base
-@dataclass(unsafe_hash=True)
-class Stop(ImpulsBase):
-    class LocationType(IntEnum):
-        STOP = 0
-        STATION = 1
-        EXIT = 2
-
-    id: str = field(compare=True, metadata={"primary_key": True})
-    name: str = field(compare=False)
-    lat: float = field(compare=False, repr=False)
-    lon: float = field(compare=False, repr=False)
-    code: str = field(default="", compare=False)
-
-    zone_id: str = field(
-        default="",
-        compare=False,
-        repr=False,
-        metadata={"gtfs_no_entity_prefix": True, "index": True},
-    )
-
-    location_type: Optional[LocationType] = field(
-        default=None, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    parent_station: str = field(
-        default="", compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    platform_code: str = field(
-        default="", compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    pkpplk_code: str = field(
-        default="", compare=False, repr=False, metadata={"gtfs_column_name": "stop_pkpplk"}
-    )
-
-    ibnr_code: str = field(
-        default="", compare=False, repr=False, metadata={"gtfs_column_name": "stop_IBNR"}
-    )
-
-
-@impuls_base
+@final
 @dataclass(unsafe_hash=True)
 class Route(ImpulsBase):
     class Type(IntEnum):
@@ -95,14 +26,8 @@ class Route(ImpulsBase):
         TROLLEYBUS = 11
         MONORAIL = 12
 
-    id: str = field(compare=True, metadata={"primary_key": True})
-
-    agency_id: str = field(
-        compare=False,
-        repr=False,
-        metadata={"foreign_key": "agency(agency_id)", "indexed": True},
-    )
-
+    id: str = field(compare=True)
+    agency_id: str = field(compare=False, repr=False)
     short_name: str = field(compare=False)
     long_name: str = field(compare=False)
     type: Type = field(compare=False)
@@ -111,96 +36,43 @@ class Route(ImpulsBase):
     sort_order: Optional[int] = field(default=None, compare=False, repr=False)
 
 
-@impuls_base
+@final
 @dataclass(unsafe_hash=True)
 class Calendar(ImpulsBase):
-    _metadata: ClassVar[TypeMetadata] = {"gtfs_table_name": "calendar"}
-
-    id: str = field(compare=True, metadata={"primary_key": True, "gtfs_column_name": "service_id"})
-    monday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    tuesday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    wednesday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    thursday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    friday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    saturday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    sunday: bool = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    start_date: Date = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
-    end_date: Date = field(compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True})
+    id: str = field(compare=True)
+    monday: bool = field(compare=False, repr=False)
+    tuesday: bool = field(compare=False, repr=False)
+    wednesday: bool = field(compare=False, repr=False)
+    thursday: bool = field(compare=False, repr=False)
+    friday: bool = field(compare=False, repr=False)
+    saturday: bool = field(compare=False, repr=False)
+    sunday: bool = field(compare=False, repr=False)
+    start_date: Date = field(compare=False, repr=False)
+    end_date: Date = field(compare=False, repr=False)
     desc: str = field(default="", compare=False, repr=False)
 
 
-@impuls_base
-@dataclass(unsafe_hash=True)
-class CalendarException(ImpulsBase):
-    _metadata: ClassVar[TypeMetadata] = {"gtfs_table_name": "calendar_dates"}
-
-    class Type(IntEnum):
-        ADDED = 1
-        REMOVED = 2
-
-    calendar_id: str = field(
-        compare=True,
-        metadata={
-            "primary_key": True,
-            "foreign_key": "calendars(calendar_id)",
-            "gtfs_column_name": "service_id",
-        },
-    )
-
-    date: Date = field(
-        compare=False, metadata={"primary_key": True, "gtfs_no_entity_prefix": True}
-    )
-
-    exception_type: Type = field(
-        compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-
-@impuls_base
+@final
 @dataclass(unsafe_hash=True)
 class Trip(ImpulsBase):
     class Direction(IntEnum):
         OUTBOUND = 0
         INBOUND = 1
 
-    id: str = field(compare=True, metadata={"primary_key": True})
-
-    route_id: str = field(
-        compare=False, metadata={"foreign_key": "routes(route_id)", "indexed": True}
-    )
-
-    calendar_id: str = field(
-        compare=False,
-        metadata={
-            "foreign_key": "calendars(calendar_id)",
-            "gtfs_column_name": "service_id",
-            "indexed": True,
-        },
-    )
-
+    id: str = field(compare=True)
+    route_id: str = field(compare=False)
+    calendar_id: str = field(compare=False)
     headsign: str = field(default="", compare=False)
     short_name: str = field(default="", compare=False, repr=False)
-    direction: Optional[Direction] = field(
-        default=None, compare=False, repr=False, metadata={"gtfs_column_name": "direction_id"}
-    )
-
+    direction: Optional[Direction] = field(default=None, compare=False, repr=False)
     # block_id: str = field(default="", compare=False, repr=False)
     # shape_id: str = field(default="", compare=False, repr=False)
-
-    wheelchair_accessible: Maybe = field(
-        default=Maybe.UNKNOWN, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    bikes_allowed: Maybe = field(
-        default=Maybe.UNKNOWN, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    exceptional: Optional[bool] = field(
-        default=None, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
+    wheelchair_accessible: Maybe = field(default=Maybe.UNKNOWN, compare=False, repr=False)
+    bikes_allowed: Maybe = field(default=Maybe.UNKNOWN, compare=False, repr=False)
+    exceptional: Optional[bool] = field(default=None, compare=False, repr=False)
 
 
-@impuls_base
+@final
 @dataclass(unsafe_hash=True)
 class StopTime(ImpulsBase):
     class PassengerExchange(IntEnum):
@@ -209,113 +81,47 @@ class StopTime(ImpulsBase):
         MUST_PHONE = 2
         ON_REQUEST = 3
 
-    trip_id: str = field(
-        compare=True, metadata={"primary_key": True, "foreign_key": "trips(trip_id)"}
-    )
-
-    stop_id: str = field(
-        compare=False,
-        metadata={"foreign_key": "stops(stop_id)", "indexed": True, "force_not_null": True},
-    )
-
-    stop_sequence: int = field(
-        compare=True, repr=False, metadata={"primary_key": True, "gtfs_no_entity_prefix": True}
-    )
-
-    arrival_time: TimePoint = field(
-        compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    departure_time: TimePoint = field(
-        compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
+    trip_id: str = field(compare=True)
+    stop_id: str = field(compare=False)
+    stop_sequence: int = field(compare=True, repr=False)
+    arrival_time: TimePoint = field(compare=False, repr=False)
+    departure_time: TimePoint = field(compare=False, repr=False)
 
     pickup_type: PassengerExchange = field(
-        default=PassengerExchange.SCHEDULED_STOP,
-        compare=False,
-        repr=False,
-        metadata={"gtfs_no_entity_prefix": True},
+        default=PassengerExchange.SCHEDULED_STOP, compare=False, repr=False
     )
 
     drop_off_type: PassengerExchange = field(
-        default=PassengerExchange.SCHEDULED_STOP,
-        compare=False,
-        repr=False,
-        metadata={"gtfs_no_entity_prefix": True},
+        default=PassengerExchange.SCHEDULED_STOP, compare=False, repr=False
     )
 
-    stop_headsign: str = field(
-        default="",
-        compare=False,
-        repr=False,
-        metadata={"gtfs_no_entity_prefix": True},
-    )
+    stop_headsign: str = field(default="", compare=False, repr=False)
 
-    # shape_dist_traveled: Optional[float] = field(
-    #     default=None, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    # )
-
-    # original_stop_id: str = field(
-    #     default="", compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    # )
+    # shape_dist_traveled: Optional[float] = field(default=None, compare=False, repr=False)
+    # original_stop_id: str = field(default="", compare=False, repr=False)
 
 
-@impuls_base
+@final
 @dataclass(unsafe_hash=True)
 class FeedInfo(ImpulsBase):
-    _metadata: ClassVar[TypeMetadata] = {"table_name": "feed_info"}
-
-    publisher_name: str = field(
-        compare=False, metadata={"gtfs_column_name": "feed_publisher_name"}
-    )
-
-    publisher_url: str = field(
-        compare=False, repr=False, metadata={"gtfs_column_name": "feed_publisher_url"}
-    )
-
-    lang: str = field(compare=False, repr=False, metadata={"gtfs_column_name": "feed_lang"})
-
-    version: str = field(default="", compare=True, metadata={"gtfs_column_name": "feed_version"})
-
-    contact_email: str = field(
-        default="", compare=False, repr=False, metadata={"gtfs_column_name": "feed_contact_email"}
-    )
-
-    contact_url: str = field(
-        default="", compare=False, repr=False, metadata={"gtfs_column_name": "feed_contact_url"}
-    )
-
-    id: str = field(
-        default="0",
-        compare=False,
-        repr=False,
-        metadata={"primary_key": True},
-    )
+    publisher_name: str = field(compare=False)
+    publisher_url: str = field(compare=False, repr=False)
+    lang: str = field(compare=False, repr=False)
+    version: str = field(default="", compare=True)
+    contact_email: str = field(default="", compare=False, repr=False)
+    contact_url: str = field(default="", compare=False, repr=False)
+    id: str = field(default="0", compare=False, repr=False)
 
 
-@impuls_base
+@final
 @dataclass(unsafe_hash=True)
 class Attribution(ImpulsBase):
-    id: str = field(compare=True, metadata={"primary_key": True})
-
-    organization_name: str = field(compare=False, metadata={"gtfs_no_entity_prefix": True})
-
-    is_producer: bool = field(
-        default=False, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    is_operator: bool = field(
-        default=False, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    is_authority: bool = field(
-        default=False, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
-    is_data_source: bool = field(
-        default=False, compare=False, repr=False, metadata={"gtfs_no_entity_prefix": True}
-    )
-
+    id: str = field(compare=True)
+    organization_name: str = field(compare=False)
+    is_producer: bool = field(default=False, compare=False, repr=False)
+    is_operator: bool = field(default=False, compare=False, repr=False)
+    is_authority: bool = field(default=False, compare=False, repr=False)
+    is_data_source: bool = field(default=False, compare=False, repr=False)
     url: str = field(default="", compare=False, repr=False)
     email: str = field(default="", compare=False, repr=False)
     phone: str = field(default="", compare=False, repr=False)
