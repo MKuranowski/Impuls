@@ -6,3 +6,8 @@ else:
     Self = TypeVar("Self")
 
 SQLNativeType = None | int | float | str
+T = TypeVar("T")
+
+
+def identity(x: T) -> T:
+    return x
