@@ -13,31 +13,6 @@ from .utility_types import Date, Maybe, TimePoint
 
 @final
 @dataclass(unsafe_hash=True)
-class Route(ImpulsBase):
-    class Type(IntEnum):
-        TRAM = 0
-        METRO = 1
-        RAIL = 2
-        BUS = 3
-        FERRY = 4
-        CABLE_TRAM = 5
-        GONDOLA = 6
-        FUNICULAR = 7
-        TROLLEYBUS = 11
-        MONORAIL = 12
-
-    id: str = field(compare=True)
-    agency_id: str = field(compare=False, repr=False)
-    short_name: str = field(compare=False)
-    long_name: str = field(compare=False)
-    type: Type = field(compare=False)
-    color: str = field(default="", compare=False, repr=False)
-    text_color: str = field(default="", compare=False, repr=False)
-    sort_order: Optional[int] = field(default=None, compare=False, repr=False)
-
-
-@final
-@dataclass(unsafe_hash=True)
 class Calendar(ImpulsBase):
     id: str = field(compare=True)
     monday: bool = field(compare=False, repr=False)

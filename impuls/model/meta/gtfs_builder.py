@@ -71,6 +71,10 @@ class DataclassGTFSBuilder:
         return self
 
 
+def to_optional(x: Any) -> str:
+    return "" if x is None else str(x)
+
+
 def to_bool(x: str) -> bool:
     """Tries to parse a required GTFS boolean value.
 
