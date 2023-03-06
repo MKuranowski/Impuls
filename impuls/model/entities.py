@@ -13,26 +13,6 @@ from .utility_types import Date, Maybe, TimePoint
 
 @final
 @dataclass(unsafe_hash=True)
-class Trip(ImpulsBase):
-    class Direction(IntEnum):
-        OUTBOUND = 0
-        INBOUND = 1
-
-    id: str = field(compare=True)
-    route_id: str = field(compare=False)
-    calendar_id: str = field(compare=False)
-    headsign: str = field(default="", compare=False)
-    short_name: str = field(default="", compare=False, repr=False)
-    direction: Optional[Direction] = field(default=None, compare=False, repr=False)
-    # block_id: str = field(default="", compare=False, repr=False)
-    # shape_id: str = field(default="", compare=False, repr=False)
-    wheelchair_accessible: Maybe = field(default=Maybe.UNKNOWN, compare=False, repr=False)
-    bikes_allowed: Maybe = field(default=Maybe.UNKNOWN, compare=False, repr=False)
-    exceptional: Optional[bool] = field(default=None, compare=False, repr=False)
-
-
-@final
-@dataclass(unsafe_hash=True)
 class StopTime(ImpulsBase):
     class PassengerExchange(IntEnum):
         SCHEDULED_STOP = 0
