@@ -13,22 +13,6 @@ from .utility_types import Date, Maybe, TimePoint
 
 @final
 @dataclass(unsafe_hash=True)
-class Calendar(ImpulsBase):
-    id: str = field(compare=True)
-    monday: bool = field(compare=False, repr=False)
-    tuesday: bool = field(compare=False, repr=False)
-    wednesday: bool = field(compare=False, repr=False)
-    thursday: bool = field(compare=False, repr=False)
-    friday: bool = field(compare=False, repr=False)
-    saturday: bool = field(compare=False, repr=False)
-    sunday: bool = field(compare=False, repr=False)
-    start_date: Date = field(compare=False, repr=False)
-    end_date: Date = field(compare=False, repr=False)
-    desc: str = field(default="", compare=False, repr=False)
-
-
-@final
-@dataclass(unsafe_hash=True)
 class Trip(ImpulsBase):
     class Direction(IntEnum):
         OUTBOUND = 0
