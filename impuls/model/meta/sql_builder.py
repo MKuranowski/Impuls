@@ -1,8 +1,6 @@
-import sys
-import typing
-from typing import Any, Callable, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Callable, Optional, Sequence, Type, TypeVar
 
-from ...tools.types import Self, SQLNativeType, T
+from ...tools.types import Self, SQLNativeType, union_to_tuple_of_types
 
 SQL_T = TypeVar("SQL_T", bound=SQLNativeType)
 
@@ -35,8 +33,8 @@ class DataclassSQLBuilder:
         """field consumes next element from the SQL row and adds it the the kwargs under the
         `field` name.
 
-        The `incoming_type` is passed to isinstance; and (to maintain 3.9 compatibility)
-        passing Union[...] or Optional[...] is not allowed.
+        The `incoming_type` is either a Type, or a Union of multiple types.
+        Those types are then passed through to isinstance to type-check the incoming data.
 
         If `converter` is not None, `converter(incoming_value)` will be returned
         in the keyword arguments instead of the incoming value.
@@ -69,7 +67,7 @@ class DataclassSQLBuilder:
             return self
 
         # Type-check the incoming value
-        allowed_types = _union_to_tuple_of_types(incoming_type)
+        allowed_types = union_to_tuple_of_types(incoming_type)
         if not isinstance(value, allowed_types):
             got_type = type(value).__name__
             expected_type = str(tuple(t.__name__ for t in allowed_types))  # type: ignore
@@ -79,19 +77,3 @@ class DataclassSQLBuilder:
         self.fields[field] = converter(value) if converter is not None else value
         self.i += 1
         return self
-
-
-if sys.version_info >= (3, 10):
-    from types import UnionType
-else:
-    UnionType = object()
-
-
-def _union_to_tuple_of_types(tp: Type[T]) -> tuple[Type[T], ...]:
-    origin = typing.get_origin(tp)
-    if origin is None:
-        return (tp,)
-    elif origin is Union or origin is UnionType:
-        return typing.get_args(tp)
-    else:
-        raise TypeError(f"{tp} is neither a type, nor a union")
