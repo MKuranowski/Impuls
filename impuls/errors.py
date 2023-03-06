@@ -19,6 +19,9 @@ class DataError(ValueError):
 
 
 class MultipleDataErrors(DataError):
+
+    # FIXME: Move to ExceptionGroup when support for 3.10 is dropped
+
     """MultipleDataErrors is raised when a process encounters a non-zero amount of DataErrors.
 
     For most use cases the catch_all helper can be used to catch any DataErrors
