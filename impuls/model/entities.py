@@ -13,35 +13,6 @@ from .utility_types import Date, Maybe, TimePoint
 
 @final
 @dataclass(unsafe_hash=True)
-class StopTime(ImpulsBase):
-    class PassengerExchange(IntEnum):
-        SCHEDULED_STOP = 0
-        NONE = 1
-        MUST_PHONE = 2
-        ON_REQUEST = 3
-
-    trip_id: str = field(compare=True)
-    stop_id: str = field(compare=False)
-    stop_sequence: int = field(compare=True, repr=False)
-    arrival_time: TimePoint = field(compare=False, repr=False)
-    departure_time: TimePoint = field(compare=False, repr=False)
-
-    pickup_type: PassengerExchange = field(
-        default=PassengerExchange.SCHEDULED_STOP, compare=False, repr=False
-    )
-
-    drop_off_type: PassengerExchange = field(
-        default=PassengerExchange.SCHEDULED_STOP, compare=False, repr=False
-    )
-
-    stop_headsign: str = field(default="", compare=False, repr=False)
-
-    # shape_dist_traveled: Optional[float] = field(default=None, compare=False, repr=False)
-    # original_stop_id: str = field(default="", compare=False, repr=False)
-
-
-@final
-@dataclass(unsafe_hash=True)
 class FeedInfo(ImpulsBase):
     publisher_name: str = field(compare=False)
     publisher_url: str = field(compare=False, repr=False)
