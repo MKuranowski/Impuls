@@ -38,6 +38,7 @@ class DataclassSQLBuilder:
 
         If `converter` is not None, `converter(incoming_value)` will be returned
         in the keyword arguments instead of the incoming value.
+        For convenience, if incoming_type is exactly bool, a converter is automatically provided.
 
         If `nullable` is set to True, and the incoming value is `None`, `None` will be returned,
         bypassing `converter` and the `isinstance` check.
@@ -65,6 +66,10 @@ class DataclassSQLBuilder:
             self.fields[field] = None
             self.i += 1
             return self
+
+        # Automatically provide a converter for booleans
+        if converter is None and incoming_type is bool:
+            converter = bool
 
         # Type-check the incoming value
         allowed_types = union_to_tuple_of_types(incoming_type)
