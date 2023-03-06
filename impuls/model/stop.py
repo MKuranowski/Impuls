@@ -64,8 +64,8 @@ class Stop(ImpulsBase):
             .field(
                 "location_type",
                 "location_type",
-                lambda x: cls.LocationType(int(x)) if x else None,
-                fallback_value=None,
+                lambda x: cls.LocationType(int(x)),
+                fallback_value=cls.LocationType.STOP,
             )
             .field("parent_station", "parent_station", fallback_value="")
             .field("platform_code", "platform_code", fallback_value="")
