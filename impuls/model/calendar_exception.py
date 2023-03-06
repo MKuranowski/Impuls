@@ -62,7 +62,7 @@ class CalendarException(ImpulsBase):
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
-        return "id = ? AND date = ?"
+        return "calendar_id = ? AND date = ?"
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
