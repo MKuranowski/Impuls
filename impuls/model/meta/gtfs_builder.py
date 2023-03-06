@@ -1,16 +1,22 @@
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Final, Mapping, Optional
 
 from ...errors import DataError
-from ...tools.types import Self, identity
+from ...tools.types import Self
 
 
 class MissingGTFSColumn(DataError):
+    """MissingGTFSColumn is raised by DataclassGTFSBuilder
+    when an required GTFS column is missing."""
+
     def __init__(self, col: str) -> None:
         super().__init__(f"Missing GTFS column: {col}")
         self.col = col
 
 
 class InvalidGTFSCellValue(DataError):
+    """InvalidGTFSCellValue is raised by DataclassGTFSBuilder
+    when a string-to-value converter raises ValueError."""
+
     def __init__(self, col: str, value: str) -> None:
         super().__init__(f"Invalid value for GTFS column {col}: {value!r}")
         self.col = col
@@ -18,45 +24,65 @@ class InvalidGTFSCellValue(DataError):
 
 
 class DataclassGTFSBuilder:
+    """DataclassGTFSBuilder prepares keyword arguments from a row returned by csv.DictReader"""
+
+    NO_FALLBACK_VALUE: Final[object] = object()
+    """NO_FALLBACK_VALUE is a sentinel object used by DataclassGTFSBuilder.field
+    to denote that there is no fallback value provided.
+    This allows None to be used as a fallback value."""
+
     def __init__(self, row: Mapping[str, str]) -> None:
         self.row = row
         self.fields: dict[str, Any] = {}
 
     def kwargs(self) -> dict[str, Any]:
+        """kwargs returns the prepared fields in a dictionary."""
         return self.fields
 
     def field(
         self: Self,
         field: str,
         gtfs_col: str,
-        converter: Callable[[str], Any] = identity,
-        fallback_value: Any = None,
+        converter: Optional[Callable[[str], Any]] = None,
+        fallback_value: Any = NO_FALLBACK_VALUE,
     ) -> Self:
+        """field consumes `row[gtfs_col]`, transforms it and adds it in the kwargs
+        under the `field` name.
+
+        `converter`, if not None, will be called to convert the incoming string
+        to a target type. converter must raise ValueError on invalid inputs.
+
+        If `fallback_value` is DataclassGTFSBuilder.NO_FALLBACK_VALUE, then
+        MissingGTFSColumn will be raised if gtfs_col is not in the provided row.
+
+        Otherwise, if the gtfs_col is not in the provided row, `kwargs[field]` will be set
+        to the `fallback_value` directly, bypassing the converter.
+        """
         raw_value = self.row.get(gtfs_col)
-        if raw_value is None and fallback_value is None:
+        if raw_value is None and fallback_value is self.NO_FALLBACK_VALUE:
             raise MissingGTFSColumn(gtfs_col)
         elif raw_value is None:
             self.fields[field] = fallback_value
         else:
             try:
-                self.fields[field] = converter(raw_value)
+                self.fields[field] = converter(raw_value) if converter is not None else raw_value
             except ValueError as e:
                 raise InvalidGTFSCellValue(gtfs_col, raw_value) from e
         return self
 
 
-def unmarshall_bool(x: str) -> bool:
+def to_bool(x: str) -> bool:
     """Tries to parse a required GTFS boolean value.
 
-    >>> unmarshall_bool("0")
+    >>> to_bool("0")
     False
-    >>> unmarshall_bool("1")
+    >>> to_bool("1")
     True
-    >>> unmarshall_bool("")
+    >>> to_bool("")
     Traceback (most recent call last):
     ...
     ValueError: Invalid GTFS value: '' (expected '0' or '1')
-    >>> unmarshall_bool("foo")
+    >>> to_bool("foo")
     Traceback (most recent call last):
     ...
     ValueError: Invalid GTFS value: 'foo' (expected '0' or '1')
@@ -69,12 +95,12 @@ def unmarshall_bool(x: str) -> bool:
         raise ValueError(f"Invalid GTFS value: {x!r} (expected '0' or '1')")
 
 
-def marshall_bool(x: bool) -> str:
+def from_bool(x: bool) -> str:
     """Converts a boolean to a required GTFS boolean field.
 
-    >>> marshall_bool(True)
+    >>> from_bool(True)
     '1'
-    >>> marshall_bool(False)
+    >>> from_bool(False)
     '0'
     """
     if x is True:
@@ -83,17 +109,17 @@ def marshall_bool(x: bool) -> str:
         return "0"
 
 
-def unmarshall_optional_bool_empty_none(x: str) -> Optional[bool]:
+def to_optional_bool_empty_none(x: str) -> Optional[bool]:
     """Tries to parse an optional GTFS boolean value;
     where the empty string represents None; such as trips.exceptional.
 
-    >>> unmarshall_bool("0")
+    >>> to_optional_bool_empty_none("0")
     False
-    >>> unmarshall_bool("1")
+    >>> to_optional_bool_empty_none("1")
     True
-    >>> unmarshall_bool("")
+    >>> to_optional_bool_empty_none("")
     None
-    >>> unmarshall_bool("foo")
+    >>> to_optional_bool_empty_none("foo")
     Traceback (most recent call last):
     ...
     ValueError: Invalid GTFS value: 'foo' (expected '0' or '1')
@@ -108,15 +134,15 @@ def unmarshall_optional_bool_empty_none(x: str) -> Optional[bool]:
         raise ValueError(f"Invalid GTFS value: {x!r} (expected '', '0' or '1')")
 
 
-def marshall_optional_bool_empty_none(x: Optional[bool]) -> str:
+def from_optional_bool_empty_none(x: Optional[bool]) -> str:
     """Converts a boolean to an optional GTFS boolean field,
     where the empty string represents None; such as trips.exceptional.
 
-    >>> marshall_optional_bool_empty_none(True)
+    >>> from_optional_bool_empty_none(True)
     '1'
-    >>> marshall_optional_bool_empty_none(False)
+    >>> from_optional_bool_empty_none(False)
     '0'
-    >>> marshall_optional_bool_empty_none(None)
+    >>> from_optional_bool_empty_none(None)
     ''
     """
     if x is True:
@@ -127,19 +153,19 @@ def marshall_optional_bool_empty_none(x: Optional[bool]) -> str:
         return ""
 
 
-def unmarshall_optional_bool_zero_none(x: str) -> Optional[bool]:
+def to_optional_bool_zero_none(x: str) -> Optional[bool]:
     """Tries to parse an optional GTFS boolean value;
     where '0' or '' represents None; such as trips.wheelchair_accessible.
 
-    >>> unmarshall_bool("0")
+    >>> to_optional_bool_zero_none("0")
     None
-    >>> unmarshall_bool("1")
+    >>> to_optional_bool_zero_none("1")
     True
-    >>> unmarshall_bool("2")
+    >>> to_optional_bool_zero_none("2")
     False
-    >>> unmarshall_bool("")
+    >>> to_optional_bool_zero_none("")
     None
-    >>> unmarshall_bool("foo")
+    >>> to_optional_bool_zero_none("foo")
     Traceback (most recent call last):
     ...
     ValueError: Invalid GTFS value: 'foo' (expected '0' or '1')
@@ -154,15 +180,15 @@ def unmarshall_optional_bool_zero_none(x: str) -> Optional[bool]:
         raise ValueError(f"Invalid GTFS value: {x!r} (expected '', '0', '1' or '2')")
 
 
-def marshall_optional_bool_zero_none(x: Optional[bool]) -> str:
+def from_optional_bool_zero_none(x: Optional[bool]) -> str:
     """Converts a boolean to an optional GTFS boolean field,
     where '0' represents None; such as trips.wheelchair_accessible.
 
-    >>> marshall_optional_bool_empty_none(True)
+    >>> from_optional_bool_zero_none(True)
     '1'
-    >>> marshall_optional_bool_empty_none(False)
+    >>> from_optional_bool_zero_none(False)
     '2'
-    >>> marshall_optional_bool_empty_none(None)
+    >>> from_optional_bool_zero_none(None)
     '0'
     """
     if x is True:
