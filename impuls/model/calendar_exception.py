@@ -77,6 +77,6 @@ class CalendarException(ImpulsBase):
             **DataclassSQLBuilder(row)
             .field("calendar_id", str)
             .field("date", str, Date.from_ymd_str)
-            .field("exception_type", int, lambda x: cls.Type(x))
+            .field("exception_type", int, cls.Type)
             .kwargs()
         )
