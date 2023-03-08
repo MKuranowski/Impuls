@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Callable, Final, Mapping, Optional
 
 from ...errors import DataError
@@ -75,7 +76,7 @@ def to_optional(x: Any) -> str:
     return "" if x is None else str(x)
 
 
-def to_bool(x: str) -> bool:
+def to_bool(x: str, allow_empty: bool = False) -> bool:
     """Tries to parse a required GTFS boolean value.
 
     >>> to_bool("0")
@@ -86,6 +87,8 @@ def to_bool(x: str) -> bool:
     Traceback (most recent call last):
     ...
     ValueError: Invalid GTFS value: '' (expected '0' or '1')
+    >>> to_bool("", allow_empty=True)
+    False
     >>> to_bool("foo")
     Traceback (most recent call last):
     ...
@@ -95,8 +98,14 @@ def to_bool(x: str) -> bool:
         return False
     elif x == "1":
         return True
+    elif x == "" and allow_empty:
+        return False
     else:
         raise ValueError(f"Invalid GTFS value: {x!r} (expected '0' or '1')")
+
+
+to_bool_allow_empty = partial(to_bool, allow_empty=True)
+"""to_bool_allow_empty is an alias to call to_bool(..., allow_empty=True)"""
 
 
 def from_bool(x: bool) -> str:
