@@ -1,6 +1,5 @@
 import re
 from datetime import date, timedelta
-from enum import IntEnum
 from typing import ClassVar, Type
 
 from ..tools.types import Self
@@ -78,21 +77,3 @@ class Date(date):
 
 
 Date.SIGNALS_EXCEPTIONS = Date(1111, 11, 11)
-
-
-class Maybe(IntEnum):
-    """Maybe is a representation of GTFS tri-state fields.
-
-    Maybe differs from `Optional[bool]` in the way the false and unknown states
-    are encoded in GTFS:
-
-    | State description | Optional[bool] (its GTFS repr.) | Maybe (its GTFS repr.) |
-    |-------------------|---------------------------------|------------------------|
-    | Unknown (default) | None ("")                       | UNKNOWN ("0")          |
-    | True              | True ("1")                      | YES ("1")              |
-    | False             | False ("0")                     | NO ("2")               |
-    """
-
-    UNKNOWN = 0
-    YES = 1
-    NO = 2
