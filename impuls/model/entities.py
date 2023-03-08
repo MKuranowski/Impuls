@@ -13,18 +13,6 @@ from .utility_types import Date, Maybe, TimePoint
 
 @final
 @dataclass(unsafe_hash=True)
-class FeedInfo(ImpulsBase):
-    publisher_name: str = field(compare=False)
-    publisher_url: str = field(compare=False, repr=False)
-    lang: str = field(compare=False, repr=False)
-    version: str = field(default="", compare=True)
-    contact_email: str = field(default="", compare=False, repr=False)
-    contact_url: str = field(default="", compare=False, repr=False)
-    id: str = field(default="0", compare=False, repr=False)
-
-
-@final
-@dataclass(unsafe_hash=True)
 class Attribution(ImpulsBase):
     id: str = field(compare=True)
     organization_name: str = field(compare=False)
