@@ -6,12 +6,14 @@ from typing import final
 from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
-from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
+from .meta.entity import Entity
+from .meta.gtfs_builder import DataclassGTFSBuilder
+from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass(unsafe_hash=True)
-class Agency(ImpulsBase):
+class Agency(Entity):
     id: str = field(compare=True)
     name: str = field(compare=False)
     url: str = field(compare=False, repr=False)

@@ -4,13 +4,12 @@ from typing_extensions import LiteralString
 
 from ...tools.types import Self, SQLNativeType
 
-_IB = TypeVar("_IB", bound="ImpulsBase")
+EntityT = TypeVar("EntityT", bound="Entity")
 
 
-class ImpulsBase(Protocol):
-    """ImpulsBase is a protocol for marshalling data between model entities and SQL and GTFS.
-
-    Every model entity must implement this protocol.
+class Entity(Protocol):
+    """Entity is a protocol for marshalling data between model entities and SQL and GTFS.
+    Every entity defined in the model implements this protocol.
     """
 
     @staticmethod

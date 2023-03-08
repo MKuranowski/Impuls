@@ -6,13 +6,14 @@ from typing import final
 from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
-from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
-from .meta.gtfs_builder import from_bool, to_bool_allow_empty
+from .meta.entity import Entity
+from .meta.gtfs_builder import DataclassGTFSBuilder, from_bool, to_bool_allow_empty
+from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass(unsafe_hash=True)
-class Attribution(ImpulsBase):
+class Attribution(Entity):
     id: str = field(compare=True)
     organization_name: str = field(compare=False)
     is_producer: bool = field(default=False, compare=False, repr=False)

@@ -6,14 +6,15 @@ from typing import final
 from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
-from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
-from .meta.gtfs_builder import from_bool, to_bool
+from .meta.entity import Entity
+from .meta.gtfs_builder import DataclassGTFSBuilder, from_bool, to_bool
+from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import Date
 
 
 @final
 @dataclass(unsafe_hash=True)
-class Calendar(ImpulsBase):
+class Calendar(Entity):
     id: str = field(compare=True)
     monday: bool = field(compare=False, repr=False)
     tuesday: bool = field(compare=False, repr=False)
