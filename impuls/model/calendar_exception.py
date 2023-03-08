@@ -7,13 +7,15 @@ from typing import final
 from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
-from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
+from .meta.entity import Entity
+from .meta.gtfs_builder import DataclassGTFSBuilder
+from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import Date
 
 
 @final
 @dataclass(unsafe_hash=True)
-class CalendarException(ImpulsBase):
+class CalendarException(Entity):
     class Type(IntEnum):
         ADDED = 1
         REMOVED = 2

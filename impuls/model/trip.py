@@ -7,18 +7,20 @@ from typing import final
 from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
-from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
+from .meta.entity import Entity
 from .meta.gtfs_builder import (
+    DataclassGTFSBuilder,
     from_optional_bool_empty_none,
     from_optional_bool_zero_none,
     to_optional_bool_empty_none,
     to_optional_bool_zero_none,
 )
+from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass(unsafe_hash=True)
-class Trip(ImpulsBase):
+class Trip(Entity):
     class Direction(IntEnum):
         OUTBOUND = 0
         INBOUND = 1
