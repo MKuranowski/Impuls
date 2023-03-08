@@ -74,7 +74,14 @@ class FeedInfo(Entity):
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
-        return "feed_info_id = '0'"
+        return "feed_info_id = ?"
+
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return (
+            "feed_info_id = ?, publisher_name = ?, publisher_url = ?, lang = ?, "
+            "version = ?, contact_email = ?, contact_url = ?"
+        )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
@@ -86,6 +93,9 @@ class FeedInfo(Entity):
             self.contact_email,
             self.contact_url,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.id,)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:

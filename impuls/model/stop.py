@@ -117,6 +117,14 @@ class Stop(Entity):
     def sql_where_clause() -> LiteralString:
         return "stop_id = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return (
+            "stop_id = ?, name = ?, lat = ?, lon = ?, code = ?, zone_id = ?, location_type = ?, "
+            "parent_station = ?, wheelchair_boarding = ?, platform_code = ?, pkpplk_code = ?, "
+            "ibnr_code = ?"
+        )
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
             self.id,
@@ -132,6 +140,9 @@ class Stop(Entity):
             self.pkpplk_code,
             self.ibnr_code,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.id,)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:

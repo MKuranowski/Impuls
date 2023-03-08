@@ -1,7 +1,7 @@
 import csv
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Iterator, Mapping, NamedTuple, Type, cast, final
+from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type, cast, final
 
 from .. import DBConnection, PipelineOptions, ResourceManager, Task, model
 from ..errors import DataError, MultipleDataErrors
@@ -12,7 +12,7 @@ class CSVFieldData(NamedTuple):
     with new data to be applied."""
 
     entity_field: str
-    converter: Callable[[str], Any] | None = None
+    converter: Optional[Callable[[str], Any]] = None
 
 
 class ModifyFromCSV(ABC, Task):
@@ -41,7 +41,7 @@ class ModifyFromCSV(ABC, Task):
 
     @staticmethod
     @abstractmethod
-    def model_class() -> Type[model.ImpulsBase]:
+    def model_class() -> Type[model.Entity]:
         """model_class returns the type from impuls.model
         whose entities are going to be modified"""
         raise NotImplementedError
@@ -182,7 +182,7 @@ class ModifyStopsFromCSV(ModifyFromCSV):
     """
 
     @staticmethod
-    def model_class() -> Type[model.ImpulsBase]:
+    def model_class() -> Type[model.Entity]:
         return model.Stop
 
     @staticmethod
@@ -224,7 +224,7 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
     """
 
     @staticmethod
-    def model_class() -> Type[model.ImpulsBase]:
+    def model_class() -> Type[model.Entity]:
         return model.Route
 
     @staticmethod

@@ -120,6 +120,14 @@ class StopTime(Entity):
     def sql_where_clause() -> LiteralString:
         return "trip_id = ? AND stop_sequence = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return (
+            "trip_id = ?, stop_id = ?, stop_sequence = ?, arrival_time = ?, departure_time = ?, "
+            "pickup_type = ?, drop_off_type = ?, stop_headsign = ?, shape_dist_traveled = ?, "
+            "original_stop_id = ?"
+        )
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
             self.trip_id,
@@ -133,6 +141,9 @@ class StopTime(Entity):
             self.shape_dist_traveled,
             self.original_stop_id,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.trip_id, self.stop_sequence)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:

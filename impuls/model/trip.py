@@ -125,6 +125,14 @@ class Trip(Entity):
     def sql_where_clause() -> LiteralString:
         return "trip_id = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return (
+            "trip_id = ?, route_id = ?, calendar_id = ?, headsign = ?, short_name = ?, "
+            "direction = ?, block_id = ?, shape_id = ?, wheelchair_accessible = ?, "
+            "bikes_allowed = ?, exceptional = ?"
+        )
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
             self.id,
@@ -139,6 +147,9 @@ class Trip(Entity):
             int(self.bikes_allowed) if self.bikes_allowed is not None else None,
             int(self.exceptional) if self.exceptional is not None else None,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.id,)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:

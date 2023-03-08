@@ -1,15 +1,13 @@
 import sqlite3
 from contextlib import contextmanager
-from itertools import repeat
-from typing import Any, Generator, Generic, Iterable, Sequence, Type, TypeVar
+from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type
 
-from .model import ALL_MODEL_ENTITIES, ImpulsBase
+from .model import ALL_MODEL_ENTITIES, Entity, EntityT
 from .tools.types import Self, SQLNativeType
 
 __all__ = ["EmptyQueryResult", "UntypedQueryResult", "TypedQueryResult", "DBConnection"]
 
 
-_IB = TypeVar("_IB", bound=ImpulsBase)
 SQLRow = tuple[SQLNativeType, ...]
 
 
@@ -73,7 +71,7 @@ class UntypedQueryResult:
         self._cur.close()
 
 
-class TypedQueryResult(Generic[_IB]):
+class TypedQueryResult(Generic[EntityT]):
     """TypedQueryResult is an object returned by SQL queries,
     which automatically unmarshalls objects of the Impuls data model.
 
@@ -85,9 +83,9 @@ class TypedQueryResult(Generic[_IB]):
     this can be automatically done using `with` statements.
     """
 
-    def __init__(self, db_cursor: sqlite3.Cursor, typ: Type[_IB]) -> None:
+    def __init__(self, db_cursor: sqlite3.Cursor, typ: Type[EntityT]) -> None:
         self._cur: sqlite3.Cursor = db_cursor
-        self._typ: Type[_IB] = typ
+        self._typ: Type[EntityT] = typ
 
     def __enter__(self: Self) -> Self:
         return self
@@ -98,15 +96,15 @@ class TypedQueryResult(Generic[_IB]):
     def __iter__(self: Self) -> Self:
         return self
 
-    def __next__(self) -> _IB:
-        return self._typ._sql_unmarshall(self._cur.__next__())
+    def __next__(self) -> EntityT:
+        return self._typ.sql_unmarshall(self._cur.__next__())
 
-    def one(self) -> _IB | None:
+    def one(self) -> Optional[EntityT]:
         """Returns the next row of the query result, or None if there are no more rows."""
         row = self._cur.fetchone()
-        return self._typ._sql_unmarshall(row) if row else None
+        return self._typ.sql_unmarshall(row) if row else None
 
-    def one_must(self, context: str) -> _IB:
+    def one_must(self, context: str) -> EntityT:
         """Returns the next row of the query result, or raises EmptyQueryResult with
         the provided context if there are no more rows."""
         r = self.one()
@@ -114,15 +112,15 @@ class TypedQueryResult(Generic[_IB]):
             raise EmptyQueryResult(context)
         return r
 
-    def many(self) -> list[_IB]:
+    def many(self) -> list[EntityT]:
         """Returns an arbitrary number of rows from the query result,
         selected for optimum performance.
         If the returned list has no elements - there are no more rows in the result set."""
-        return [self._typ._sql_unmarshall(i) for i in self._cur.fetchmany()]
+        return [self._typ.sql_unmarshall(i) for i in self._cur.fetchmany()]
 
-    def all(self) -> list[_IB]:
+    def all(self) -> list[EntityT]:
         """Returns all remaining rows of the query result."""
-        return [self._typ._sql_unmarshall(i) for i in self._cur.fetchall()]
+        return [self._typ.sql_unmarshall(i) for i in self._cur.fetchall()]
 
     def close(self) -> None:
         """Closes the resources used to access database results."""
@@ -145,21 +143,26 @@ class DBConnection:
 
     Typed queries work by substituting 3 keywords in the passed SQL:
     - `:table` - replaced with the table name
-    - `:cols` - replaced with the column names, in brackets
     - `:vals` - replaced with question marks (corresponding to table columns), in brackets
+    - `:set` - replaced with "column_name=?, ...", without brackets
+    - `:where` - replaces with "primary_key_column=? AND ...", without brackets.
 
     The substitutions maybe better explained by an example - to persist a CalendarException,
     it's enough to write the following query:
-    `INSERT INTO :table :cols VALUES :vals;`.
+    `INSERT INTO :table VALUES :vals;`.
 
     Such query will be automatically expanded to the following:
-    `INSERT INTO calendar_exceptions (calendar_id, date, exception_type) VALUES (?, ?, ?);`
+    `INSERT INTO calendar_exceptions VALUES (?, ?, ?);`
+
+    Similarly `UPDATE :table SET :set WHERE :where;` on CalendarException turns into
+    `UPDATE calendar_exceptions SET calendar_id = ?, date = ?, exception_type = ?
+    WHERE calendar_id = ? AND date = ?;`
 
     #### Note on SQL Injection safety
 
-    This class assumes that strings in the _sql_* methods and properties
-    in the ImpulsBase implementations are safe to use.
-    It's the programmer's responsibility to ensure so.
+    This class assumes that LiteralStrings returned by the entities' sql_* methods
+    are safe to directly use in sql statements. It is the programmer's responsibility
+    to ensure so.
 
     ### Closing the DB
 
@@ -193,62 +196,11 @@ class DBConnection:
     def create_with_schema(cls: Type[Self], path: str = ":memory:") -> Self:
         """Opens a new DB connection and executes DDL statements
         to prepare the database to hold Impuls model data."""
-        # NOTE: We assume that impuls_base decorator has generated safe field descriptions
-
-        # List of top-level statements (mostly CREATE TABLE)
-        creates: list[str] = ["PRAGMA foreign_keys=1;", "PRAGMA locking_mode=EXCLUSIVE;"]
-
-        # Create a table for every entity of the model
-        for typ in ALL_MODEL_ENTITIES:
-            # Collect all columns, indexes and the primary key of the table
-            columns: list[str] = []
-            columns_to_index: list[str] = []
-            primary_key_columns: list[str] = []
-
-            for c in typ._sql_fields.values():
-                # Start with "column_name TYPE"
-                column_def: list[str] = [c.column_name, c.sql_type]
-
-                # Add foreign key constraint if necessary
-                if c.foreign_key:
-                    column_def.append(
-                        f"REFERENCES {c.foreign_key} ON DELETE CASCADE ON UPDATE CASCADE"
-                    )
-
-                # Add NOT NULL constraint if necessary
-                if c.not_null:
-                    column_def.append("NOT NULL")
-
-                # Remember which columns form the primary key
-                if c.primary_key:
-                    primary_key_columns.append(c.column_name)
-
-                # Remember which columns should be indexed
-                if c.indexed:
-                    columns_to_index.append(c.column_name)
-
-                # Save the column definition
-                columns.append(" ".join(column_def))
-
-            # Generate the primary key constraint
-            columns.append(f"PRIMARY KEY ({', '.join(primary_key_columns)})")
-
-            # Generate the CREATE TABLE statement
-            col_sep = ",\n\t"
-            creates.append(f"CREATE TABLE {typ._sql_table_name} (\n\t{col_sep.join(columns)}\n);")
-
-            # Generate the CREATE INDEX statements
-            for column_to_index in columns_to_index:
-                creates.append(
-                    f"CREATE INDEX idx_{typ._sql_table_name}_{column_to_index} ON "
-                    f"{typ._sql_table_name} ({column_to_index});"
-                )
-
-        # Cast the script into a string and execute it
-        script = "\n".join(creates)
+        statements: list[str] = ["PRAGMA foreign_keys=1;", "PRAGMA locking_mode=EXCLUSIVE;"]
+        statements.extend(typ.sql_create_table() for typ in ALL_MODEL_ENTITIES)
 
         conn = cls(path)
-        conn._con.executescript(script)
+        conn._con.executescript("\n".join(statements))
         return conn
 
     # Resource handling
@@ -338,26 +290,20 @@ class DBConnection:
     # Typed SQL handling:
     # Done by performing substitutions in the passed SQL statement:
     # ":table" → "table_name"
-    # ":cols" → "(col1, col2, col3, ...)"
     # ":vals" → "(?, ?, ?, ?, ...)"
+    # ":set" → "col1=?, col2=?, col3=?, ..."
+    # ":where" → "pk_col1=? AND pk_col2=? AND ..."
 
     @staticmethod
-    def _sql_substitute_typed(sql: str, typ: Type[ImpulsBase]) -> str:
-        cols = f'({", ".join(field.column_name for field in typ._sql_fields.values())})'
-        vals = f'({", ".join(repeat("?", len(typ._sql_fields)))})'
+    def _sql_substitute_typed(sql: str, typ: Type[Entity]) -> str:
         return (
-            sql.replace(":table", typ._sql_table_name)
-            .replace(":cols", cols)
-            .replace(":vals", vals)
+            sql.replace(":table", typ.sql_table_name())
+            .replace(":vals", typ.sql_placeholder())
+            .replace(":set", typ.sql_set_clause())
+            .replace(":where", typ.sql_where_clause())
         )
 
-    @staticmethod
-    def _sql_pk_where_body(typ: Type[ImpulsBase]) -> str:
-        return " AND ".join(
-            f"{field.column_name} = ?" for field in typ._sql_primary_key_columns.values()
-        )
-
-    def typed_in_execute(self, sql: str, parameters: ImpulsBase) -> UntypedQueryResult:
+    def typed_in_execute(self, sql: str, parameters: Entity) -> UntypedQueryResult:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
         The `parameters` object is automatically converted to format accepted by the
@@ -366,12 +312,12 @@ class DBConnection:
         return UntypedQueryResult(
             self._con.execute(
                 self._sql_substitute_typed(sql, type(parameters)),
-                parameters._sql_marshall(),
+                parameters.sql_marshall(),
             )
         )
 
     def typed_in_execute_many(
-        self, sql: str, typ: Type[_IB], parameters: Iterable[_IB]
+        self, sql: str, typ: Type[EntityT], parameters: Iterable[EntityT]
     ) -> UntypedQueryResult:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
@@ -389,13 +335,13 @@ class DBConnection:
         return UntypedQueryResult(
             self._con.executemany(
                 self._sql_substitute_typed(sql, typ),
-                (i._sql_marshall() for i in parameters),
+                (i.sql_marshall() for i in parameters),
             )
         )
 
     def typed_out_execute(
-        self, sql: str, typ: Type[_IB], parameters: Sequence[SQLNativeType] = ()
-    ) -> TypedQueryResult[_IB]:
+        self, sql: str, typ: Type[EntityT], parameters: Sequence[SQLNativeType] = ()
+    ) -> TypedQueryResult[EntityT]:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
         The `parameters` are passed unchanged to the sqlite3 module.
@@ -414,59 +360,47 @@ class DBConnection:
 
     # Simple methods for working on the entities form the model
 
-    def retrieve(self, typ: Type[_IB], *pk: SQLNativeType) -> _IB | None:
+    def retrieve(self, typ: Type[EntityT], *pk: SQLNativeType) -> Optional[EntityT]:
         """Retrieves an object of type `typ` with given primary key (usually its ID)
         from the database.
 
         Returns `None` if no such object is found.
         """
-        return self.typed_out_execute(
-            f"SELECT * FROM :table WHERE {self._sql_pk_where_body(typ)}",
-            typ,
-            pk,
-        ).one()
+        return self.typed_out_execute("SELECT * FROM :table WHERE :where", typ, pk).one()
 
-    def retrieve_must(self, typ: Type[_IB], *pk: SQLNativeType) -> _IB:
+    def retrieve_must(self, typ: Type[EntityT], *pk: SQLNativeType) -> EntityT:
         """Retrieves an object of type `typ` with given primary key (usually its ID)
         from the database.
 
         Raises EmptyQueryResult if no such object is found
         """
-        return self.typed_out_execute(
-            f"SELECT * FROM :table WHERE {self._sql_pk_where_body(typ)}",
-            typ,
-            pk,
-        ).one_must(f"No {typ.__name__} with the following primary key: {pk}")
+        return self.typed_out_execute("SELECT * FROM :table WHERE :where", typ, pk).one_must(
+            f"No {typ.__name__} with the following primary key: {pk}"
+        )
 
-    def retrieve_all(self, typ: Type[_IB]) -> TypedQueryResult[_IB]:
+    def retrieve_all(self, typ: Type[EntityT]) -> TypedQueryResult[EntityT]:
         """Retrieves all objects of specific type from the database"""
         return self.typed_out_execute("SELECT * FROM :table", typ)
 
-    def create(self, entity: ImpulsBase) -> None:
+    def create(self, entity: Entity) -> None:
         """Creates a new entity in the database"""
         self.typed_in_execute("INSERT INTO :table VALUES :vals", entity)
 
-    def create_many(self, typ: Type[_IB], entities: Iterable[_IB]) -> None:
+    def create_many(self, typ: Type[EntityT], entities: Iterable[EntityT]) -> None:
         """Creates multiple entries in the database"""
         self.typed_in_execute_many("INSERT INTO :table VALUES :vals", typ, entities)
 
-    def update(self, entity: ImpulsBase) -> None:
+    def update(self, entity: Entity) -> None:
         """Updates the attributes of an entity in the database"""
         typ = type(entity)
         self.raw_execute(
-            self._sql_substitute_typed(
-                f"UPDATE :table SET :cols = :vals WHERE {self._sql_pk_where_body(typ)}",
-                typ,
-            ),
-            (*entity._sql_marshall(), *entity._sql_primary_key()),
+            self._sql_substitute_typed("UPDATE :table SET :set WHERE :where", typ),
+            (*entity.sql_marshall(), *entity.sql_primary_key()),
         )
 
-    def update_many(self, typ: Type[_IB], entities: Iterable[_IB]) -> None:
+    def update_many(self, typ: Type[EntityT], entities: Iterable[EntityT]) -> None:
         """Updates the attributes of multiple entries in the database"""
         self.raw_execute_many(
-            self._sql_substitute_typed(
-                f"UPDATE :table SET :cols = :vals WHERE {self._sql_pk_where_body(typ)}",
-                typ,
-            ),
-            ((*i._sql_marshall(), *i._sql_primary_key()) for i in entities),
+            self._sql_substitute_typed("UPDATE :table SET :set WHERE :where", typ),
+            ((*i.sql_marshall(), *i.sql_primary_key()) for i in entities),
         )

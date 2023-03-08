@@ -75,8 +75,15 @@ class Agency(Entity):
     def sql_where_clause() -> LiteralString:
         return "agency_id = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return "agency_id = ?, name = ?, url = ?, timezone = ?, lang = ?, phone = ?, fare_url = ?"
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (self.id, self.name, self.url, self.timezone, self.lang, self.phone, self.fare_url)
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.id,)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
