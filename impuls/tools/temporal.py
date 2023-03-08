@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from ..model.utility_types import Date
+from ..model.meta.utility_types import Date
 
 
 def date_range(start: Date, end: Date | None = None) -> Iterable[Date]:

@@ -12,7 +12,7 @@ from .entities import (
     Trip,
 )
 from .impuls_base import ImpulsBase
-from .utility_types import Date, Maybe, TimePoint
+from .meta.utility_types import Date, Maybe, TimePoint
 
 __all__ = [
     "Agency",

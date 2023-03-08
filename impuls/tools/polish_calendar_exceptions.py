@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import requests
 
-from ..model.utility_types import Date
+from ..model.meta.utility_types import Date
 
 
 class PolishRegion(Enum):

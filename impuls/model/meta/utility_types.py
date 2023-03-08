@@ -2,7 +2,7 @@ import re
 from datetime import date, timedelta
 from typing import ClassVar, Type
 
-from ..tools.types import Self
+from ...tools.types import Self
 
 
 class TimePoint(timedelta):
