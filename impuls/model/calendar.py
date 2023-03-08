@@ -8,7 +8,7 @@ from typing_extensions import LiteralString
 from ..tools.types import Self, SQLNativeType
 from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
 from .meta.gtfs_builder import from_bool, to_bool
-from .utility_types import Date
+from .meta.utility_types import Date
 
 
 @final

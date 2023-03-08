@@ -8,7 +8,7 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta import DataclassGTFSBuilder, DataclassSQLBuilder, ImpulsBase
-from .utility_types import TimePoint
+from .meta.utility_types import TimePoint
 
 
 @final
