@@ -66,12 +66,19 @@ class CalendarException(Entity):
     def sql_where_clause() -> LiteralString:
         return "calendar_id = ? AND date = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return "calendar_id = ?, date = ?, exception_type = ?"
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
             self.calendar_id,
             str(self.date),
             self.exception_type.value,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.calendar_id, str(self.date))
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:

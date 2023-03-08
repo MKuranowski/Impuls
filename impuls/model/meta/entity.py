@@ -50,8 +50,19 @@ class Entity(Protocol):
         to uniquely identify entities of this type."""
         ...
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        """sql_set_clause returns a "COLUMN_NAME = ?, OTHER_COLUMN = ?, ..."
+        string used in UPDATE statements"""
+        ...
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         """sql_marshall converts an entity into its SQL representation."""
+        ...
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        """sql_primary_key converts the primary key of an entity into its SQL representation.
+        The returned tuple should have the same elements ans sql_where_clause has parameters."""
         ...
 
     @classmethod

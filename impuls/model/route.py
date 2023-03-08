@@ -95,6 +95,13 @@ class Route(Entity):
     def sql_where_clause() -> LiteralString:
         return "route_id = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return (
+            "route_id = ?, agency_id = ?, short_name = ?, long_name = ?, "
+            "color = ?, text_color = ?, sort_order = ?"
+        )
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
             self.id,
@@ -106,6 +113,9 @@ class Route(Entity):
             self.text_color,
             self.sort_order,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.id,)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:

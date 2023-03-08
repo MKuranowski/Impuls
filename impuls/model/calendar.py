@@ -92,6 +92,13 @@ class Calendar(Entity):
     def sql_where_clause() -> LiteralString:
         return "calendar_id = ?"
 
+    @staticmethod
+    def sql_set_clause() -> LiteralString:
+        return (
+            "attribution_id = ?, organization_name = ?, is_producer = ?, is_operator = ?, "
+            "is_authority = ?, is_data_source = ?, url = ?, email = ?, phone = ?"
+        )
+
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
             self.id,
@@ -106,6 +113,9 @@ class Calendar(Entity):
             str(self.end_date),
             self.desc,
         )
+
+    def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
+        return (self.id,)
 
     @classmethod
     def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
