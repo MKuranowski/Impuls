@@ -29,9 +29,9 @@ def union_to_tuple_of_types(tp: Type[T]) -> tuple[Type[T], ...]:
     the type arguments of Union (and therefore also Optional) and UnionType;
     and raises TypeError for any other type hints.
 
-    >>> _union_to_tuple_of_types(int)
+    >>> union_to_tuple_of_types(int)
     (<class 'int'>,)
-    >>> _union_to_tuple_of_types(Union[int, str])
+    >>> union_to_tuple_of_types(Union[int, str])
     (<class 'int'>, <class 'str'>)
     """
     origin = typing.get_origin(tp)
