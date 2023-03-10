@@ -131,11 +131,10 @@ def to_optional_bool_empty_none(x: str) -> Optional[bool]:
     >>> to_optional_bool_empty_none("1")
     True
     >>> to_optional_bool_empty_none("")
-    None
     >>> to_optional_bool_empty_none("foo")
     Traceback (most recent call last):
     ...
-    ValueError: Invalid GTFS value: 'foo' (expected '0' or '1')
+    ValueError: Invalid GTFS value: 'foo' (expected '', '0' or '1')
     """
     if x == "":
         return None
@@ -171,17 +170,15 @@ def to_optional_bool_zero_none(x: str) -> Optional[bool]:
     where '0' or '' represents None; such as trips.wheelchair_accessible.
 
     >>> to_optional_bool_zero_none("0")
-    None
     >>> to_optional_bool_zero_none("1")
     True
     >>> to_optional_bool_zero_none("2")
     False
     >>> to_optional_bool_zero_none("")
-    None
     >>> to_optional_bool_zero_none("foo")
     Traceback (most recent call last):
     ...
-    ValueError: Invalid GTFS value: 'foo' (expected '0' or '1')
+    ValueError: Invalid GTFS value: 'foo' (expected '', '0', '1' or '2')
     """
     if x == "" or x == "0":
         return None
