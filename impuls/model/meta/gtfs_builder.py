@@ -43,12 +43,14 @@ class DataclassGTFSBuilder:
     def field(
         self: Self,
         field: str,
-        gtfs_col: str,
+        gtfs_col: Optional[str] = None,
         converter: Optional[Callable[[str], Any]] = None,
         fallback_value: Any = NO_FALLBACK_VALUE,
     ) -> Self:
         """field consumes `row[gtfs_col]`, transforms it and adds it in the kwargs
         under the `field` name.
+
+        If `gtfs_col` is None, it defaults back to `field`.
 
         `converter`, if not None, will be called to convert the incoming string
         to a target type. converter must raise ValueError on invalid inputs.
@@ -59,6 +61,9 @@ class DataclassGTFSBuilder:
         Otherwise, if the gtfs_col is not in the provided row, `kwargs[field]` will be set
         to the `fallback_value` directly, bypassing the converter.
         """
+        if gtfs_col is None:
+            gtfs_col = field
+
         raw_value = self.row.get(gtfs_col)
         if raw_value is None and fallback_value is self.NO_FALLBACK_VALUE:
             raise MissingGTFSColumn(gtfs_col)
