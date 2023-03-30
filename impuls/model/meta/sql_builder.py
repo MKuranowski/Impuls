@@ -69,6 +69,7 @@ class DataclassSQLBuilder:
 
         # Automatically provide a converter for booleans
         if converter is None and incoming_type is bool:
+            incoming_type = int  # type: ignore
             converter = bool
 
         # Type-check the incoming value
