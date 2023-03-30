@@ -73,6 +73,15 @@ class DataclassGTFSBuilder:
 
 
 def to_optional(x: Any) -> str:
+    """to_optional return str(x), unless x is None - in that case returns an empty string
+
+    >>> to_optional("Hello")
+    'Hello'
+    >>> to_optional(1)
+    '1'
+    >>> to_optional(None)
+    ''
+    """
     return "" if x is None else str(x)
 
 
