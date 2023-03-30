@@ -104,7 +104,7 @@ def to_bool(x: str, allow_empty: bool = False) -> bool:
         raise ValueError(f"Invalid GTFS value: {x!r} (expected '0' or '1')")
 
 
-to_bool_allow_empty = partial(to_bool, allow_empty=True)
+to_bool_allow_empty: Callable[[str], bool] = partial(to_bool, allow_empty=True)
 """to_bool_allow_empty is an alias to call to_bool(..., allow_empty=True)"""
 
 
