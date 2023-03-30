@@ -1,6 +1,6 @@
 import unittest
-from typing import Union
 from enum import IntEnum
+from typing import Union
 
 from impuls.model.meta.sql_builder import DataclassSQLBuilder
 
