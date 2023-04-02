@@ -111,7 +111,7 @@ class Stop(Entity):
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:

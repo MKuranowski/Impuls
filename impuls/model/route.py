@@ -98,7 +98,7 @@ class Route(Entity):
     @staticmethod
     def sql_set_clause() -> LiteralString:
         return (
-            "route_id = ?, agency_id = ?, short_name = ?, long_name = ?, "
+            "route_id = ?, agency_id = ?, short_name = ?, long_name = ?, type = ?, "
             "color = ?, text_color = ?, sort_order = ?"
         )
 

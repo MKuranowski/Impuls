@@ -95,8 +95,8 @@ class Calendar(Entity):
     @staticmethod
     def sql_set_clause() -> LiteralString:
         return (
-            "attribution_id = ?, organization_name = ?, is_producer = ?, is_operator = ?, "
-            "is_authority = ?, is_data_source = ?, url = ?, email = ?, phone = ?"
+            "calendar_id = ?, monday = ?, tuesday = ?, wednesday = ?, thursday = ?, "
+            "friday = ?, saturday = ?, sunday = ?, start_date = ?, end_date = ?, desc = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
