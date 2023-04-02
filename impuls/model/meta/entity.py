@@ -39,14 +39,14 @@ class Entity(Protocol):
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        """sql_placeholder returns a (?, ?, ?, ?, ...) string used in SQL queries
+        """sql_placeholder returns a "(?, ?, ?, ?, ...)" string used in SQL queries
         for this type. The number of question marks must match the number of elements
         expected by sql_unmarshall and returned by sql_marshall."""
         ...
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
-        """sql_where_clause returns a (COLUMN_NAME = ? AND ...) string used in SQL queries
+        """sql_where_clause returns a "COLUMN_NAME = ? AND ..." string used in SQL queries
         to uniquely identify entities of this type."""
         ...
 
