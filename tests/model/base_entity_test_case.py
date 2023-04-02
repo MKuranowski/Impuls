@@ -59,7 +59,7 @@ class BaseEntity:
             )
             self.assertEqual(
                 len(self.get_entity().sql_marshall()),
-                self.get_type().sql_placeholder().count("?"),
+                self.get_type().sql_set_clause().count("?"),
             )
 
         @abstractmethod
