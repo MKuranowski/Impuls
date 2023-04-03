@@ -46,9 +46,9 @@ class FeedInfo(Entity):
             .field("publisher_name", "feed_publisher_name")
             .field("publisher_url", "feed_publisher_url")
             .field("lang", "feed_lang")
-            .field("version", "feed_version")
-            .field("contact_email", "feed_contact_email")
-            .field("contact_url", "feed_contact_url")
+            .field("version", "feed_version", fallback_value="")
+            .field("contact_email", "feed_contact_email", fallback_value="")
+            .field("contact_url", "feed_contact_url", fallback_value="")
             .kwargs()
         )
 

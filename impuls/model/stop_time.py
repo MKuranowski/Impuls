@@ -42,7 +42,7 @@ class StopTime(Entity):
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
-        return "trips"
+        return "stop_times"
 
     def gtfs_marshall(self) -> dict[str, str]:
         return {

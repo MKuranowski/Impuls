@@ -74,9 +74,14 @@ class Trip(Entity):
             .field("calendar_id", "service_id")
             .field("headsign", "trip_headsign", fallback_value="")
             .field("short_name", "trip_short_name", fallback_value="")
-            .field("direction", "direction_id", lambda x: cls.Direction(int(x)) if x else None)
-            .field("block_id", "block_id")
-            .field("shape_id", "shape_id")
+            .field(
+                "direction",
+                "direction_id",
+                lambda x: cls.Direction(int(x)) if x else None,
+                fallback_value=None,
+            )
+            .field("block_id", "block_id", fallback_value="")
+            .field("shape_id", "shape_id", fallback_value="")
             .field(
                 "wheelchair_accessible",
                 "wheelchair_accessible",

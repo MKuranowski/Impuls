@@ -63,7 +63,12 @@ class Route(Entity):
             .field("type", "route_type", lambda x: cls.Type(int(x)))
             .field("color", "route_color", fallback_value="")
             .field("text_color", "route_text_color", fallback_value="")
-            .field("sort_order", "route_sort_order", lambda x: None if x == "" else int(x))
+            .field(
+                "sort_order",
+                "route_sort_order",
+                lambda x: None if x == "" else int(x),
+                fallback_value=None,
+            )
             .kwargs()
         )
 
