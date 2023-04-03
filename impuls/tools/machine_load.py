@@ -1,4 +1,3 @@
-import resource
 import sys
 from time import perf_counter
 from typing import Any
@@ -6,25 +5,60 @@ from typing import Any
 from .types import Self
 
 
-def memory_usage_kb() -> int:
-    """Returns the memory usage of the current process.
+if sys.platform == "win32":
+    import ctypes
+    import ctypes.wintypes
+    kernel32 = ctypes.windll.kernel32
 
-    On POSIX systems (incl. Linux, BSD and MacOS) returns
-    the maximum resident set size.
+    class ProcessMemoryCounters(ctypes.Structure):
+        # Source: https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters  # noqa: E501
 
-    On Windows always returns zero - as this method is not implemented.
-    """
-    if sys.platform == "win32":
-        # FIXME: Find an equivalent Windows system call
-        return 0
+        _fields_ = [
+            ("cb", ctypes.wintypes.DWORD),
+            ("PageFaultCount", ctypes.wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
 
-    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    def memory_usage_kb() -> int:
+        """Returns the memory usage of the current process."""
+        process_handle = kernel32.GetCurrentProcess()
+        try:
+            # Use the GetProcessMemoryInfo function to retrieve memory usage.
+            # https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo
+            mem = ProcessMemoryCounters()
+            if not kernel32.GetProcessMemoryInfo(
+                process_handle, ctypes.byref(mem), ctypes.sizeof(mem)
+            ):
+                raise ctypes.WinError()
+            assert int(mem.cb) == ctypes.sizeof(mem)
 
-    if sys.platform == "darwin":
-        # NOTE: AFAIK MacOS is the only os which returns bytes instead of kilobytes
-        usage //= 1024
+            # PeakWorkingSetSize should be the closest to POSIX max resident set size.
+            # PeakWorkingSetSize is provided in bytes
+            return int(mem.PeakWorkingSetSize) // 1024
+        finally:
+            kernel32.CloseHandle(process_handle)
 
-    return usage
+elif sys.platform == "darwin":
+    import resource
+
+    def memory_usage_kb() -> int:
+        """Returns the memory usage of the current process."""
+        # NOTE: Darwin returns the number in bytes, not KiB
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
+
+else:
+    import resource
+
+    def memory_usage_kb() -> int:
+        """Returns the memory usage of the current process."""
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 
 class LoadTracker:
