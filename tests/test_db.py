@@ -1,7 +1,11 @@
 import sqlite3
 import unittest
+from pathlib import Path
+from typing import cast
 
-from impuls.db import DBConnection
+from impuls.db import DBConnection, EmptyQueryResult
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class TestDBConnection(unittest.TestCase):
@@ -105,3 +109,47 @@ class TestDBConnectionWithModel(unittest.TestCase):
     def test_create_schema(self) -> None:
         with DBConnection.create_with_schema(path=":memory:"):
             pass
+
+
+class TestUntypedQueryResult(unittest.TestCase):
+    def setUp(self) -> None:
+        self.db = DBConnection(":memory:")
+        with sqlite3.Connection(FIXTURES / "wkd.db") as con:
+            con.backup(self.db._con)
+
+    def tearDown(self) -> None:
+        self.db.close()
+
+    def test_context_manager_closes(self) -> None:
+        with self.db.raw_execute("SELECT 0;") as cur:
+            pass
+
+        with self.assertRaises(sqlite3.ProgrammingError):
+            cur.one()
+
+    def test_iter(self) -> None:
+        with self.db.raw_execute("SELECT route_id FROM routes;") as cur:
+            self.assertListEqual(list(cur), [("A1",), ("ZA1",), ("ZA12",)])
+
+    def test_one(self) -> None:
+        with self.db.raw_execute("SELECT agency_id, name FROM agencies;") as cur:
+            self.assertEqual(cur.one(), ("0", "Warszawska Kolej Dojazdowa"))
+            self.assertIsNone(cur.one())
+
+    def test_one_must(self) -> None:
+        with self.db.raw_execute("SELECT agency_id, name FROM agencies;") as cur:
+            self.assertTupleEqual(cur.one_must("first"), ("0", "Warszawska Kolej Dojazdowa"))
+            with self.assertRaisesRegex(EmptyQueryResult, r"^second$"):
+                cur.one_must("second")
+
+    def test_many(self) -> None:
+        with self.db.raw_execute("SELECT route_id FROM routes;") as cur:
+            all: list[str] = []
+            while chunk := cur.many():
+                all.extend(cast(str, i[0]) for i in chunk)
+
+            self.assertListEqual(all, ["A1", "ZA1", "ZA12"])
+
+    def test_all(self) -> None:
+        with self.db.raw_execute("SELECT route_id FROM routes;") as cur:
+            self.assertListEqual(cur.all(), [("A1",), ("ZA1",), ("ZA12",)])
