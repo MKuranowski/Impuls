@@ -6,16 +6,18 @@ from .types import Self
 
 
 if sys.platform == "win32":
+    from ctypes import wintypes
     import ctypes
-    import ctypes.wintypes
+
+    # cSpell: words psapi
     kernel32 = ctypes.windll.kernel32
+    psapi = ctypes.windll.psapi
 
     class ProcessMemoryCounters(ctypes.Structure):
-        # Source: https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters  # noqa: E501
-
+        # https://learn.microsoft.com/en-us/windows/win32/api/psapi/ns-psapi-process_memory_counters
         _fields_ = [
-            ("cb", ctypes.wintypes.DWORD),
-            ("PageFaultCount", ctypes.wintypes.DWORD),
+            ("cb", wintypes.DWORD),
+            ("PageFaultCount", wintypes.DWORD),
             ("PeakWorkingSetSize", ctypes.c_size_t),
             ("WorkingSetSize", ctypes.c_size_t),
             ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
@@ -28,22 +30,21 @@ if sys.platform == "win32":
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
-        process_handle = kernel32.GetCurrentProcess()
+        process_handle = wintypes.HANDLE(kernel32.GetCurrentProcess())
         try:
             # Use the GetProcessMemoryInfo function to retrieve memory usage.
             # https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo
-            mem = ProcessMemoryCounters()
-            if not kernel32.GetProcessMemoryInfo(
-                process_handle, ctypes.byref(mem), ctypes.sizeof(mem)
-            ):
+            pmc = ProcessMemoryCounters(cb=ctypes.sizeof(ProcessMemoryCounters))
+            if not psapi.GetProcessMemoryInfo(process_handle, ctypes.byref(pmc), pmc.cb):
                 raise ctypes.WinError()
-            assert int(mem.cb) == ctypes.sizeof(mem)
 
-            # PeakWorkingSetSize should be the closest to POSIX max resident set size.
-            # PeakWorkingSetSize is provided in bytes
-            return int(mem.PeakWorkingSetSize) // 1024
+            # PeakWorkingSetSize is in bytes
+            return int(pmc.PeakWorkingSetSize) // 1024
         finally:
-            kernel32.CloseHandle(process_handle)
+            # Ensure the process handle is closed; although the Windows docs day
+            # that the CloseHandle on current process handle does nothing.
+            if not kernel32.CloseHandle(process_handle):
+                raise ctypes.WinError()
 
 elif sys.platform == "darwin":
     import resource
