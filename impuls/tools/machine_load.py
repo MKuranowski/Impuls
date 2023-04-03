@@ -1,4 +1,5 @@
 import sys
+from math import nan
 from time import perf_counter
 from typing import Any
 
@@ -102,9 +103,9 @@ class LoadTracker:
     """
 
     def __init__(self) -> None:
-        self.start_time: float = float("nan")
+        self.start_time: float = nan
         self.start_rss: int = -1
-        self.end_time: float = float("nan")
+        self.end_time: float = nan
         self.end_rss: int = -1
 
     @property
