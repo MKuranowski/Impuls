@@ -11,12 +11,12 @@ except ImportError:
     resource = None
 
 # Platform-dependent memory_usage_kb function
+# cSpell: words psapi rusage getrusage getpagesize maxrss sunos
 
 if sys.platform == "win32":
     import ctypes
     from ctypes import wintypes
 
-    # cSpell: words psapi
     kernel32 = ctypes.windll.kernel32
     psapi = ctypes.windll.psapi
 
