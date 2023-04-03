@@ -4,10 +4,16 @@ from typing import Any
 
 from .types import Self
 
+try:
+    import resource
+except ImportError:
+    resource = None
+
+# Platform-dependent memory_usage_kb function
 
 if sys.platform == "win32":
-    from ctypes import wintypes
     import ctypes
+    from ctypes import wintypes
 
     # cSpell: words psapi
     kernel32 = ctypes.windll.kernel32
@@ -47,19 +53,39 @@ if sys.platform == "win32":
                 raise ctypes.WinError()
 
 elif sys.platform == "darwin":
-    import resource
+    # Special case: Darwin returns the number in bytes, not KiB
+    assert resource, "resource module missing on Darwin"
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
-        # NOTE: Darwin returns the number in bytes, not KiB
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss // 1024
 
-else:
-    import resource
+elif sys.platform.startswith(("sunos", "solaris")):
+    # Special case: SunOS and Solaris returns the number in pages, not KiB
+    assert resource, "resource module missing on Solaris/SunOS"
+    PAGE_SIZE_TO_KIB = resource.getpagesize() // 1024
+
+    def memory_usage_kb() -> int:
+        """Returns the memory usage of the current process."""
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * PAGE_SIZE_TO_KIB
+
+elif resource:
+    # Most of other POSIX systems: Linux, *BSD, AIX return the value in KiB.
+    #
+    # However, pure POSIX doesn't mandate the existence of ru_maxrss and
+    # some systems (Cygwin, SerenityOS) don't set it. Don't know what happens in that case,
+    # hopefully Python just sets ru_maxrss to zero.
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+
+else:
+    # Unknown system, without the POSIX resource module - just nop out the function
+
+    def memory_usage_kb() -> int:
+        """Returns the memory usage of the current process."""
+        return 0
 
 
 class LoadTracker:
