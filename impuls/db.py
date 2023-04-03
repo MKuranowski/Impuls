@@ -200,7 +200,8 @@ class DBConnection:
         statements.extend(typ.sql_create_table() for typ in ALL_MODEL_ENTITIES)
 
         conn = cls(path)
-        conn._con.executescript("\n".join(statements))
+        for statement in statements:
+            conn._con.executescript(statement)
         return conn
 
     # Resource handling
