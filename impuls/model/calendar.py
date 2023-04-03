@@ -72,15 +72,15 @@ class Calendar(Entity):
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE calendars (
             calendar_id TEXT PRIMARY KEY,
-            monday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            tuesday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            wednesday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            thursday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            friday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            saturday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            sunday INTEGER NOT NULL CHECK (monday IN (0, 1))
-            start_date TEXT NOT NULL CHECK (date LIKE '____-__-__'),
-            end_date TEXT NOT NULL CHECK (date LIKE '____-__-__'),
+            monday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            tuesday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            wednesday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            thursday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            friday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            saturday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            sunday INTEGER NOT NULL CHECK (monday IN (0, 1)),
+            start_date TEXT NOT NULL CHECK (start_date LIKE '____-__-__'),
+            end_date TEXT NOT NULL CHECK (end_date LIKE '____-__-__'),
             desc TEXT NOT NULL DEFAULT ''
         ) STRICT;"""
 

@@ -83,7 +83,7 @@ class Attribution(Entity):
 
     @staticmethod
     def sql_create_table() -> LiteralString:
-        return """CREATE TABLE feed_info (
+        return """CREATE TABLE attributions (
             attribution_id TEXT PRIMARY KEY,
             organization_name TEXT NOT NULL,
             is_producer INTEGER NOT NULL CHECK (is_producer IN (0, 1)),
