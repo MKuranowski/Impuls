@@ -36,18 +36,18 @@ class LoadGTFS(Task):
             for typ in model.ALL_MODEL_ENTITIES:
                 # Find the table file
                 try:
-                    arch.getinfo(typ._gtfs_table_name + ".txt")
+                    arch.getinfo(typ.gtfs_table_name() + ".txt")
                 except KeyError:
-                    if typ._gtfs_table_name in required_tables:
-                        self.logger.fatal(f"Missing GTFS table: {typ._gtfs_table_name}")
+                    if typ.gtfs_table_name() in required_tables:
+                        self.logger.fatal(f"Missing GTFS table: {typ.gtfs_table_name()}")
                         raise
                     else:
-                        self.logger.info(f"Missing GTFS table: {typ._gtfs_table_name}")
+                        self.logger.info(f"Missing GTFS table: {typ.gtfs_table_name()}")
                         continue
 
                 # Read the table
-                with arch.open(typ._gtfs_table_name + ".txt") as bytes_csv_buffer:
-                    self.logger.info(f"Loading table: {typ._gtfs_table_name}")
+                with arch.open(typ.gtfs_table_name() + ".txt") as bytes_csv_buffer:
+                    self.logger.info(f"Loading table: {typ.gtfs_table_name()}")
                     reader = CSVDictReader(
                         TextIOWrapper(bytes_csv_buffer, encoding="utf-8-sig", newline="")
                     )
@@ -85,4 +85,4 @@ class LoadGTFS(Task):
                             row["attribution_id"] = str(reader.line_num)
 
                         # Persist the entity
-                        db.create(typ._gtfs_unmarshall(row))
+                        db.create(typ.gtfs_unmarshall(row))
