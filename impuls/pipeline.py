@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol
 
@@ -27,13 +28,18 @@ class PipelineOptions(NamedTuple):
     save_db_in_workspace: bool = False
 
 
+@dataclass(frozen=True)
+class TaskRuntime:
+    db: DBConnection
+    resources: ResourceManager
+    options: PipelineOptions
+
+
 class Task(Protocol):
     name: str
     logger: logging.Logger
 
-    def execute(
-        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
-    ) -> None:
+    def execute(self, r: TaskRuntime) -> None:
         ...
 
 
@@ -85,10 +91,12 @@ class Pipeline:
             self.options.ignore_not_modified,
         )
 
+        runtime = TaskRuntime(self.db, self.resources, self.options)
+
         for task in self.tasks:
             self.logger.info(f"Executing task {task.name}")
 
             with machine_load.LoadTracker() as resource_usage, self.db.transaction():
-                task.execute(self.db, self.options, self.resources)
+                task.execute(runtime)
 
             self.logger.debug(f"Task {task.name} finished; {resource_usage}")

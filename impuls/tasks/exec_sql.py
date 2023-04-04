@@ -1,6 +1,6 @@
 import logging
 
-from .. import DBConnection, PipelineOptions, ResourceManager, Task
+from .. import Task, TaskRuntime
 
 
 class ExecuteSQL(Task):
@@ -12,7 +12,5 @@ class ExecuteSQL(Task):
 
         self.logger = logging.getLogger(self.name)
 
-    def execute(
-        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
-    ) -> None:
-        db.raw_execute(self.statement)
+    def execute(self, r: TaskRuntime) -> None:
+        r.db.raw_execute(self.statement)

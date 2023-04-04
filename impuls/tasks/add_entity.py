@@ -1,6 +1,6 @@
 import logging
 
-from .. import DBConnection, PipelineOptions, ResourceManager, Task, model
+from .. import Task, TaskRuntime, model
 
 
 class AddEntity(Task):
@@ -15,7 +15,5 @@ class AddEntity(Task):
         self.name = task_name
         self.logger = logging.getLogger(f"Task.{self.name}")
 
-    def execute(
-        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
-    ) -> None:
-        db.create(self.entity)
+    def execute(self, r: TaskRuntime) -> None:
+        r.db.create(self.entity)

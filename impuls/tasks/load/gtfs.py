@@ -4,7 +4,7 @@ from datetime import datetime
 from io import TextIOWrapper
 from zipfile import ZipFile
 
-from ... import DBConnection, PipelineOptions, ResourceManager, Task, model
+from ... import Task, TaskRuntime, model
 
 
 class LoadGTFS(Task):
@@ -21,10 +21,8 @@ class LoadGTFS(Task):
         self.name = "LoadGTFS"
         self.logger = logging.getLogger(f"Task.{self.name}")
 
-    def execute(
-        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
-    ) -> None:
-        gtfs_path = resources.get_resource_path(self.source)
+    def execute(self, r: TaskRuntime) -> None:
+        gtfs_path = r.resources.get_resource_path(self.source)
         self.fetch_time = datetime.today()
 
         # Try to import every table
@@ -63,9 +61,9 @@ class LoadGTFS(Task):
                         # but not Impuls
                         if (
                             typ is model.CalendarException
-                            and db.retrieve(model.Calendar, row["service_id"]) is None
+                            and r.db.retrieve(model.Calendar, row["service_id"]) is None
                         ):
-                            db.create(
+                            r.db.create(
                                 model.Calendar(
                                     row["service_id"],
                                     monday=False,
@@ -85,4 +83,4 @@ class LoadGTFS(Task):
                             row["attribution_id"] = str(reader.line_num)
 
                         # Persist the entity
-                        db.create(typ.gtfs_unmarshall(row))
+                        r.db.create(typ.gtfs_unmarshall(row))

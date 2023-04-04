@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type, cast, final
 
-from .. import DBConnection, PipelineOptions, ResourceManager, Task, model
+from .. import DBConnection, ResourceManager, Task, TaskRuntime, model
 from ..errors import DataError, MultipleDataErrors
 
 
@@ -142,20 +142,18 @@ class ModifyFromCSV(ABC, Task):
             not_curated_str = "\n\t".join(sorted(not_curated))
             raise ValueError("The following routes weren't curated:\n\t" + not_curated_str)
 
-    def execute(
-        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
-    ) -> None:
+    def execute(self, r: TaskRuntime) -> None:
         self.clear_state()
 
         # Try to curate every entity
         MultipleDataErrors.catch_all(
             self.name,
-            (self.try_curate(db, line_no, row) for line_no, row in self.csv_rows(resources)),
+            (self.try_curate(r.db, line_no, row) for line_no, row in self.csv_rows(r.resources)),
         )
 
         # Check if all entities were curated
         if self.must_curate_all:
-            self.check_if_all_entities_were_curated(db)
+            self.check_if_all_entities_were_curated(r.db)
 
         # Print some statistics
         self.logger.info(f"Curated {len(self.seen_ids)} routes")

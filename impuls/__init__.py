@@ -1,6 +1,6 @@
 from . import errors, model, tools
 from .db import DBConnection
-from .pipeline import Pipeline, PipelineOptions, Task
+from .pipeline import Pipeline, PipelineOptions, Task, TaskRuntime
 from .resource import HTTPResource, LocalResource, Resource, ResourceManager
 from .tools.logs import initialize as initialize_logging
 
@@ -12,6 +12,7 @@ __all__ = [
     "Pipeline",
     "PipelineOptions",
     "Task",
+    "TaskRuntime",
     "HTTPResource",
     "LocalResource",
     "Resource",

@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Generator, Mapping
 
-from ... import DBConnection, PipelineOptions, ResourceManager, Task, model
+from ... import DBConnection, Task, TaskRuntime, model
 
 
 def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, str], None, None]:
@@ -88,12 +88,10 @@ class LoadBusManMDB(Task):
         self.name = "LoadBusManMDB"
         self.logger = logging.getLogger(f"Task.{self.name}")
 
-    def execute(
-        self, db: DBConnection, options: PipelineOptions, resources: ResourceManager
-    ) -> None:
+    def execute(self, r: TaskRuntime) -> None:
         self._route_id_map.clear()
         self._stop_id_map.clear()
-        mdb_path = resources.get_resource_path(self.source)
+        mdb_path = r.resources.get_resource_path(self.source)
 
         # Brief description on the BusMan MDB format
         # | Table Name | Impuls equiv. entity | Comments |
@@ -109,19 +107,19 @@ class LoadBusManMDB(Task):
         # | tDays      | CalendarException    | (usually empty/useless)
 
         self.logger.info("Loading routes")
-        self.load_routes(mdb_path, db)
+        self.load_routes(mdb_path, r.db)
 
         self.logger.info("Loading calendars")
-        self.load_calendars(mdb_path, db)
+        self.load_calendars(mdb_path, r.db)
 
         self.logger.info("Loading stops")
-        self.load_stops(mdb_path, db)
+        self.load_stops(mdb_path, r.db)
 
         self.logger.info("Loading trips")
-        self.load_trips(mdb_path, db)
+        self.load_trips(mdb_path, r.db)
 
         self.logger.info("Loading stop times")
-        self.load_stop_times(mdb_path, db)
+        self.load_stop_times(mdb_path, r.db)
 
     def load_routes(self, mdb_path: Path, db: DBConnection) -> None:
         # Fix for duplicate routes when using ignore_route_id

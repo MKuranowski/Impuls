@@ -1,6 +1,6 @@
 import logging
 
-from .. import DBConnection, PipelineOptions, ResourceManager, Task
+from .. import Task, TaskRuntime
 
 
 class GenerateTripHeadsign(Task):
@@ -14,15 +14,10 @@ class GenerateTripHeadsign(Task):
         self.name = type(self).__name__
         self.logger = logging.getLogger(self.name)
 
-    def execute(
-        self,
-        db: DBConnection,
-        options: PipelineOptions,
-        resources: ResourceManager,
-    ) -> None:
+    def execute(self, r: TaskRuntime) -> None:
         # mmm yes, nice correlated nested select statement :)
         # will break on trips with no stop times
-        db.raw_execute(
+        r.db.raw_execute(
             """
             UPDATE trips SET headsign = (
                 SELECT s.name FROM stop_times AS st
