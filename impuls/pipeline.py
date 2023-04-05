@@ -1,7 +1,8 @@
 import logging
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, NamedTuple, Protocol
+from typing import Any, Optional
 
 from .db import DBConnection
 from .resource import Resource, ResourceManager
@@ -9,38 +10,62 @@ from .tools import machine_load
 from .tools.types import Self
 
 
-class PipelineOptions(NamedTuple):
-    # By default the resource manager will raise InputNotModified if all input resources
-    # remained unchanged since last run. Setting this flag to True will force the pipeline
-    # to always run.
+@dataclass(frozen=True)
+class PipelineOptions:
     ignore_not_modified: bool = False
+    """By default the resource manager will raise InputNotModified if all input resources
+    remained unchanged since last run. Setting this flag to True will force the pipeline
+    to always run.]
+    """
 
-    # Directory where input resources are cached, and where tasks may store their workload
-    # to preserve it across runs.
-    #
-    # If the given directory doesn't exists, Pipeline attempts
-    # to create it (and its parents)
     workspace_directory: Path = Path("_impuls_workspace")
+    """Directory where input resources are cached, and where tasks may store their workload
+    to preserve it across runs.
 
-    # By default Impuls saves the sqlite DB in-memory.
-    # Setting this flag to true causes the DB to be saved in the workspace
-    # directory instead.
+    If the given directory doesn't exists, Pipeline attempts
+    to create it (and its parents).
+    """
+
     save_db_in_workspace: bool = False
+    """By default Impuls saves the sqlite DB in-memory.
+    Setting this flag to true causes the DB to be saved in the workspace
+    directory instead.
+    """
 
 
 @dataclass(frozen=True)
 class TaskRuntime:
+    """TaskRuntime is the argument passed to Task.execute,
+    with the runtime environment for the task to act upon.
+    """
+
     db: DBConnection
     resources: ResourceManager
     options: PipelineOptions
 
 
-class Task(Protocol):
+class Task(ABC):
+    """Task is the fundamental block of a Pipeline,
+    responsible for actually working on the data.
+    """
+
     name: str
     logger: logging.Logger
 
+    def __init__(self, name: Optional[str] = None) -> None:
+        self.name = name or type(self).__name__
+        self.logger = logging.getLogger(f"Task.{self.name}")
+
+    @abstractmethod
     def execute(self, r: TaskRuntime) -> None:
-        ...
+        """execute process the data in the runtime environment.
+
+        As of now, Tasks are guaranteed to run in a single thread with a single runtime,
+        but execute may be called multiple times in different runtime. Thus, it is safe
+        for Task sub-classes to hold some execute-related state, but that state should be
+        reset on entry to execute.
+        """
+        raise NotImplementedError
 
 
 class Pipeline:

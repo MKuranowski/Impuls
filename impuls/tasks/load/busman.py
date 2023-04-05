@@ -1,9 +1,8 @@
 import csv
-import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Generator, Mapping
+from typing import Generator, Mapping, final
 
 from ... import DBConnection, Task, TaskRuntime, model
 
@@ -39,6 +38,7 @@ def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, st
         )
 
 
+@final
 class LoadBusManMDB(Task):
     """LoadBusManMDB loads data into the database from a
     BusMan MDB database.
@@ -66,9 +66,6 @@ class LoadBusManMDB(Task):
     _route_id_map: dict[str, str]
     _stop_id_map: dict[str, str]
 
-    name: str
-    logger: logging.Logger
-
     def __init__(
         self,
         source: str,
@@ -76,6 +73,8 @@ class LoadBusManMDB(Task):
         ignore_route_id: bool = False,
         ignore_stop_id: bool = False,
     ) -> None:
+        super().__init__()
+
         self.source = source
         self.agency_id = agency_id
         self.ignore_route_id = ignore_route_id
@@ -84,9 +83,6 @@ class LoadBusManMDB(Task):
 
         self._route_id_map = {}
         self._stop_id_map = {}
-
-        self.name = "LoadBusManMDB"
-        self.logger = logging.getLogger(f"Task.{self.name}")
 
     def execute(self, r: TaskRuntime) -> None:
         self._route_id_map.clear()

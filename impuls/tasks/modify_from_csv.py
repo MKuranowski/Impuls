@@ -1,6 +1,5 @@
 import csv
-import logging
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type, cast, final
 
 from .. import DBConnection, ResourceManager, Task, TaskRuntime, model
@@ -15,7 +14,7 @@ class CSVFieldData(NamedTuple):
     converter: Optional[Callable[[str], Any]] = None
 
 
-class ModifyFromCSV(ABC, Task):
+class ModifyFromCSV(Task):
     """ModifyFromCSV is a base class for modifying entities from a given table
     with data from a CSV file.
 
@@ -28,12 +27,11 @@ class ModifyFromCSV(ABC, Task):
     - `silent`: if True, doesn't warn every time an entity from CSV isn't found in the DB."""
 
     def __init__(self, resource: str, must_curate_all: bool = False, silent: bool = False) -> None:
+        super().__init__()
+
         self.resource = resource
         self.must_curate_all = must_curate_all
         self.silent = silent
-
-        self.name = type(self).__name__
-        self.logger = logging.getLogger(self.name)
 
         # Step state
         self.seen_ids: set[str] = set()

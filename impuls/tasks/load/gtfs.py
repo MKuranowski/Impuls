@@ -1,25 +1,22 @@
-import logging
 from csv import DictReader as CSVDictReader
 from datetime import datetime
 from io import TextIOWrapper
+from typing import final
 from zipfile import ZipFile
 
 from ... import Task, TaskRuntime, model
 
 
+@final
 class LoadGTFS(Task):
     source: str
     fetch_time: datetime | None
 
-    name: str
-    logger: logging.Logger
-
     def __init__(self, source: str) -> None:
+        super().__init__()
+
         self.source = source
         self.fetch_time = None
-
-        self.name = "LoadGTFS"
-        self.logger = logging.getLogger(f"Task.{self.name}")
 
     def execute(self, r: TaskRuntime) -> None:
         gtfs_path = r.resources.get_resource_path(self.source)
