@@ -2,34 +2,42 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from .db import DBConnection
-from .resource import Resource
+from .errors import InputNotModified
+from .resource import ManagedResource, Resource, cache_resources, ensure_resources_cached
 from .tools import machine_load
 from .tools.types import Self
 
 
 @dataclass(frozen=True)
 class PipelineOptions:
-    ignore_not_modified: bool = False
-    """By default the resource manager will raise InputNotModified if all input resources
-    remained unchanged since last run. Setting this flag to True will force the pipeline
-    to always run.]
+    force_run: bool = False
+    """By default pipeline raises InputNotModified if all resources were not modified.
+    Setting this flag to True suppresses the error and forces the pipeline to run.
+
+    This option has no option if there are no resources or from_cache is set - in those cases
+    the pipeline runs unconditionally.
+    """
+
+    from_cache: bool = False
+    """Causes the Pipeline to never fetch any resource, forcing to use locally cached ones.
+    If any Resource is not cached, MultipleDataError with ResourceNotCached will be raised.
+
+    Has no effect if there are no resources, and forces the pipeline to run.
     """
 
     workspace_directory: Path = Path("_impuls_workspace")
     """Directory where input resources are cached, and where tasks may store their workload
     to preserve it across runs.
 
-    If the given directory doesn't exists, Pipeline attempts
-    to create it (and its parents).
+    If the given directory doesn't exist, pipeline attempts to create it (and its parents).
     """
 
     save_db_in_workspace: bool = False
     """By default Impuls saves the sqlite DB in-memory.
-    Setting this flag to true causes the DB to be saved in the workspace
-    directory instead.
+    Setting this flag to true causes the DB to be saved in the workspace directory instead.
     """
 
 
@@ -40,7 +48,7 @@ class TaskRuntime:
     """
 
     db: DBConnection
-    resources: "ResourceManager"
+    resources: Mapping[str, ManagedResource]
     options: PipelineOptions
 
 
@@ -72,14 +80,15 @@ class Pipeline:
     def __init__(
         self,
         tasks: list[Task],
-        resources: list[Resource] | None = None,
+        resources: Mapping[str, Resource] | None = None,
         options: PipelineOptions = PipelineOptions(),
         name: str = "",
     ) -> None:
         # Set parameters
         self.name: str = name
         self.logger: logging.Logger = logging.getLogger(f"{name}.Pipeline" if name else "Pipeline")
-        self.resources: ResourceManager = ResourceManager(resources or [])
+        self.raw_resources: Mapping[str, Resource] = resources or {}
+        self.managed_resources: Optional[Mapping[str, ManagedResource]] = None
         self.tasks: list[Task] = tasks
         self.options: PipelineOptions = options
 
@@ -110,18 +119,44 @@ class Pipeline:
     def __exit__(self, *exc: Any) -> None:
         self.close()
 
+    def prepare_resources(self) -> None:
+        if self.managed_resources is not None:
+            # Resources are already prepared - no need to do anything
+            return
+        elif self.options.from_cache:
+            # Asked not to download any resources - just ensure they're all cached
+            self.managed_resources = ensure_resources_cached(
+                self.raw_resources,
+                self.options.workspace_directory,
+            )
+        elif self.options.force_run:
+            # Force pipeline run - ignore InputNotModified
+            try:
+                self.managed_resources = cache_resources(
+                    self.raw_resources,
+                    self.options.workspace_directory,
+                )
+            except InputNotModified:
+                pass
+        else:
+            # Normal case - download outdated resources or propagate InputNotModified
+            self.managed_resources = cache_resources(
+                self.raw_resources,
+                self.options.workspace_directory,
+            )
+
     def run(self) -> None:
-        self.resources.cache_resources(
-            self.options.workspace_directory,
-            self.options.ignore_not_modified,
-        )
+        # Ensure resources are ready to use
+        if self.managed_resources is None:
+            self.prepare_resources()
+        assert self.managed_resources is not None
 
-        runtime = TaskRuntime(self.db, self.resources, self.options)
+        # Prepare the runtime for tasks
+        runtime = TaskRuntime(self.db, self.managed_resources, self.options)
 
+        # Run the tasks
         for task in self.tasks:
             self.logger.info(f"Executing task {task.name}")
-
             with machine_load.LoadTracker() as resource_usage, self.db.transaction():
                 task.execute(runtime)
-
             self.logger.debug(f"Task {task.name} finished; {resource_usage}")
