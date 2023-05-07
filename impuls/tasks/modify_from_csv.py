@@ -2,7 +2,7 @@ import csv
 from abc import abstractmethod
 from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type, cast, final
 
-from .. import DBConnection, ResourceManager, Task, TaskRuntime, model
+from .. import DBConnection, Task, TaskRuntime, model
 from ..errors import DataError, MultipleDataErrors
 
 
@@ -70,7 +70,7 @@ class ModifyFromCSV(Task):
         self.seen_ids.clear()
         self.missing_ids.clear()
 
-    def csv_rows(self, resources: ResourceManager) -> Iterator[tuple[int, Mapping[str, str]]]:
+    def csv_rows(self, resources) -> Iterator[tuple[int, Mapping[str, str]]]:
         """csv_rows generates all rows from the provided resource"""
         csv_path = resources.get_resource_path(self.resource)
         with csv_path.open(mode="r", encoding="utf-8-sig", newline="") as f:

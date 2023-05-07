@@ -18,8 +18,17 @@ class DataError(ValueError):
     pass
 
 
-class MultipleDataErrors(DataError):
+class ResourceNotCached(DataError):
+    """ResourceNotCached is raised by the Pipeline run with the from_cache option on
+    when a Resource is not available locally.
+    """
 
+    def __init__(self, resource_name: str) -> None:
+        self.resource_name = resource_name
+        super().__init__(f"Resource is not cached: {resource_name}")
+
+
+class MultipleDataErrors(DataError):
     # FIXME: Move to ExceptionGroup when support for 3.10 is dropped
 
     """MultipleDataErrors is raised when a process encounters a non-zero amount of DataErrors.

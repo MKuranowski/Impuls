@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .db import DBConnection
-from .resource import Resource, ResourceManager
+from .resource import Resource
 from .tools import machine_load
 from .tools.types import Self
 
@@ -40,7 +40,7 @@ class TaskRuntime:
     """
 
     db: DBConnection
-    resources: ResourceManager
+    resources: "ResourceManager"
     options: PipelineOptions
 
 
