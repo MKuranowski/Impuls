@@ -451,9 +451,13 @@ def _download_resource(r: Resource, to: Path) -> None:
 
 def cache_resources(r: Mapping[str, Resource], workspace: Path) -> Mapping[str, ManagedResource]:
     """cache_resources ensures all resources are stored locally by fetching outdated resources.
+
+    Raises InputNotModified if there was at least one resource
+    and all resources were not modified.
+
     Returns a mapping from resource name to its ManagedResource counterpart."""
     some_were_modified: bool = False
-    had_resources: bool = False
+    had_resources = bool(r)
     managed_resources: dict[str, ManagedResource] = {}
 
     for name, res in r.items():
@@ -507,6 +511,8 @@ def ensure_resources_cached(
     """ensure_resources_cached ensures all resources are stored locally
     **without** fetching any resources. If any resource is not cached, raises MultipleDataErrors
     with a list of ResourceNotCached corresponding to all missing resources.
+
+    Never raises InputNotModified.
 
     Returns a mapping from resource name to its ManagedResource counterpart.
     """

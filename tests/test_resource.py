@@ -411,6 +411,47 @@ class TestResourceCaching(unittest.TestCase):
                 datetime.fromisoformat("2023-04-01T22:00:00Z"),
             )
 
+    def test_cache_resources_not_modified(self) -> None:
+        with MockFile(directory=True) as workspace, MockFile() as local_resource_file:
+            # Prepare resources
+
+            # 1. Resource which is already cached
+            cached_resource = MockResource(b"Hello, world!\n")
+            with (workspace / "cached.txt.metadata").open(mode="w") as f:
+                json.dump(
+                    {
+                        "last_modified": datetime.fromisoformat(
+                            "2023-04-01T11:30:00Z"
+                        ).timestamp(),
+                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    },
+                    f,
+                )
+            (workspace / "cached.txt").write_bytes(b"Hello, world!\n")
+
+            # 2. Local Resource
+            local_resource_file.write_bytes(b"We the peoples of the United Nations\n")
+            local_res_mod_timestamp = datetime.fromisoformat("2023-04-01T22:00:00Z").timestamp()
+            os.utime(local_resource_file, (local_res_mod_timestamp, local_res_mod_timestamp))
+            with (workspace / "local.txt.metadata").open(mode="w") as f:
+                json.dump(
+                    {
+                        "last_modified": local_res_mod_timestamp,
+                        "fetch_time": local_res_mod_timestamp,
+                    },
+                    f,
+                )
+
+            # Cache the resources
+            with self.assertRaises(InputNotModified):
+                impuls.resource.cache_resources(
+                    {
+                        "cached.txt": cached_resource,
+                        "local.txt": LocalResource(local_resource_file),
+                    },
+                    workspace,
+                )
+
     def test_ensure_resources_cached_ok(self) -> None:
         with MockFile(directory=True) as workspace, MockFile() as local_resource_file:
             # Prepare the resources
