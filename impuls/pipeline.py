@@ -29,7 +29,7 @@ class Pipeline:
         # Update task loggers
         if self.name:
             for task in self.tasks:
-                task.logger = self.logger.getChild(task.logger.name)
+                task.logger.name = f"{name}.Task.{task.name}"
 
         # Ensure the workspace directory exists
         self.options.workspace_directory.mkdir(parents=True, exist_ok=True)
@@ -71,7 +71,10 @@ class Pipeline:
                     self.options.workspace_directory,
                 )
             except InputNotModified:
-                pass
+                self.managed_resources = ensure_resources_cached(
+                    self.raw_resources,
+                    self.options.workspace_directory,
+                )
         else:
             # Normal case - download outdated resources or propagate InputNotModified
             self.managed_resources = cache_resources(
@@ -81,8 +84,7 @@ class Pipeline:
 
     def run(self) -> None:
         # Ensure resources are ready to use
-        if self.managed_resources is None:
-            self.prepare_resources()
+        self.prepare_resources()
         assert self.managed_resources is not None
 
         # Prepare the runtime for tasks

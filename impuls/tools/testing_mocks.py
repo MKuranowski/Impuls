@@ -154,13 +154,21 @@ class MockResource(Resource):
         fetch_time: datetime = DATETIME_MIN_UTC,
         last_modified: datetime = DATETIME_MIN_UTC,
         clock: DatetimeNowLike = datetime.now,
+        persist_last_modified: bool = False,
     ) -> None:
         self.content = content
         self.last_modified = last_modified
         self.fetch_time = fetch_time
         self.clock = clock
 
+        self.persistent_last_modified = fetch_time if persist_last_modified else None
+
     def fetch(self, conditional: bool) -> Iterator[bytes]:
+        # cache_resources overwrites last_modified of the Resource.
+        # in many tests, we want to substitute our own, newer last_modified.
+        if self.persistent_last_modified is not None:
+            self.last_modified = self.persistent_last_modified
+
         if (
             conditional
             and self.last_modified > DATETIME_MIN_UTC
