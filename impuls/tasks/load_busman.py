@@ -4,7 +4,9 @@ import subprocess
 from pathlib import Path
 from typing import Generator, Mapping, final
 
-from ... import DBConnection, Task, TaskRuntime, model
+from ..db import DBConnection
+from ..model import Calendar, Date, Route, Stop, StopTime, TimePoint, Trip
+from ..task import Task, TaskRuntime
 
 
 def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, str], None, None]:
@@ -50,7 +52,7 @@ class LoadBusManMDB(Task):
     Calendar or CalendarExceptions have to be manually curated after the import.
 
     Parameters:
-    - `source`: the MDB file resource
+    - `resource`: name of the resource with MDB file
     - `agency_id`: ID of the manually curated Agency
     - `ignore_route_id`: use route_short_name as the ID,
         instead of the BusMan internal ID
@@ -58,36 +60,26 @@ class LoadBusManMDB(Task):
         instead of the BusMan internal ID
     """
 
-    source: str
-    agency_id: str
-    ignore_route_id: bool
-    ignore_stop_id: bool
-
-    _route_id_map: dict[str, str]
-    _stop_id_map: dict[str, str]
-
     def __init__(
         self,
-        source: str,
+        resource: str,
         agency_id: str,
         ignore_route_id: bool = False,
         ignore_stop_id: bool = False,
     ) -> None:
-        super().__init__()
-
-        self.source = source
+        self.source = resource
         self.agency_id = agency_id
         self.ignore_route_id = ignore_route_id
         self.ignore_stop_id = ignore_stop_id
         self.fetch_time = None
 
-        self._route_id_map = {}
-        self._stop_id_map = {}
+        self._route_id_map: dict[str, str] = {}
+        self._stop_id_map: dict[str, str] = {}
 
     def execute(self, r: TaskRuntime) -> None:
         self._route_id_map.clear()
         self._stop_id_map.clear()
-        mdb_path = r.resources.get_resource_path(self.source)
+        mdb_path = r.resources[self.source].stored_at
 
         # Brief description on the BusMan MDB format
         # | Table Name | Impuls equiv. entity | Comments |
@@ -137,19 +129,19 @@ class LoadBusManMDB(Task):
 
             # Create the new route
             db.create(
-                model.Route(
+                Route(
                     id=route_id,
                     agency_id=self.agency_id,
                     short_name=row["nNumber"],
                     long_name=row["nName"],
-                    type=model.Route.Type.BUS,
+                    type=Route.Type.BUS,
                 )
             )
 
     def load_calendars(self, mdb_path: Path, db: DBConnection) -> None:
         for row in dump_mdb_table(mdb_path, "tDayTypes"):
             db.create(
-                model.Calendar(
+                Calendar(
                     id=row["ID"],
                     monday=False,
                     tuesday=False,
@@ -158,8 +150,8 @@ class LoadBusManMDB(Task):
                     friday=False,
                     saturday=False,
                     sunday=False,
-                    start_date=model.Date.SIGNALS_EXCEPTIONS,
-                    end_date=model.Date.SIGNALS_EXCEPTIONS,
+                    start_date=Date.SIGNALS_EXCEPTIONS,
+                    end_date=Date.SIGNALS_EXCEPTIONS,
                     desc=row["nName"],
                 )
             )
@@ -184,7 +176,7 @@ class LoadBusManMDB(Task):
 
             # Create the new stop
             db.create(
-                model.Stop(
+                Stop(
                     id=stop_id,
                     name=row["nName"],
                     lat=float(row["nLat"]) if row["nLat"] else 0.0,
@@ -201,7 +193,7 @@ class LoadBusManMDB(Task):
 
         for row in dump_mdb_table(mdb_path, "tDepts"):
             db.create(
-                model.Trip(
+                Trip(
                     id=row["ID"],
                     route_id=pattern_to_route_id[row["nDir"]],
                     calendar_id=row["nDayType"],
@@ -210,9 +202,9 @@ class LoadBusManMDB(Task):
 
     def load_stop_times(self, mdb_path: Path, db: DBConnection) -> None:
         for row in dump_mdb_table(mdb_path, "tPassages"):
-            time = model.TimePoint(seconds=int(row["nTime"]) * 60)
+            time = TimePoint(seconds=int(row["nTime"]) * 60)
             db.create(
-                model.StopTime(
+                StopTime(
                     trip_id=row["nDept"],
                     stop_id=self._stop_id_map.get(row["nStake"], row["nStake"]),
                     stop_sequence=int(row["nOrder"]),
