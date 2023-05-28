@@ -2,8 +2,11 @@ import csv
 from abc import abstractmethod
 from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type, cast, final
 
-from .. import DBConnection, Task, TaskRuntime, model
+from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
+from ..model import Entity, Route, Stop
+from ..resource import ManagedResource
+from ..task import Task, TaskRuntime
 
 
 class CSVFieldData(NamedTuple):
@@ -39,7 +42,7 @@ class ModifyFromCSV(Task):
 
     @staticmethod
     @abstractmethod
-    def model_class() -> Type[model.Entity]:
+    def model_class() -> Type[Entity]:
         """model_class returns the type from impuls.model
         whose entities are going to be modified"""
         raise NotImplementedError
@@ -70,10 +73,9 @@ class ModifyFromCSV(Task):
         self.seen_ids.clear()
         self.missing_ids.clear()
 
-    def csv_rows(self, resources) -> Iterator[tuple[int, Mapping[str, str]]]:
+    def csv_rows(self, resource: ManagedResource) -> Iterator[tuple[int, Mapping[str, str]]]:
         """csv_rows generates all rows from the provided resource"""
-        csv_path = resources.get_resource_path(self.resource)
-        with csv_path.open(mode="r", encoding="utf-8-sig", newline="") as f:
+        with resource.open_text(encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 yield reader.line_num, row
@@ -142,11 +144,12 @@ class ModifyFromCSV(Task):
 
     def execute(self, r: TaskRuntime) -> None:
         self.clear_state()
+        resource = r.resources[self.resource]
 
         # Try to curate every entity
         MultipleDataErrors.catch_all(
             self.name,
-            (self.try_curate(r.db, line_no, row) for line_no, row in self.csv_rows(r.resources)),
+            (self.try_curate(r.db, line_no, row) for line_no, row in self.csv_rows(resource)),
         )
 
         # Check if all entities were curated
@@ -178,8 +181,8 @@ class ModifyStopsFromCSV(ModifyFromCSV):
     """
 
     @staticmethod
-    def model_class() -> Type[model.Entity]:
-        return model.Stop
+    def model_class() -> Type[Entity]:
+        return Stop
 
     @staticmethod
     def csv_column_mapping() -> Mapping[str, CSVFieldData]:
@@ -220,15 +223,15 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
     """
 
     @staticmethod
-    def model_class() -> Type[model.Entity]:
-        return model.Route
+    def model_class() -> Type[Entity]:
+        return Route
 
     @staticmethod
     def csv_column_mapping() -> Mapping[str, CSVFieldData]:
         return {
             "route_short_name": CSVFieldData("short_name"),
             "route_long_name": CSVFieldData("long_name"),
-            "route_type": CSVFieldData("type", lambda x: model.Route.Type(int(x))),
+            "route_type": CSVFieldData("type", lambda x: Route.Type(int(x))),
             "route_color": CSVFieldData("color"),
             "route_text_color": CSVFieldData("text_color"),
             "route_sort_order": CSVFieldData("sort_order", int),

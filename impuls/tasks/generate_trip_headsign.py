@@ -1,6 +1,6 @@
 from typing import final
 
-from .. import Task, TaskRuntime
+from ..task import Task, TaskRuntime
 
 
 @final
