@@ -8,12 +8,12 @@ from impuls.model import EntityT
 TABLE_NAME_REGEX = re.compile(r"^[a-z][a-z_]*[a-z]$")
 
 
-class BaseEntity:
+class TestEntity:
     # NOTE: Nested classes are necessary to prevent abstract test cases
     #       from being discovered and run.
     #       See https://stackoverflow.com/a/50176291.
 
-    class TestCase(ABC, unittest.TestCase, Generic[EntityT]):
+    class Template(ABC, unittest.TestCase, Generic[EntityT]):
         @abstractmethod
         def get_entity(self) -> EntityT:
             raise NotImplementedError

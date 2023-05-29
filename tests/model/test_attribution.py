@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import Attribution
 
-from .base_entity_test_case import BaseEntity
+from .template_entity import TestEntity
 
 
 @final
-class TestAttribution(BaseEntity.TestCase[Attribution]):
+class TestAttribution(TestEntity.Template[Attribution]):
     def get_entity(self) -> Attribution:
         return Attribution(
             id="0",

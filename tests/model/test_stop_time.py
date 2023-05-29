@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import StopTime, TimePoint
 
-from .base_entity_test_case import BaseEntity
+from .template_entity import TestEntity
 
 
 @final
-class TestStopTime(BaseEntity.TestCase[StopTime]):
+class TestStopTime(TestEntity.Template[StopTime]):
     def get_entity(self) -> StopTime:
         return StopTime(
             trip_id="T0",

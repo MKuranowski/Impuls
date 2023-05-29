@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import Calendar, Date
 
-from .base_entity_test_case import BaseEntity
+from .template_entity import TestEntity
 
 
 @final
-class TestCalendar(BaseEntity.TestCase[Calendar]):
+class TestCalendar(TestEntity.Template[Calendar]):
     def get_entity(self) -> Calendar:
         return Calendar(
             id="0",
