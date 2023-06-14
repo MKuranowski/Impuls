@@ -35,7 +35,7 @@ class MockExceptionResource(MockResource):
         raise IOError()
 
 
-class TestResource:
+class AbstractTestResource:
     # NOTE: Nested classes are necessary to prevent abstract test cases
     #       from being discovered and run.
     #       See https://stackoverflow.com/a/50176291.
@@ -80,7 +80,7 @@ class TestResource:
 
 
 @final
-class TestLocalResource(TestResource.Template):
+class TestLocalResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.f = MockFile()
         self.r = LocalResource(self.f.path)
@@ -99,7 +99,7 @@ class TestLocalResource(TestResource.Template):
 
 
 @final
-class TestHTTPResource(TestResource.Template):
+class TestHTTPResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.mocked_dt = MockDatetimeNow.evenly_spaced(
             datetime(2023, 4, 1, 10, 0, tzinfo=timezone.utc),
@@ -138,7 +138,7 @@ class TestHTTPResource(TestResource.Template):
 
 
 @final
-class TestTimeLimitedResource(TestResource.Template):
+class TestTimeLimitedResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.mocked_dt = MockDatetimeNow(
             [

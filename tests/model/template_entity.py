@@ -8,7 +8,7 @@ from impuls.model import EntityT
 TABLE_NAME_REGEX = re.compile(r"^[a-z][a-z_]*[a-z]$")
 
 
-class TestEntity:
+class AbstractTestEntity:
     # NOTE: Nested classes are necessary to prevent abstract test cases
     #       from being discovered and run.
     #       See https://stackoverflow.com/a/50176291.

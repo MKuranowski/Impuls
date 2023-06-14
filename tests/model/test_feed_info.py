@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import FeedInfo
 
-from .template_entity import TestEntity
+from .template_entity import AbstractTestEntity
 
 
 @final
-class TestFeedInfo(TestEntity.Template[FeedInfo]):
+class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
     def get_entity(self) -> FeedInfo:
         return FeedInfo(
             publisher_name="Foo",

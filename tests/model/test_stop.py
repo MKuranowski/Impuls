@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import Stop
 
-from .template_entity import TestEntity
+from .template_entity import AbstractTestEntity
 
 
 @final
-class TestStop(TestEntity.Template[Stop]):
+class TestStop(AbstractTestEntity.Template[Stop]):
     def get_entity(self) -> Stop:
         return Stop(
             id="0",

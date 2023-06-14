@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import Trip
 
-from .template_entity import TestEntity
+from .template_entity import AbstractTestEntity
 
 
 @final
-class TestAgency(TestEntity.Template[Trip]):
+class TestAgency(AbstractTestEntity.Template[Trip]):
     def get_entity(self) -> Trip:
         return Trip(
             id="0",

@@ -2,11 +2,11 @@ from typing import Type, final
 
 from impuls.model import Route
 
-from .template_entity import TestEntity
+from .template_entity import AbstractTestEntity
 
 
 @final
-class TestRoute(TestEntity.Template[Route]):
+class TestRoute(AbstractTestEntity.Template[Route]):
     def get_entity(self) -> Route:
         return Route(
             id="A",
