@@ -52,7 +52,8 @@ class CalendarException(Entity):
     @staticmethod
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE calendar_exceptions (
-            calendar_id TEXT NOT NULL REFERENCES calendars(calendar_id),
+            calendar_id TEXT NOT NULL REFERENCES calendars(calendar_id)
+                ON DELETE CASCADE ON UPDATE CASCADE,
             date TEXT NOT NULL CHECK (date LIKE '____-__-__'),
             exception_type INTEGER NOT NULL CHECK (exception_type IN (1, 2)),
             PRIMARY KEY (calendar_id, date)

@@ -106,8 +106,9 @@ class Trip(Entity):
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE trips (
             trip_id TEXT PRIMARY KEY,
-            route_id TEXT REFERENCES routes(route_id) NOT NULL,
-            calendar_id TEXT REFERENCES calendars(calendar_id) NOT NULL,
+            route_id TEXT NOT NULL REFERENCES routes(route_id) ON DELETE CASCADE ON UPDATE CASCADE,
+            calendar_id TEXT NOT NULL REFERENCES calendars(calendar_id)
+                ON DELETE CASCADE ON UPDATE CASCADE,
             headsign TEXT NOT NULL DEFAULT '',
             short_name TEXT NOT NULL DEFAULT '',
             direction INTEGER DEFAULT NULL CHECK (direction IN (0, 1)),

@@ -80,7 +80,8 @@ class Route(Entity):
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE routes (
             route_id TEXT PRIMARY KEY,
-            agency_id TEXT REFERENCES agencies(agency_id) NOT NULL,
+            agency_id TEXT NOT NULL REFERENCES agencies(agency_id)
+                ON DELETE CASCADE ON UPDATE CASCADE,
             short_name TEXT NOT NULL,
             long_name TEXT NOT NULL,
             type INTEGER NOT NULL CHECK (type IN (

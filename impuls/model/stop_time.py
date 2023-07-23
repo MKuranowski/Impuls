@@ -99,7 +99,7 @@ class StopTime(Entity):
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE stop_times (
             trip_id TEXT NOT NULL,
-            stop_id TEXT NOT NULL REFERENCES stops(stop_id),
+            stop_id TEXT NOT NULL REFERENCES stops(stop_id) ON DELETE CASCADE ON UPDATE CASCADE,
             stop_sequence INTEGER NOT NULL CHECK (stop_sequence >= 0),
             arrival_time INTEGER NOT NULL,
             departure_time INTEGER NOT NULL,
