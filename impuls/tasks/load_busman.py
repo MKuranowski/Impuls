@@ -67,6 +67,7 @@ class LoadBusManMDB(Task):
         ignore_route_id: bool = False,
         ignore_stop_id: bool = False,
     ) -> None:
+        super().__init__()
         self.source = resource
         self.agency_id = agency_id
         self.ignore_route_id = ignore_route_id
