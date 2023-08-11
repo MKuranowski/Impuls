@@ -106,5 +106,5 @@ class CalendarException(Entity):
                 case CalendarException.Type.ADDED:
                     active_dates.add(exception.date)
                 case CalendarException.Type.REMOVED:
-                    active_dates.remove(exception.date)
+                    active_dates.discard(exception.date)
         return active_dates

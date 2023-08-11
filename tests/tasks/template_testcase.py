@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from typing import ClassVar, Mapping
+from typing import ClassVar, Mapping, Optional
 from unittest import TestCase
 
 from impuls import DBConnection, LocalResource, PipelineOptions, TaskRuntime
@@ -16,7 +16,7 @@ class AbstractTestTask:
     #       See https://stackoverflow.com/a/50176291.
 
     class Template(TestCase):
-        db_name: ClassVar[str] = "wkd.db"
+        db_name: ClassVar[Optional[str]] = "wkd.db"
         resources: ClassVar[Mapping[str, MockResource | LocalResource]] = {}
         options: ClassVar[PipelineOptions] = PipelineOptions()
 
@@ -24,16 +24,20 @@ class AbstractTestTask:
         runtime: TaskRuntime
 
         def _prepare_db(self) -> DBConnection:
-            # Open the database, as prescribed by the "save_db_in_workspace" option
-            db = DBConnection(
+            # Where to open the database, as prescribed by the "save_db_in_workspace" option
+            db_path = (
                 str(self.workspace.path / "impuls.db")
                 if self.options.save_db_in_workspace
                 else ":memory:"
             )
 
-            # Copy fixture contents into the connection
-            with sqlite3.connect(FIXTURES_DIR / self.db_name) as source:
-                source.backup(db._con)
+            if self.db_name:
+                # Copy fixture contents into the connection
+                db = DBConnection(db_path)
+                with sqlite3.connect(FIXTURES_DIR / self.db_name) as source:
+                    source.backup(db._con)
+            else:
+                db = DBConnection.create_with_schema(db_path)
 
             return db
 
