@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -90,3 +90,21 @@ class CalendarException(Entity):
             .field("exception_type", int, cls.Type)
             .kwargs()
         )
+
+    @staticmethod
+    def reflect_in_active_dates(
+        active_dates: set[Date],
+        exceptions: Iterable["CalendarException"],
+    ) -> set[Date]:
+        """Reflects a set of CalendarExceptions in a set of active dates.
+        Warning! The provided set is both modified in-place and later returned.
+
+        The set of active dates can come from Calendar.compute_active_dates.
+        """
+        for exception in exceptions:
+            match exception.exception_type:
+                case CalendarException.Type.ADDED:
+                    active_dates.add(exception.date)
+                case CalendarException.Type.REMOVED:
+                    active_dates.remove(exception.date)
+        return active_dates

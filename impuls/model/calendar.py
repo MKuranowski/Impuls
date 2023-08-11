@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Mapping, Sequence
 from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
 
+from ..tools.temporal import date_range
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
 from .meta.gtfs_builder import DataclassGTFSBuilder, from_bool, to_bool
@@ -134,3 +136,31 @@ class Calendar(Entity):
             .field("desc", str)
             .kwargs()
         )
+
+    @cached_property
+    def compressed_weekdays(self) -> int:
+        return (
+            self.monday
+            | (self.tuesday << 1)
+            | (self.wednesday << 2)
+            | (self.thursday << 3)
+            | (self.friday << 4)
+            | (self.saturday << 5)
+            | (self.sunday << 6)
+        )
+
+    def compute_active_dates(self) -> set[Date]:
+        """Computes the set of active dates of this Calendar,
+        **not** taking exceptions into account.
+
+        Use CalendarException.reflect_in_active_dates
+        to take CalendarExceptions into account.
+        """
+        if self.start_date == Date.SIGNALS_EXCEPTIONS and self.end_date == Date.SIGNALS_EXCEPTIONS:
+            return set()
+
+        return {
+            date
+            for date in date_range(self.start_date, self.end_date)
+            if self.compressed_weekdays & (1 << date.weekday())
+        }

@@ -97,3 +97,31 @@ class TestCalendar(AbstractTestEntity.Template[Calendar]):
         self.assertEqual(c.start_date, Date(2020, 1, 1))
         self.assertEqual(c.end_date, Date(2020, 3, 31))
         self.assertEqual(c.desc, "Workdays")
+
+    def test_compressed_weekdays(self) -> None:
+        self.assertEqual(self.get_entity().compressed_weekdays, 0b001_1111)
+
+    def test_compute_active_dates(self) -> None:
+        c = Calendar(
+            id="0",
+            monday=True,
+            tuesday=True,
+            wednesday=True,
+            thursday=True,
+            friday=False,
+            saturday=False,
+            sunday=False,
+            start_date=Date(2020, 1, 1),
+            end_date=Date(2020, 1, 11),
+        )
+        self.assertSetEqual(
+            c.compute_active_dates(),
+            {
+                Date(2020, 1, 1),
+                Date(2020, 1, 2),
+                Date(2020, 1, 6),
+                Date(2020, 1, 7),
+                Date(2020, 1, 8),
+                Date(2020, 1, 9),
+            },
+        )
