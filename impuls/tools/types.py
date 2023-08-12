@@ -1,6 +1,7 @@
 import sys
 import typing
-from typing import TYPE_CHECKING, Type, TypeVar, Union
+from os import PathLike
+from typing import TYPE_CHECKING, AnyStr, Type, TypeVar, Union
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -17,6 +18,10 @@ else:
 
 
 SQLNativeType = None | int | float | str
+StrPath = str | PathLike[str]
+BytesPath = bytes | PathLike[bytes]
+GenericPath = AnyStr | PathLike[AnyStr]
+AnyPath = str | bytes | PathLike[str] | PathLike[bytes]
 T = TypeVar("T")
 
 

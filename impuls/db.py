@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type
 
 from .model import ALL_MODEL_ENTITIES, Entity, EntityT
-from .tools.types import Self, SQLNativeType
+from .tools.types import AnyPath, Self, SQLNativeType
 
 __all__ = ["EmptyQueryResult", "UntypedQueryResult", "TypedQueryResult", "DBConnection"]
 
@@ -183,7 +183,7 @@ class DBConnection:
     - `unicode_title` - equivalent to Python's str.title
     """
 
-    def __init__(self, path: str = ":memory:") -> None:
+    def __init__(self, path: AnyPath = ":memory:") -> None:
         self._con: sqlite3.Connection = sqlite3.connect(path)
         self._con.isolation_level = None
 
@@ -193,7 +193,7 @@ class DBConnection:
         self._con.create_function("unicode_title", 1, str.title, deterministic=True)
 
     @classmethod
-    def create_with_schema(cls: Type[Self], path: str = ":memory:") -> Self:
+    def create_with_schema(cls: Type[Self], path: AnyPath = ":memory:") -> Self:
         """Opens a new DB connection and executes DDL statements
         to prepare the database to hold Impuls model data."""
         statements: list[str] = ["PRAGMA foreign_keys=1;", "PRAGMA locking_mode=EXCLUSIVE;"]
@@ -203,6 +203,16 @@ class DBConnection:
         for statement in statements:
             conn._con.executescript(statement)
         return conn
+
+    @classmethod
+    def cloned(cls: Type[Self], from_: AnyPath, in_: AnyPath = ":memory:") -> Self:
+        """Creates a new database inside `in_` with the contents of `from_`.
+        Returns a DBConnection to the new database.
+        """
+        self = cls(in_)
+        with sqlite3.connect(from_) as source:
+            source.backup(target=self._con)
+        return self
 
     # Resource handling
 

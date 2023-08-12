@@ -32,14 +32,9 @@ class AbstractTestTask:
             )
 
             if self.db_name:
-                # Copy fixture contents into the connection
-                db = DBConnection(db_path)
-                with sqlite3.connect(FIXTURES_DIR / self.db_name) as source:
-                    source.backup(db._con)
+                return DBConnection.cloned(from_=Path(FIXTURES_DIR, self.db_name), in_=db_path)
             else:
-                db = DBConnection.create_with_schema(db_path)
-
-            return db
+                return DBConnection.create_with_schema(db_path)
 
         def _prepare_resource(
             self,
