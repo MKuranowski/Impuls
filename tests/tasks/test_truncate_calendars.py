@@ -200,7 +200,7 @@ class TestTruncateCalendars(AbstractTestTask.Template):
         self.assertEqual(
             logs.output[0],
             (
-                "WARNING:Task.TruncateServicesBeyond:No services left after "
+                "WARNING:Task.TruncateCalendars:No services left after "
                 "calendar truncation to EmptyDateRange()"
             ),
         )
