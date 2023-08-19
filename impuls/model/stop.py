@@ -70,7 +70,7 @@ class Stop(Entity):
             .field(
                 "location_type",
                 "location_type",
-                lambda x: cls.LocationType(int(x)),
+                lambda x: cls.LocationType(int(x)) if x else cls.LocationType.STOP,
                 fallback_value=cls.LocationType.STOP,
             )
             .field("parent_station", "parent_station", fallback_value="")

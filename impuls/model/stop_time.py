@@ -72,13 +72,17 @@ class StopTime(Entity):
             .field(
                 "pickup_type",
                 "pickup_type",
-                lambda x: cls.PassengerExchange(int(x)),
+                lambda x: (
+                    cls.PassengerExchange(int(x)) if x else cls.PassengerExchange.SCHEDULED_STOP
+                ),
                 fallback_value=cls.PassengerExchange.SCHEDULED_STOP,
             )
             .field(
                 "drop_off_type",
                 "drop_off_type",
-                lambda x: cls.PassengerExchange(int(x)),
+                lambda x: (
+                    cls.PassengerExchange(int(x)) if x else cls.PassengerExchange.SCHEDULED_STOP
+                ),
                 fallback_value=cls.PassengerExchange.SCHEDULED_STOP,
             )
             .field("stop_headsign", "stop_headsign", fallback_value="")
