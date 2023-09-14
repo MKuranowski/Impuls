@@ -29,6 +29,8 @@ __all__ = [
     "Trip",
 ]
 
+# NOTE: Ordering of classes represents loading order -
+#       e.g. Trip is before StopTime, as StopTime references Trip.id
 ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     Agency,
     Attribution,
@@ -37,6 +39,6 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     FeedInfo,
     Route,
     Stop,
-    StopTime,
     Trip,
+    StopTime,
 ]
