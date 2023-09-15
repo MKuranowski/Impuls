@@ -187,6 +187,8 @@ class DBConnection:
         self._con: sqlite3.Connection = sqlite3.connect(path)
         self._con.isolation_level = None
 
+        self._con.execute("PRAGMA foreign_keys=1")
+        self._con.execute("PRAGMA locking_mode=EXCLUSIVE")
         self._con.create_function("unicode_lower", 1, str.lower, deterministic=True)
         self._con.create_function("unicode_upper", 1, str.upper, deterministic=True)
         self._con.create_function("unicode_casefold", 1, str.casefold, deterministic=True)
@@ -196,8 +198,7 @@ class DBConnection:
     def create_with_schema(cls: Type[Self], path: AnyPath = ":memory:") -> Self:
         """Opens a new DB connection and executes DDL statements
         to prepare the database to hold Impuls model data."""
-        statements: list[str] = ["PRAGMA foreign_keys=1;", "PRAGMA locking_mode=EXCLUSIVE;"]
-        statements.extend(typ.sql_create_table() for typ in ALL_MODEL_ENTITIES)
+        statements: list[str] = [typ.sql_create_table() for typ in ALL_MODEL_ENTITIES]
 
         conn = cls(path)
         for statement in statements:
