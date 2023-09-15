@@ -1,7 +1,7 @@
 import sys
 import typing
 from os import PathLike
-from typing import TYPE_CHECKING, AnyStr, Type, TypeVar, Union
+from typing import TYPE_CHECKING, AnyStr, Type, TypeGuard, TypeVar, Union
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -46,3 +46,14 @@ def union_to_tuple_of_types(tp: Type[T]) -> tuple[Type[T], ...]:
         return typing.get_args(tp)
     else:
         raise TypeError(f"{tp} is neither a non-type-hint type, nor a union")
+
+
+def all_non_none(lst: list[T | None]) -> TypeGuard[list[T]]:
+    """Returns True if all elements of `lst` are not None.
+
+    >>> all_non_none([0, 1, 2, 3, 4])
+    True
+    >>> all_non_none(["", "a", "b", None, "c"])
+    False
+    """
+    return all(i is not None for i in lst)
