@@ -8,7 +8,7 @@ class PipelineOptions:
     """By default pipeline raises InputNotModified if all resources were not modified.
     Setting this flag to True suppresses the error and forces the pipeline to run.
 
-    This option has no option if there are no resources or from_cache is set - in those cases
+    This option has no effect if there are no resources or from_cache is set - in those cases
     the pipeline runs unconditionally.
     """
 
@@ -16,7 +16,7 @@ class PipelineOptions:
     """Causes the Pipeline to never fetch any resource, forcing to use locally cached ones.
     If any Resource is not cached, MultipleDataError with ResourceNotCached will be raised.
 
-    Has no effect if there are no resources, and forces the pipeline to run.
+    Forces the pipeline to run.
     """
 
     workspace_directory: Path = Path("_impuls_workspace")
