@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from itertools import count
 from math import inf
 from operator import itemgetter
+from pathlib import Path
 from tempfile import mkstemp
 from typing import Container, Generator, Iterable, NamedTuple, Type, cast, final
 
 from ..db import DBConnection
 from ..model import FeedInfo, Route, Stop
+from ..pipeline import Pipeline
 from ..task import Task, TaskRuntime
 from ..tools.geo import earth_distance_m
 from ..tools.types import Self, all_non_none
@@ -19,6 +21,11 @@ from ..tools.types import Self, all_non_none
 class DatabaseToMerge:
     resource_name: str
     prefix: str
+
+    pre_merge_pipeline: Pipeline | None = None
+    """Pipeline to run just before merging. This pipeline runs on a temporary
+    copy of the database resource - any changes are not persistent across runs.
+    """
 
 
 @dataclass(frozen=True)
@@ -149,7 +156,7 @@ class Merge(Task):
             )
 
             db_to_merge_path = str(r.resources[db_to_merge.resource_name].stored_at)
-            self.merge(r.db, db_to_merge_path, db_to_merge.prefix)
+            self.merge(r.db, db_to_merge_path, db_to_merge.prefix, db_to_merge.pre_merge_pipeline)
 
         self.logger.info("Resolving FeedInfo")
         self.insert_feed_info(r.db)
@@ -180,16 +187,27 @@ class Merge(Task):
         )
         self.feed_infos = None if feed_info_count > 0 else []
 
-    def merge(self, db: DBConnection, incoming_path: str, incoming_prefix: str) -> None:
+    def merge(
+        self,
+        db: DBConnection,
+        incoming_path: str,
+        incoming_prefix: str,
+        pre_merge_pipeline: Pipeline | None = None,
+    ) -> None:
         # To copy objects from the incoming db, its prefix needs to be to the id columns.
         # This means that the incoming db will be mutated. To prevent multiple mutations
         # if the db is re-used across runs, it is copied into a temporary file.
-        with (
-            temp_db_file(incoming_path, incoming_prefix) as incoming_mut_path,
-            attached(db, incoming_mut_path),
-            db.transaction(),
-        ):
-            self.merge_with_attached(db, incoming_prefix)
+        with temp_db_file(incoming_path, incoming_prefix) as incoming_mut_path:
+            self.run_pre_merge_pipeline(incoming_mut_path, pre_merge_pipeline)
+            with attached(db, incoming_mut_path), db.transaction():
+                self.merge_with_attached(db, incoming_prefix)
+
+    @staticmethod
+    def run_pre_merge_pipeline(on: str, pipeline: Pipeline | None) -> None:
+        if pipeline:
+            pipeline.db_path = Path(on)
+            pipeline.run_on_existing_db = True
+            pipeline.run()
 
     def merge_with_attached(self, db: DBConnection, incoming_prefix: str) -> None:
         self.merge_agencies(db)

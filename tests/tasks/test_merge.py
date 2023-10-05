@@ -1,11 +1,12 @@
 from typing import cast
 
-from impuls import DBConnection, LocalResource, TaskRuntime
+from impuls import DBConnection, LocalResource, Pipeline, TaskRuntime
 from impuls.model import Agency, FeedInfo, Route, Stop
 from impuls.resource import ManagedResource
 from impuls.tasks.merge import DatabaseToMerge, Merge, RouteHash, StopHash, pick_closest_stop
 from impuls.tools.iteration import walk_len
 
+from ..test_pipeline import DummyTask
 from .template_testcase import FIXTURES_DIR, AbstractTestTask
 
 
@@ -142,6 +143,22 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
         self.assertEqual(walk_len(i for i in trips if i.startswith("1:")), 372)
         self.assertEqual(walk_len(i for i in trips if i.startswith("2:")), 372)
 
+    def test_pre_merge_pipeline(self) -> None:
+        dummy_task_old = DummyTask()
+        dummy_task_new = DummyTask()
+
+        task = Merge(
+            [
+                DatabaseToMerge("wkd-old.db", "1", Pipeline([dummy_task_old], name="Merge.Old")),
+                DatabaseToMerge("wkd-new.db", "2", Pipeline([dummy_task_new], name="Merge.New")),
+            ],
+        )
+        task.execute(self.runtime)
+
+        # Check that the pre-merge pipelines were run
+        self.assertEqual(dummy_task_old.executed_count, 1)
+        self.assertEqual(dummy_task_new.executed_count, 1)
+
 
 class TestMergeIntoExisting(AbstractTestTask.Template):
     db_name = "wkd.db"
@@ -274,6 +291,18 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
         self.assertEqual(len(trips), 744)
         self.assertEqual(walk_len(i for i in trips if not i.startswith("1:")), 372)
         self.assertEqual(walk_len(i for i in trips if i.startswith("1:")), 372)
+
+    def test_pre_merge_pipeline(self) -> None:
+        dummy_task_new = DummyTask()
+        task = Merge(
+            [
+                DatabaseToMerge("wkd-new.db", "2", Pipeline([dummy_task_new], name="Merge.New")),
+            ],
+        )
+        task.execute(self.runtime)
+
+        # Check that the pre-merge pipelines were run
+        self.assertEqual(dummy_task_new.executed_count, 1)
 
 
 class TestMergeRoutes(AbstractTestTask.Template):
