@@ -29,8 +29,7 @@ class TestPipeline(TestCase):
         t1 = DummyTask("DummyTask1")
         t2 = DummyTask("DummyTask2")
         p = Pipeline([t1, t2])
-        with p:
-            p.run()
+        p.run()
 
         self.assertEqual(t1.executed_count, 1)
         self.assertEqual(t2.executed_count, 1)
@@ -66,8 +65,7 @@ class TestPipeline(TestCase):
             },
             options=PipelineOptions(workspace_directory=self.workspace_dir.path),
         )
-        with p:
-            p.run()
+        p.run()
 
         self.assertTrue(t.called)
 
@@ -88,7 +86,7 @@ class TestPipeline(TestCase):
             resources={"hello.txt": MockResource(b"Hello, world!\n")},
             options=PipelineOptions(workspace_directory=self.workspace_dir.path),
         )
-        with p, self.assertRaises(InputNotModified):
+        with self.assertRaises(InputNotModified):
             p.run()
 
     def test_renames_task_loggers(self) -> None:
@@ -148,8 +146,7 @@ class TestPipeline(TestCase):
 
         # NOTE: As opposed to test_raises_input_not_modified, the following
         #       must not raise InputNotModified.
-        with p:
-            p.run()
+        p.run()
 
         self.assertTrue(t.called)
 
@@ -206,14 +203,12 @@ class TestPipeline(TestCase):
 
         # NOTE: As opposed to test_raises_input_not_modified, the following
         #       must not raise InputNotModified.
-        with p:
-            p.run()
+        p.run()
 
         self.assertTrue(t.called)
 
     def test_option_save_db_in_workspace(self) -> None:
         o = PipelineOptions(save_db_in_workspace=True, workspace_directory=self.workspace_dir.path)
         p = Pipeline([DummyTask()], options=o)
-        with p:
-            p.run()
+        p.run()
         self.assertTrue(self.workspace_dir.path.joinpath("impuls.db").exists())
