@@ -150,7 +150,7 @@ class MultiFile(Generic[AnyResource]):
                 tasks=self.intermediate_pipeline_tasks_factory(feed),
                 options=self.options,
             )
-            pipeline.tasks.append(SaveDB(path / f"{feed.version}.db"))
+            pipeline.db_path = path / f"{feed.version}.db"
             pipeline.managed_resources = {**resources}
             pipeline.managed_resources[feed.resource_name] = ManagedResource(
                 feed.resource.path,
