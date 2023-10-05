@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+from pathlib import Path
+from shutil import copyfile
 from typing import final
 from unittest import TestCase
 
@@ -212,3 +214,38 @@ class TestPipeline(TestCase):
         p = Pipeline([DummyTask()], options=o)
         p.run()
         self.assertTrue(self.workspace_dir.path.joinpath("impuls.db").exists())
+
+    def test_removes_existing_db(self) -> None:
+        o = PipelineOptions(workspace_directory=self.workspace_dir.path, save_db_in_workspace=True)
+
+        (self.workspace_dir.path / "impuls.db").write_bytes(b"")
+
+        t = DummyTask()
+        p = Pipeline([t], options=o)
+
+        assert p.db_path is not None  # for type checking
+        self.assertEqual(p.db_path, self.workspace_dir.path / "impuls.db")
+        self.assertFalse(p.db_path.exists())
+
+        p.run()
+        self.assertTrue(p.db_path.exists())
+        self.assertEqual(t.executed_count, 1)
+
+    def test_run_on_existing_db(self) -> None:
+        o = PipelineOptions(workspace_directory=self.workspace_dir.path, save_db_in_workspace=True)
+
+        copyfile(
+            str(Path(__file__).parent / "tasks" / "fixtures" / "wkd.db"),
+            self.workspace_dir.path / "impuls.db",
+        )
+
+        t = DummyTask()
+        p = Pipeline([t], options=o, run_on_existing_db=True)
+
+        assert p.db_path is not None  # for type checking
+        self.assertEqual(p.db_path, self.workspace_dir.path / "impuls.db")
+        self.assertTrue(p.db_path.exists())
+
+        p.run()
+        self.assertTrue(p.db_path.exists())
+        self.assertEqual(t.executed_count, 1)

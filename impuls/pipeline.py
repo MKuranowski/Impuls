@@ -17,6 +17,7 @@ class Pipeline:
         resources: Mapping[str, Resource] | None = None,
         options: PipelineOptions = PipelineOptions(),
         name: str = "",
+        run_on_existing_db: bool = False,
     ) -> None:
         # Set parameters
         self.name: str = name
@@ -25,6 +26,7 @@ class Pipeline:
         self.managed_resources: Optional[Mapping[str, ManagedResource]] = None
         self.tasks: list[Task] = tasks
         self.options: PipelineOptions = options
+        self.run_on_existing_db: bool = run_on_existing_db
 
         # Update task loggers
         if self.name:
@@ -38,7 +40,9 @@ class Pipeline:
         self.db_path: Path | None = None
         if self.options.save_db_in_workspace:
             self.db_path = self.options.workspace_directory / "impuls.db"
-            self.db_path.unlink(missing_ok=True)
+            # Remove the existing DB
+            if not self.run_on_existing_db:
+                self.db_path.unlink(missing_ok=True)
 
     def prepare_resources(self) -> None:
         if self.managed_resources is not None:
@@ -69,13 +73,21 @@ class Pipeline:
                 self.options.workspace_directory,
             )
 
+    def open_db(self) -> DBConnection:
+        if not self.db_path:
+            return DBConnection.create_with_schema(":memory:")
+        elif self.run_on_existing_db and self.db_path.exists():
+            return DBConnection(self.db_path)
+        else:
+            return DBConnection.create_with_schema(self.db_path)
+
     def run(self) -> None:
         # Ensure resources are ready to use
         self.prepare_resources()
         assert self.managed_resources is not None
 
         # Prepare the database
-        with DBConnection.create_with_schema(self.db_path or ":memory:") as db:
+        with self.open_db() as db:
             # Prepare the runtime for tasks
             runtime = TaskRuntime(db, self.managed_resources, self.options)
 
