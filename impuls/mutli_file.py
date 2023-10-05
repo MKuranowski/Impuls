@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from logging import getLogger
-from typing import Callable, Generic, Mapping, NamedTuple, Protocol, TypeVar, Type
 from pathlib import Path
+from typing import Callable, Generic, Mapping, NamedTuple, Protocol, Type, TypeVar
 
 from .errors import InputNotModified
 from .options import PipelineOptions
 from .pipeline import Pipeline
-from .resource import Resource, LocalResource, ManagedResource
+from .resource import LocalResource, ManagedResource, Resource
 from .task import Task
-from .tasks import merge
+from .tasks import SaveDB, merge
 from .tools.types import Self
 
 AnyResource = TypeVar("AnyResource", bound=Resource)
@@ -150,7 +150,7 @@ class MultiFile(Generic[AnyResource]):
                 tasks=self.intermediate_pipeline_tasks_factory(feed),
                 options=self.options,
             )
-            raise NotImplementedError("TODO: Add export task for intermediate pipeline")
+            pipeline.tasks.append(SaveDB(path / f"{feed.version}.db"))
             pipeline.managed_resources = {**resources}
             pipeline.managed_resources[feed.resource_name] = ManagedResource(
                 feed.resource.path,
