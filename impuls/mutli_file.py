@@ -122,14 +122,16 @@ class MultiFile(Generic[AnyResource]):
         local = versions.fetch()
 
         # 3. Prepare intermediate pipelines for missing local feeds
-        intermediate_pipelines = self.prepare_intermediate_pipelines(local, resources)
+        intermediates = self.prepare_intermediate_pipelines(local, resources)
 
         # 4. If there were no changes at all and not force_run - raise InputNotModified
-        if not intermediate_pipelines and not self.options.force_run:
+        if not intermediates and not self.options.force_run:
             raise InputNotModified
 
         # 5. Prepare final pipeline for merging intermediate feeds
-        raise NotImplementedError
+        final = self.prepare_final_pipeline(local, resources)
+
+        return Pipelines(intermediates, final)
 
     def prepare_intermediate_pipelines(
         self,
