@@ -1,15 +1,17 @@
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from logging import getLogger
 from pathlib import Path
-from typing import Callable, Generic, Mapping, NamedTuple, Protocol, Type, TypeVar
+from typing import Any, Callable, Generic, Mapping, NamedTuple, Protocol, Type, TypeVar
 
 from .errors import InputNotModified
+from .model import Date
 from .options import PipelineOptions
 from .pipeline import Pipeline
 from .resource import LocalResource, ManagedResource, Resource
 from .task import Task
-from .tasks import SaveDB, merge
+from .tasks import TruncateCalendars, merge
+from .tools.temporal import date_range
 from .tools.types import Self
 
 AnyResource = TypeVar("AnyResource", bound=Resource)
@@ -53,7 +55,7 @@ class IntermediateFeed(Generic[AnyResource]):
     resource: AnyResource
     resource_name: str
     version: str
-    start_date: date
+    start_date: Date
     update_time: datetime
 
     def fetch(self) -> "IntermediateFeed[LocalResource]":
@@ -67,13 +69,21 @@ class IntermediateFeedProvider(Protocol[AnyResource]):
 
 AnyIntermediateFeed = IntermediateFeed[AnyResource]
 AnyIntermediateFeedProvider = IntermediateFeedProvider[AnyResource]
+TaskFactory = Callable[[IntermediateFeed[LocalResource]], list[Task]]
+MultiTaskFactory = Callable[[list[IntermediateFeed[LocalResource]]], list[Task]]
+
+
+def empty_tasks_factory(*_: Any) -> list[Task]:
+    return []
 
 
 @dataclass
 class MultiFile(Generic[AnyResource]):
     intermediate_provider: IntermediateFeedProvider[AnyResource]
-    intermediate_pipeline_tasks_factory: Callable[[IntermediateFeed[LocalResource]], list[Task]]
-    final_pipeline_tasks_factory: Callable[[list[IntermediateFeed[LocalResource]]], list[Task]]
+    intermediate_pipeline_tasks_factory: TaskFactory
+    pre_merge_pipeline_tasks_factory: TaskFactory = empty_tasks_factory
+    final_pipeline_tasks_factory: MultiTaskFactory = empty_tasks_factory
+
     additional_resources: Mapping[str, Resource] = field(default_factory=dict)
     options: PipelineOptions = PipelineOptions()
 
@@ -166,10 +176,8 @@ class MultiFile(Generic[AnyResource]):
         local: list[IntermediateFeed[LocalResource]],
         resources: Mapping[str, ManagedResource],
     ) -> Pipeline:
-        raise NotImplementedError("TODO: Trim intermediate schedules")
-
         merge_task = merge.Merge(
-            [merge.DatabaseToMerge(f"{i.version}.db", i.version) for i in local],
+            self.prepare_databases_to_merge(local, resources),
             separator=self.merge_separator,
             feed_version_separator=self.feed_version_separator,
             distance_between_similar_stops_m=self.distance_between_similar_stops_m,
@@ -181,11 +189,11 @@ class MultiFile(Generic[AnyResource]):
         )
         pipeline.tasks.insert(0, merge_task)
 
-        intermedate_dbs_path = self.intermediate_dbs_path()
+        intermediate_dbs_path = self.intermediate_dbs_path()
         pipeline.managed_resources = {**resources}
         for feed in local:
             resource_name = f"{feed.version}.db"
-            resource_path = intermedate_dbs_path / resource_name
+            resource_path = intermediate_dbs_path / resource_name
             pipeline.managed_resources[resource_name] = ManagedResource(
                 resource_path,
                 datetime.fromtimestamp(resource_path.stat().st_mtime, timezone.utc),
@@ -193,6 +201,31 @@ class MultiFile(Generic[AnyResource]):
             )
 
         return pipeline
+
+    def prepare_databases_to_merge(
+        self,
+        local: list[IntermediateFeed[LocalResource]],
+        resources: Mapping[str, ManagedResource],
+    ) -> list[merge.DatabaseToMerge]:
+        to_merge = list[merge.DatabaseToMerge]()
+
+        for next_feed_idx, feed in enumerate(local, start=1):
+            feed_start = feed.start_date
+            feed_end = (
+                None
+                if next_feed_idx == len(local)
+                else local[next_feed_idx].start_date.add_days(-1)
+            )
+            pre_merge_tasks = self.pre_merge_pipeline_tasks_factory(feed)
+            pre_merge_tasks.insert(0, TruncateCalendars(date_range(feed_start, feed_end)))
+            pre_merge_pipeline = Pipeline(pre_merge_tasks, options=self.options)
+            pre_merge_pipeline.managed_resources = {**resources}
+
+            to_merge.append(
+                merge.DatabaseToMerge(f"{feed.version}.db", feed.version, pre_merge_pipeline)
+            )
+
+        return to_merge
 
     def prepare_resources(self) -> dict[str, ManagedResource]:
         raise NotImplementedError()  # TODO
