@@ -312,7 +312,7 @@ class ManagedResource:
 
     def open_binary(self, **open_args: Any) -> BinaryIO:
         """open_text opens the cached file in "rb" mode, with the provided arguments"""
-        return self.stored_at.open(mode="rb", **open_args)
+        return self.stored_at.open(mode="rb", **open_args)  # type: ignore
 
     def text(self, encoding: Optional[str] = None, errors: Optional[str] = None) -> str:
         """text reads the content of the file into a string.
