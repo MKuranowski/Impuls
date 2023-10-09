@@ -544,3 +544,152 @@ class TestResourceCaching(unittest.TestCase):
         self.assertEqual(len(errors), 1, "len(caught errors)")
         assert isinstance(errors[0], ResourceNotCached)  # for type checker
         self.assertEqual(errors[0].resource_name, "missing_local.txt")
+
+    def test_prepare_resources_from_cache_ok(self) -> None:
+        with MockFile(directory=True) as workspace, MockFile() as local_resource_file:
+            # Prepare the resources
+
+            # 1. Some resource which was already fetched
+            cached_resource = MockResource(b"Hello, world!\n")
+            with (workspace / "cached.txt.metadata").open(mode="w") as f:
+                json.dump(
+                    {
+                        "last_modified": datetime.fromisoformat(
+                            "2023-04-01T11:30:00Z"
+                        ).timestamp(),
+                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    },
+                    f,
+                )
+            (workspace / "cached.txt").write_bytes(b"Hello, world!\n")
+
+            # 2. Local resource
+            local_resource_file.write_bytes(b"We the peoples of the United Nations\n")
+            local_res_mod_timestamp = datetime.fromisoformat("2023-04-01T22:00:00Z").timestamp()
+            os.utime(local_resource_file, (local_res_mod_timestamp, local_res_mod_timestamp))
+
+            # Check if resources are cached
+
+            r = impuls.resource.prepare_resources(
+                {
+                    "cached.txt": cached_resource,
+                    "local.txt": LocalResource(local_resource_file),
+                },
+                workspace,
+                from_cache=True,
+            )
+
+            # Check the resulting resources
+
+            # 1. Cached resource
+            self.assertEqual(r["cached.txt"].stored_at, workspace / "cached.txt")
+            self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")
+            self.assertEqual(
+                r["cached.txt"].last_modified,
+                datetime.fromisoformat("2023-04-01T11:30:00Z"),
+            )
+            self.assertEqual(
+                r["cached.txt"].fetch_time,
+                datetime.fromisoformat("2023-04-01T12:00:00Z"),
+            )
+
+            # 2. Local Resource
+            self.assertEqual(r["local.txt"].stored_at, local_resource_file)
+            self.assertEqual(r["local.txt"].bytes(), b"We the peoples of the United Nations\n")
+            self.assertEqual(
+                r["local.txt"].last_modified,
+                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+            )
+            self.assertEqual(
+                r["local.txt"].fetch_time,
+                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+            )
+
+    def test_prepare_resources_from_cache_missing(self) -> None:
+        with (
+            MockFile(directory=True) as workspace,
+            self.assertRaises(MultipleDataErrors) as caught,
+        ):
+            impuls.resource.prepare_resources(
+                {
+                    "missing.txt": MockResource(),
+                },
+                workspace,
+                from_cache=True,
+            )
+
+        errors = caught.exception.errors
+        self.assertEqual(len(errors), 1, "len(caught errors)")
+        assert isinstance(errors[0], ResourceNotCached)  # for type checker
+        self.assertEqual(errors[0].resource_name, "missing.txt")
+
+    def test_prepare_resources_force_run_fetches(self) -> None:
+        with MockFile(directory=True) as workspace:
+            r = impuls.resource.prepare_resources(
+                {"missing.txt": MockResource(b"Hello, world!\n")},
+                workspace,
+                force_run=True,
+            )
+
+            self.assertEqual(r["missing.txt"].stored_at, workspace / "missing.txt")
+            self.assertEqual(r["missing.txt"].bytes(), b"Hello, world!\n")
+
+    def test_prepare_resources_force_run_does_not_raise_input_not_modified(self) -> None:
+        with MockFile(directory=True) as workspace:
+            cached_resource = MockResource(b"Hello, world!\n")
+            with (workspace / "cached.txt.metadata").open(mode="w") as f:
+                json.dump(
+                    {
+                        "last_modified": datetime.fromisoformat(
+                            "2023-04-01T11:30:00Z"
+                        ).timestamp(),
+                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    },
+                    f,
+                )
+            (workspace / "cached.txt").write_bytes(b"Hello, world!\n")
+
+            r = impuls.resource.prepare_resources(
+                {"cached.txt": cached_resource},
+                workspace,
+                force_run=True,
+            )
+
+            self.assertEqual(r["cached.txt"].stored_at, workspace / "cached.txt")
+            self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")
+            self.assertEqual(
+                r["cached.txt"].last_modified,
+                datetime.fromisoformat("2023-04-01T11:30:00Z"),
+            )
+            self.assertEqual(
+                r["cached.txt"].fetch_time,
+                datetime.fromisoformat("2023-04-01T12:00:00Z"),
+            )
+
+    def test_prepare_resources_fetches(self) -> None:
+        with MockFile(directory=True) as workspace:
+            r = impuls.resource.prepare_resources(
+                {"missing.txt": MockResource(b"Hello, world!\n")},
+                workspace,
+            )
+
+            self.assertEqual(r["missing.txt"].stored_at, workspace / "missing.txt")
+            self.assertEqual(r["missing.txt"].bytes(), b"Hello, world!\n")
+
+    def test_prepare_resources_raises_input_not_modified(self) -> None:
+        with MockFile(directory=True) as workspace:
+            cached_resource = MockResource(b"Hello, world!\n")
+            with (workspace / "cached.txt.metadata").open(mode="w") as f:
+                json.dump(
+                    {
+                        "last_modified": datetime.fromisoformat(
+                            "2023-04-01T11:30:00Z"
+                        ).timestamp(),
+                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    },
+                    f,
+                )
+            (workspace / "cached.txt").write_bytes(b"Hello, world!\n")
+
+            with self.assertRaises(InputNotModified):
+                impuls.resource.prepare_resources({"cached.txt": cached_resource}, workspace)

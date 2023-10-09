@@ -1,11 +1,11 @@
 import logging
 from pathlib import Path
+from types import MappingProxyType
 from typing import Mapping, Optional
 
 from .db import DBConnection
-from .errors import InputNotModified
 from .options import PipelineOptions
-from .resource import ManagedResource, Resource, cache_resources, ensure_resources_cached
+from .resource import ManagedResource, Resource, prepare_resources
 from .task import Task, TaskRuntime
 from .tools import machine_load
 
@@ -48,30 +48,15 @@ class Pipeline:
         if self.managed_resources is not None:
             # Resources are already prepared - no need to do anything
             return
-        elif self.options.from_cache:
-            # Asked not to download any resources - just ensure they're all cached
-            self.managed_resources = ensure_resources_cached(
+
+        self.managed_resources = MappingProxyType(
+            prepare_resources(
                 self.raw_resources,
                 self.options.workspace_directory,
+                self.options.from_cache,
+                self.options.force_run,
             )
-        elif self.options.force_run:
-            # Force pipeline run - ignore InputNotModified
-            try:
-                self.managed_resources = cache_resources(
-                    self.raw_resources,
-                    self.options.workspace_directory,
-                )
-            except InputNotModified:
-                self.managed_resources = ensure_resources_cached(
-                    self.raw_resources,
-                    self.options.workspace_directory,
-                )
-        else:
-            # Normal case - download outdated resources or propagate InputNotModified
-            self.managed_resources = cache_resources(
-                self.raw_resources,
-                self.options.workspace_directory,
-            )
+        )
 
     def open_db(self) -> DBConnection:
         if not self.db_path:
