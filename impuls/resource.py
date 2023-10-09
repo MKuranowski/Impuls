@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from pathlib import Path
-from types import MappingProxyType
 from typing import (
     Any,
     BinaryIO,
@@ -449,7 +448,7 @@ def _download_resource(r: Resource, to: Path) -> None:
         temp_to.unlink(missing_ok=True)
 
 
-def cache_resources(r: Mapping[str, Resource], workspace: Path) -> Mapping[str, ManagedResource]:
+def cache_resources(r: Mapping[str, Resource], workspace: Path) -> dict[str, ManagedResource]:
     """cache_resources ensures all resources are stored locally by fetching outdated resources.
 
     Raises InputNotModified if there was at least one resource
@@ -480,7 +479,7 @@ def cache_resources(r: Mapping[str, Resource], workspace: Path) -> Mapping[str, 
 
     if had_resources and not some_were_modified:
         raise InputNotModified
-    return MappingProxyType(managed_resources)
+    return managed_resources
 
 
 def _ensure_resource_cached(
@@ -507,7 +506,7 @@ def _ensure_resource_cached(
 def ensure_resources_cached(
     r: Mapping[str, Resource],
     workspace: Path,
-) -> Mapping[str, ManagedResource]:
+) -> dict[str, ManagedResource]:
     """ensure_resources_cached ensures all resources are stored locally
     **without** fetching any resources. If any resource is not cached, raises MultipleDataErrors
     with a list of ResourceNotCached corresponding to all missing resources.
@@ -529,4 +528,24 @@ def ensure_resources_cached(
         )
     )
 
-    return MappingProxyType(managed_resources)
+    return managed_resources
+
+
+def prepare_resources(
+    r: Mapping[str, Resource],
+    workspace: Path,
+    from_cache: bool = False,
+    force_run: bool = False,
+) -> dict[str, ManagedResource]:
+    if from_cache:
+        # Asked not to download any resources - just ensure they're all cached
+        return ensure_resources_cached(r, workspace)
+    elif force_run:
+        # Force run - ignore InputNotModified
+        try:
+            return cache_resources(r, workspace)
+        except InputNotModified:
+            return ensure_resources_cached(r, workspace)
+    else:
+        # Normal case - download outdated resources or propagate InputNotModified
+        return cache_resources(r, workspace)
