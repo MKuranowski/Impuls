@@ -132,9 +132,6 @@ class MultiFile(Generic[AnyResource]):
     feed_version_separator: str = "/"
     distance_between_similar_stops_m: float = 10.0
 
-    resources_have_changed: bool = False
-    intermediates_have_changed: bool = False
-
     def prepare(self) -> Pipelines:
         # Dictionary:
         # - "intermediate": feed corresponding to a single input file
@@ -279,7 +276,15 @@ class MultiFile(Generic[AnyResource]):
         return to_merge
 
     def prepare_resources(self) -> dict[str, ManagedResource]:
-        raise NotImplementedError()  # TODO
+        logger.info("Preparing additional resources")
+        # NOTE: Any changes in the additional resources are completely ignored:
+        #       Pipeline might not run, even if the intermediate resources have changed.
+        r, _ = prepare_resources(
+            self.additional_resources,
+            self.options.workspace_directory,
+            self.options.from_cache,
+        )
+        return r
 
     def intermediate_dbs_path(self) -> Path:
         p = self.options.workspace_directory / "intermediate_dbs"
