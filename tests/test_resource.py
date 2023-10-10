@@ -350,7 +350,7 @@ class TestResourceCaching(unittest.TestCase):
 
             # Cache the resources
 
-            r = impuls.resource.cache_resources(
+            r, changed = impuls.resource.cache_resources(
                 {
                     "cached.txt": cached_resource,
                     "outdated.txt": outdated_resource,
@@ -361,6 +361,7 @@ class TestResourceCaching(unittest.TestCase):
             )
 
             # Check the resulting resources
+            self.assertTrue(changed)
 
             # 1. Cached resource
             self.assertEqual(r["cached.txt"].stored_at, workspace / "cached.txt")
@@ -443,14 +444,14 @@ class TestResourceCaching(unittest.TestCase):
                 )
 
             # Cache the resources
-            with self.assertRaises(InputNotModified):
-                impuls.resource.cache_resources(
-                    {
-                        "cached.txt": cached_resource,
-                        "local.txt": LocalResource(local_resource_file),
-                    },
-                    workspace,
-                )
+            _, changed = impuls.resource.cache_resources(
+                {
+                    "cached.txt": cached_resource,
+                    "local.txt": LocalResource(local_resource_file),
+                },
+                workspace,
+            )
+            self.assertFalse(changed)
 
     def test_ensure_resources_cached_ok(self) -> None:
         with MockFile(directory=True) as workspace, MockFile() as local_resource_file:
@@ -570,7 +571,7 @@ class TestResourceCaching(unittest.TestCase):
 
             # Check if resources are cached
 
-            r = impuls.resource.prepare_resources(
+            r, should_continue = impuls.resource.prepare_resources(
                 {
                     "cached.txt": cached_resource,
                     "local.txt": LocalResource(local_resource_file),
@@ -580,6 +581,7 @@ class TestResourceCaching(unittest.TestCase):
             )
 
             # Check the resulting resources
+            self.assertTrue(should_continue)
 
             # 1. Cached resource
             self.assertEqual(r["cached.txt"].stored_at, workspace / "cached.txt")
@@ -623,56 +625,14 @@ class TestResourceCaching(unittest.TestCase):
         assert isinstance(errors[0], ResourceNotCached)  # for type checker
         self.assertEqual(errors[0].resource_name, "missing.txt")
 
-    def test_prepare_resources_force_run_fetches(self) -> None:
-        with MockFile(directory=True) as workspace:
-            r = impuls.resource.prepare_resources(
-                {"missing.txt": MockResource(b"Hello, world!\n")},
-                workspace,
-                force_run=True,
-            )
-
-            self.assertEqual(r["missing.txt"].stored_at, workspace / "missing.txt")
-            self.assertEqual(r["missing.txt"].bytes(), b"Hello, world!\n")
-
-    def test_prepare_resources_force_run_does_not_raise_input_not_modified(self) -> None:
-        with MockFile(directory=True) as workspace:
-            cached_resource = MockResource(b"Hello, world!\n")
-            with (workspace / "cached.txt.metadata").open(mode="w") as f:
-                json.dump(
-                    {
-                        "last_modified": datetime.fromisoformat(
-                            "2023-04-01T11:30:00Z"
-                        ).timestamp(),
-                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
-                    },
-                    f,
-                )
-            (workspace / "cached.txt").write_bytes(b"Hello, world!\n")
-
-            r = impuls.resource.prepare_resources(
-                {"cached.txt": cached_resource},
-                workspace,
-                force_run=True,
-            )
-
-            self.assertEqual(r["cached.txt"].stored_at, workspace / "cached.txt")
-            self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")
-            self.assertEqual(
-                r["cached.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T11:30:00Z"),
-            )
-            self.assertEqual(
-                r["cached.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T12:00:00Z"),
-            )
-
     def test_prepare_resources_fetches(self) -> None:
         with MockFile(directory=True) as workspace:
-            r = impuls.resource.prepare_resources(
+            r, should_continue = impuls.resource.prepare_resources(
                 {"missing.txt": MockResource(b"Hello, world!\n")},
                 workspace,
             )
 
+            self.assertTrue(should_continue)
             self.assertEqual(r["missing.txt"].stored_at, workspace / "missing.txt")
             self.assertEqual(r["missing.txt"].bytes(), b"Hello, world!\n")
 
@@ -691,5 +651,11 @@ class TestResourceCaching(unittest.TestCase):
                 )
             (workspace / "cached.txt").write_bytes(b"Hello, world!\n")
 
-            with self.assertRaises(InputNotModified):
-                impuls.resource.prepare_resources({"cached.txt": cached_resource}, workspace)
+            r, should_continue = impuls.resource.prepare_resources(
+                {"cached.txt": cached_resource},
+                workspace,
+            )
+
+            self.assertFalse(should_continue)
+            self.assertEqual(len(r), 1)
+            self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")

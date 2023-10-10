@@ -9,7 +9,13 @@ from .errors import InputNotModified
 from .model import Date
 from .options import PipelineOptions
 from .pipeline import Pipeline
-from .resource import LocalResource, ManagedResource, Resource, _download_resource
+from .resource import (
+    LocalResource,
+    ManagedResource,
+    Resource,
+    _download_resource,
+    prepare_resources,
+)
 from .task import Task
 from .tasks import TruncateCalendars, merge
 from .tools.temporal import date_range
@@ -125,6 +131,9 @@ class MultiFile(Generic[AnyResource]):
     merge_separator: str = ":"
     feed_version_separator: str = "/"
     distance_between_similar_stops_m: float = 10.0
+
+    resources_have_changed: bool = False
+    intermediates_have_changed: bool = False
 
     def prepare(self) -> Pipelines:
         # Dictionary:
