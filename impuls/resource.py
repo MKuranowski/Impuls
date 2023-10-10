@@ -448,15 +448,19 @@ def _download_resource(r: Resource, to: Path) -> None:
         temp_to.unlink(missing_ok=True)
 
 
-def cache_resources(r: Mapping[str, Resource], workspace: Path) -> dict[str, ManagedResource]:
+def cache_resources(
+    r: Mapping[str, Resource],
+    workspace: Path,
+) -> tuple[dict[str, ManagedResource], bool]:
     """cache_resources ensures all resources are stored locally by fetching outdated resources.
 
-    Raises InputNotModified if there was at least one resource
-    and all resources were not modified.
+    First returned element is a mapping from resource name
+    to its ManagedResource counterpart.
 
-    Returns a mapping from resource name to its ManagedResource counterpart."""
-    some_were_modified: bool = False
-    had_resources = bool(r)
+    Second returned element is a flag se to True if at least one Resource
+    was fetched. It's set to False if there are no Resources.
+    """
+    modified: bool = False
     managed_resources: dict[str, ManagedResource] = {}
 
     for name, res in r.items():
@@ -475,11 +479,9 @@ def cache_resources(r: Mapping[str, Resource], workspace: Path) -> dict[str, Man
 
         _write_metadata(res, metadata_path)
         managed_resources[name] = ManagedResource(cached_path, res.last_modified, res.fetch_time)
-        some_were_modified = some_were_modified or this_was_modified
+        modified = modified or this_was_modified
 
-    if had_resources and not some_were_modified:
-        raise InputNotModified
-    return managed_resources
+    return managed_resources, modified
 
 
 def _ensure_resource_cached(
@@ -535,17 +537,23 @@ def prepare_resources(
     r: Mapping[str, Resource],
     workspace: Path,
     from_cache: bool = False,
-    force_run: bool = False,
-) -> dict[str, ManagedResource]:
-    if from_cache:
+) -> tuple[dict[str, ManagedResource], bool]:
+    """prepare_resources ensures all provided Resources are available locally.
+
+    If from_cache is False, missing or stale resources are fetched; otherwise
+    MultipleDataError with ResourceNotCached may be raised.
+
+    First returned element is a mapping from resource name
+    to its ManagedResource counterpart.
+
+    The second returned flag, indicating whether the Pipeline should continue.
+    It's set to True if there are no resources, from_cache is True or at least
+    one Resource was cached.
+    """
+    if not r:
+        return {}, True
+    elif from_cache:
         # Asked not to download any resources - just ensure they're all cached
-        return ensure_resources_cached(r, workspace)
-    elif force_run:
-        # Force run - ignore InputNotModified
-        try:
-            return cache_resources(r, workspace)
-        except InputNotModified:
-            return ensure_resources_cached(r, workspace)
+        return ensure_resources_cached(r, workspace), True
     else:
-        # Normal case - download outdated resources or propagate InputNotModified
         return cache_resources(r, workspace)

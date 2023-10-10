@@ -4,6 +4,7 @@ from types import MappingProxyType
 from typing import Mapping, Optional
 
 from .db import DBConnection
+from .errors import InputNotModified
 from .options import PipelineOptions
 from .resource import ManagedResource, Resource, prepare_resources
 from .task import Task, TaskRuntime
@@ -49,14 +50,15 @@ class Pipeline:
             # Resources are already prepared - no need to do anything
             return
 
-        self.managed_resources = MappingProxyType(
-            prepare_resources(
-                self.raw_resources,
-                self.options.workspace_directory,
-                self.options.from_cache,
-                self.options.force_run,
-            )
+        managed, should_continue = prepare_resources(
+            self.raw_resources,
+            self.options.workspace_directory,
+            self.options.from_cache,
         )
+
+        if not should_continue and not self.options.force_run:
+            raise InputNotModified
+        self.managed_resources = MappingProxyType(managed)
 
     def open_db(self) -> DBConnection:
         if not self.db_path:
