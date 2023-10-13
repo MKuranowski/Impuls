@@ -464,6 +464,7 @@ def cache_resources(
     managed_resources: dict[str, ManagedResource] = {}
 
     for name, res in r.items():
+        # TODO: Check if the resource name can be used as a filename
         cached_path = _cache_path_of_resource(res, name, workspace)
         metadata_path = workspace / (name + ".metadata")
         _read_metadata(res, metadata_path)
