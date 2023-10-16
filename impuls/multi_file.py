@@ -428,7 +428,8 @@ class MultiFile(Generic[AnyResource]):
 
 @dataclass
 class _ResolvedVersions(Generic[AnyResource]):
-    """ResolvedVersions groups both cached and external versions by the action that needs to be taken."""
+    """ResolvedVersions groups both cached and external versions
+    by the action that needs to be taken"""
 
     to_remove: list[IntermediateFeed[LocalResource]] = field(default_factory=list)
     """Subset of cached feeds which are no longer needed (version no longer needed) or
@@ -534,7 +535,8 @@ class _ResolvedVersions(Generic[AnyResource]):
 
 
 def _load_cached(intermediate_inputs_path: Path) -> list[IntermediateFeed[LocalResource]]:
-    """Loads all known cached intermediate inputs. Any unrecognized files will be removed and reported."""
+    """Loads all known cached intermediate inputs.
+    Any unrecognized files will be removed and logged."""
     # Scan the intermediate_path directory for metadata files
     all_files = set(intermediate_inputs_path.iterdir())
     metadata_files = [f for f in all_files if f.is_file() and f.suffix == ".metadata"]
