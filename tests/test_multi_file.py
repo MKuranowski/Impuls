@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 from unittest import TestCase
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from impuls import LocalResource, Pipeline
 from impuls.model import Date
@@ -163,3 +163,26 @@ class TestResolvedVersions(TestCase):
                 "INFO:MultiFile:2 input feeds need to be downloaded:\n\tv5.txt, v6.txt",
             ],
         )
+
+    def test_remove(self) -> None:
+        d = Path("/tmp/non-existing")
+        r = _ResolvedVersions(
+            [
+                IntermediateFeed(LocalResource(d / "v1.txt"), "v1.txt", "v1", Date(2023, 4, 1)),
+                IntermediateFeed(LocalResource(d / "v2.txt"), "v2.txt", "v2", Date(2023, 5, 1)),
+            ],
+            [IntermediateFeed(LocalResource(d / "v3.txt"), "v3.txt", "v3", Date(2023, 6, 1))],
+            [IntermediateFeed(MockResource(), "v4.txt", "v4", Date(2023, 7, 1))],
+        )
+        with patch("impuls.multi_file._remove_from_cache") as remove_mock:
+            r.remove(d)
+
+        self.assertEqual(remove_mock.call_count, 2)
+
+        self.assertEqual(remove_mock.mock_calls[0].args[0], d)
+        self.assertIsInstance(remove_mock.mock_calls[0].args[1], IntermediateFeed)
+        self.assertEqual(remove_mock.mock_calls[0].args[1].version, "v1")
+
+        self.assertEqual(remove_mock.mock_calls[1].args[0], d)
+        self.assertIsInstance(remove_mock.mock_calls[1].args[1], IntermediateFeed)
+        self.assertEqual(remove_mock.mock_calls[1].args[1].version, "v2")
