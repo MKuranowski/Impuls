@@ -74,7 +74,9 @@ class IntermediateFeed(Generic[AnyResource]):
     a single version of schedules."""
 
     resource: AnyResource
-    """resource represents arbitrary data containing schedule data"""
+    """resource represents arbitrary data containing schedule data. This resource's
+    last_modified time must be filled in by the IntermediateFeedProvider - and must be available
+    before the first call to fetch."""
 
     resource_name: str
     """resource_name is a string used for identifying the resource.
@@ -127,7 +129,10 @@ class IntermediateFeed(Generic[AnyResource]):
 class IntermediateFeedProvider(Protocol[AnyResource]):
     """IntermediateFeedProvider is an abstraction over an external repository of versioned
     schedules. The provider is responsible for communicating with the external repository
-    and figuring out which feeds are needed to create a complete database."""
+    and figuring out which feeds are needed to create a complete database.
+
+    The IntermediateFeedProvider is also responsible for filling in the last_modified
+    field of generated feeds' resources."""
 
     def needed(self) -> list[IntermediateFeed[AnyResource]]:
         ...
