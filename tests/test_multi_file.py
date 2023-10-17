@@ -208,3 +208,9 @@ class TestResolvedVersions(TestCase):
             self.assertEqual(local_versions[1].version, "v4")
             self.assertEqual(local_versions[1].resource.path, d / "v4.txt")
             self.assertEqual(local_versions[1].resource.path.read_bytes(), b"bar")
+
+    # TODO: test_from
+
+
+# TODO: test _load_cached, _save_to_cache, _remove_from_cache
+# TODO: test MultiFile
