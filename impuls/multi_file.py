@@ -499,7 +499,7 @@ class _ResolvedVersions(Generic[AnyResource]):
             logger.info("1 input feed needs to be downloaded:\n\t%s", to_fetch_str)
         else:
             logger.info(
-                "%d cached input feeds need to be downloaded:\n\t%s",
+                "%d input feeds need to be downloaded:\n\t%s",
                 len(self.to_fetch),
                 to_fetch_str,
             )
