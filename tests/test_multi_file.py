@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from impuls import LocalResource, Pipeline
 from impuls.model import Date
 from impuls.multi_file import IntermediateFeed, Pipelines, _ResolvedVersions, logger
-from impuls.tools.testing_mocks import MockResource
+from impuls.tools.testing_mocks import MockFile, MockResource
 
 
 class TestPipelines(TestCase):
@@ -186,3 +186,25 @@ class TestResolvedVersions(TestCase):
         self.assertEqual(remove_mock.mock_calls[1].args[0], d)
         self.assertIsInstance(remove_mock.mock_calls[1].args[1], IntermediateFeed)
         self.assertEqual(remove_mock.mock_calls[1].args[1].version, "v2")
+
+    def test_fetch(self) -> None:
+        with MockFile(directory=True) as d:
+            r = _ResolvedVersions(
+                [IntermediateFeed(LocalResource(d / "v1.txt"), "v1.txt", "v1", Date(2023, 4, 1))],
+                [IntermediateFeed(LocalResource(d / "v2.txt"), "v2.txt", "v2", Date(2023, 5, 1))],
+                [
+                    IntermediateFeed(MockResource(b"foo"), "v3.txt", "v3", Date(2023, 6, 1)),
+                    IntermediateFeed(MockResource(b"bar"), "v4.txt", "v4", Date(2023, 7, 1)),
+                ],
+            )
+            local_versions = r.fetch(d)
+
+            self.assertEqual(len(local_versions), 2)
+
+            self.assertEqual(local_versions[0].version, "v3")
+            self.assertEqual(local_versions[0].resource.path, d / "v3.txt")
+            self.assertEqual(local_versions[0].resource.path.read_bytes(), b"foo")
+
+            self.assertEqual(local_versions[1].version, "v4")
+            self.assertEqual(local_versions[1].resource.path, d / "v4.txt")
+            self.assertEqual(local_versions[1].resource.path.read_bytes(), b"bar")
