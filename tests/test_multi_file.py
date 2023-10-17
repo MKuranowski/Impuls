@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import cast
@@ -6,7 +7,7 @@ from unittest.mock import Mock
 
 from impuls import LocalResource, Pipeline
 from impuls.model import Date
-from impuls.multi_file import IntermediateFeed, Pipelines
+from impuls.multi_file import IntermediateFeed, Pipelines, _ResolvedVersions, logger
 from impuls.tools.testing_mocks import MockResource
 
 
@@ -104,3 +105,61 @@ class TestIntermediateFeed(TestCase):
         self.assertEqual(f.resource_name, "foo_v1.txt")
         self.assertEqual(f.version, "v1")
         self.assertEqual(f.start_date, Date(2023, 4, 1))
+
+
+class TestResolvedVersions(TestCase):
+    def test_log_result_zero(self) -> None:
+        r = _ResolvedVersions()  # type: ignore
+        with self.assertLogs(logger, logging.INFO) as logs:
+            r.log_result()
+        self.assertListEqual(
+            logs.output,
+            [
+                "INFO:MultiFile:0 cached input feeds are stale",
+                "INFO:MultiFile:0 cached input feeds are up-to-date",
+                "INFO:MultiFile:0 input feeds need to be downloaded",
+            ],
+        )
+
+    def test_log_result_one(self) -> None:
+        r = _ResolvedVersions(
+            [IntermediateFeed(LocalResource(Path()), "v1.txt", "v1", Date(2023, 4, 1))],
+            [IntermediateFeed(LocalResource(Path()), "v2.txt", "v2", Date(2023, 5, 1))],
+            [IntermediateFeed(MockResource(), "v3.txt", "v3", Date(2023, 6, 1))],
+        )
+        with self.assertLogs(logger, logging.INFO) as logs:
+            r.log_result()
+        self.assertListEqual(
+            logs.output,
+            [
+                "INFO:MultiFile:1 cached input feed is stale:\n\tv1.txt",
+                "INFO:MultiFile:1 cached input feed is up-to-date:\n\tv2.txt",
+                "INFO:MultiFile:1 input feed needs to be downloaded:\n\tv3.txt",
+            ],
+        )
+
+    def test_log_result_many(self) -> None:
+        r = _ResolvedVersions(
+            [
+                IntermediateFeed(LocalResource(Path()), "v1.txt", "v1", Date(2023, 4, 1)),
+                IntermediateFeed(LocalResource(Path()), "v2.txt", "v2", Date(2023, 5, 1)),
+            ],
+            [
+                IntermediateFeed(LocalResource(Path()), "v3.txt", "v3", Date(2023, 6, 1)),
+                IntermediateFeed(LocalResource(Path()), "v4.txt", "v4", Date(2023, 7, 1)),
+            ],
+            [
+                IntermediateFeed(MockResource(), "v5.txt", "v5", Date(2023, 8, 1)),
+                IntermediateFeed(MockResource(), "v6.txt", "v6", Date(2023, 9, 1)),
+            ],
+        )
+        with self.assertLogs(logger, logging.INFO) as logs:
+            r.log_result()
+        self.assertListEqual(
+            logs.output,
+            [
+                "INFO:MultiFile:2 cached input feeds are stale:\n\tv1.txt, v2.txt",
+                "INFO:MultiFile:2 cached input feeds are up-to-date:\n\tv3.txt, v4.txt",
+                "INFO:MultiFile:2 input feeds need to be downloaded:\n\tv5.txt, v6.txt",
+            ],
+        )
