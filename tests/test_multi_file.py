@@ -209,7 +209,64 @@ class TestResolvedVersions(TestCase):
             self.assertEqual(local_versions[1].resource.path, d / "v4.txt")
             self.assertEqual(local_versions[1].resource.path.read_bytes(), b"bar")
 
-    # TODO: test_from
+    def test_from(self) -> None:
+        with MockFile(directory=True) as d:
+            cached_no_longer_needed = IntermediateFeed(
+                resource=LocalResource(d / "v1.txt"),
+                resource_name="v1.txt",
+                version="v1",
+                start_date=Date(2023, 4, 1),
+            )
+            cached_no_longer_needed.resource.last_modified = datetime(2023, 3, 28)
+
+            cached_up_to_date = IntermediateFeed(
+                resource=LocalResource(d / "v2.txt"),
+                resource_name="v2.txt",
+                version="v2",
+                start_date=Date(2023, 4, 14),
+            )
+            cached_up_to_date.resource.last_modified = datetime(2023, 3, 30)
+
+            cached_stale = IntermediateFeed(
+                resource=LocalResource(d / "v3.txt"),
+                resource_name="v3.txt",
+                version="v3",
+                start_date=Date(2023, 5, 1),
+            )
+            cached_stale.resource.last_modified = datetime(2023, 3, 30)
+
+            needed_already_cached = IntermediateFeed(
+                resource=MockResource(),
+                resource_name="v2.txt",
+                version="v2",
+                start_date=Date(2023, 4, 14),
+            )
+            needed_already_cached.resource.last_modified = datetime(2023, 3, 30)
+
+            needed_cached_stale = IntermediateFeed(
+                resource=MockResource(),
+                resource_name="v3.txt",
+                version="v3",
+                start_date=Date(2023, 5, 1),
+            )
+            needed_cached_stale.resource.last_modified = datetime(2023, 4, 5)
+
+            needed_not_cached = IntermediateFeed(
+                resource=MockResource(),
+                resource_name="v4.txt",
+                version="v4",
+                start_date=Date(2023, 5, 7),
+            )
+            needed_not_cached.resource.last_modified = datetime(2023, 4, 5)
+
+            resolved = _ResolvedVersions.from_(
+                [needed_already_cached, needed_cached_stale, needed_not_cached],
+                [cached_no_longer_needed, cached_up_to_date, cached_stale],
+            )
+
+            self.assertSetEqual({i.version for i in resolved.to_remove}, {"v1", "v3"})
+            self.assertSetEqual({i.version for i in resolved.up_to_date}, {"v2"})
+            self.assertSetEqual({i.version for i in resolved.to_fetch}, {"v3", "v4"})
 
 
 # TODO: test _load_cached, _save_to_cache, _remove_from_cache
