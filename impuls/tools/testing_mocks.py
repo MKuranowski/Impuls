@@ -56,6 +56,10 @@ class MockDatetimeNow:
         return dt.astimezone(tz) if tz else dt
 
     @classmethod
+    def constant(cls: Type[Self], t: datetime) -> Self:
+        return cls(itertools.repeat(t))
+
+    @classmethod
     def evenly_spaced(cls: Type[Self], start: datetime, delta: timedelta) -> Self:
         """evenly_spaced provides an infinite MockDatetimeNow
         which returns (start, start + delta, start + 2*delta, ...).

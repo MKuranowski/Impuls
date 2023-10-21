@@ -1,5 +1,7 @@
+import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from operator import attrgetter
 from pathlib import Path
 from typing import cast
 from unittest import TestCase
@@ -7,8 +9,17 @@ from unittest.mock import Mock, patch
 
 from impuls import LocalResource, Pipeline
 from impuls.model import Date
-from impuls.multi_file import IntermediateFeed, Pipelines, _ResolvedVersions, logger
-from impuls.tools.testing_mocks import MockFile, MockResource
+from impuls.multi_file import (
+    IntermediateFeed,
+    Pipelines,
+    _CachedFeedMetadata,
+    _load_cached,
+    _remove_from_cache,
+    _ResolvedVersions,
+    _save_to_cache,
+    logger,
+)
+from impuls.tools.testing_mocks import MockDatetimeNow, MockFile, MockResource
 
 
 class TestPipelines(TestCase):
@@ -269,5 +280,144 @@ class TestResolvedVersions(TestCase):
             self.assertSetEqual({i.version for i in resolved.to_fetch}, {"v3", "v4"})
 
 
-# TODO: test _load_cached, _save_to_cache, _remove_from_cache
+class TestCache(TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.mock_intermediate_inputs = MockFile(directory=True)
+        self.d = self.mock_intermediate_inputs.path
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.mock_intermediate_inputs.cleanup()
+
+    def test_load_cached(self) -> None:
+        (self.d / "v1.txt").write_bytes(b"Foo\n")
+        (self.d / "v1.txt.metadata").write_text(
+            json.dumps(
+                {
+                    "version": "v1",
+                    "start_date": "2023-04-01",
+                    "last_modified": datetime(2023, 3, 30, tzinfo=timezone.utc).timestamp(),
+                    "fetch_time": datetime(2023, 4, 2, 11, 15, tzinfo=timezone.utc).timestamp(),
+                }
+            )
+        )
+
+        (self.d / "v2.txt").write_bytes(b"Bar\n")
+        (self.d / "v2.txt.metadata").write_text(
+            json.dumps(
+                {
+                    "version": "v2",
+                    "start_date": "2023-04-14",
+                    "last_modified": datetime(2023, 3, 31, tzinfo=timezone.utc).timestamp(),
+                    "fetch_time": datetime(2023, 4, 2, 11, 16, tzinfo=timezone.utc).timestamp(),
+                }
+            )
+        )
+
+        f = _load_cached(self.d)
+        f.sort(key=attrgetter("version"))  # ensure consistent ordering for tests
+        self.assertEqual(len(f), 2)
+
+        self.assertEqual(f[0].resource.path, self.d / "v1.txt")
+        self.assertEqual(f[0].resource.last_modified, datetime(2023, 3, 30, tzinfo=timezone.utc))
+        self.assertEqual(
+            f[0].resource.fetch_time,
+            datetime(2023, 4, 2, 11, 15, tzinfo=timezone.utc),
+        )
+        self.assertEqual(f[0].resource_name, "v1.txt")
+        self.assertEqual(f[0].version, "v1")
+        self.assertEqual(f[0].start_date, Date(2023, 4, 1))
+
+        self.assertEqual(f[1].resource.path, self.d / "v2.txt")
+        self.assertEqual(f[1].resource.last_modified, datetime(2023, 3, 31, tzinfo=timezone.utc))
+        self.assertEqual(
+            f[1].resource.fetch_time,
+            datetime(2023, 4, 2, 11, 16, tzinfo=timezone.utc),
+        )
+        self.assertEqual(f[1].resource_name, "v2.txt")
+        self.assertEqual(f[1].version, "v2")
+        self.assertEqual(f[1].start_date, Date(2023, 4, 14))
+
+    def test_load_cached_removes_without_metadata(self) -> None:
+        (self.d / "v1.txt").write_bytes(b"Foo\n")
+        f = _load_cached(self.d)
+        self.assertEqual(len(f), 0)
+        self.assertFalse((self.d / "v1.txt").exists())
+
+    def test_load_cached_removes_metadata_only(self) -> None:
+        (self.d / "v1.txt.metadata").write_text(
+            json.dumps(
+                {
+                    "version": "v1",
+                    "start_date": "2023-04-01",
+                    "last_modified": datetime(2023, 3, 30, tzinfo=timezone.utc).timestamp(),
+                    "fetch_time": datetime(2023, 4, 2, 11, 15, tzinfo=timezone.utc).timestamp(),
+                }
+            )
+        )
+        f = _load_cached(self.d)
+        self.assertEqual(len(f), 0)
+        self.assertFalse((self.d / "v1.txt.metadata").exists())
+
+    def test_save(self) -> None:
+        mock_fetch_time = datetime(2023, 4, 2, 11, 15, tzinfo=timezone.utc)
+        in_feed = IntermediateFeed(
+            resource=MockResource(
+                b"Foo\n",
+                last_modified=datetime(2023, 3, 30, tzinfo=timezone.utc),
+                clock=MockDatetimeNow.constant(mock_fetch_time).now,
+            ),
+            resource_name="v1.txt",
+            version="v1",
+            start_date=Date(2023, 4, 1),
+        )
+        out_feed = _save_to_cache(self.d, in_feed)
+
+        self.assertEqual(out_feed.resource.path, self.d / "v1.txt")
+        self.assertEqual(out_feed.resource.path.read_bytes(), b"Foo\n")
+        self.assertEqual(out_feed.resource.fetch_time, mock_fetch_time)
+        self.assertEqual(out_feed.resource.last_modified, in_feed.resource.last_modified)
+        self.assertEqual(out_feed.resource_name, "v1.txt")
+        self.assertEqual(out_feed.version, "v1")
+        self.assertEqual(out_feed.start_date, Date(2023, 4, 1))
+
+        with (self.d / "v1.txt.metadata").open(mode="r") as metadata_fp:
+            metadata: _CachedFeedMetadata = json.load(metadata_fp)
+
+        self.assertDictEqual(
+            metadata,
+            {
+                "version": "v1",
+                "start_date": "2023-04-01",
+                "last_modified": in_feed.resource.last_modified.timestamp(),
+                "fetch_time": mock_fetch_time.timestamp(),
+            },
+        )
+
+    def test_remove(self) -> None:
+        (self.d / "v1.txt").write_bytes(b"Foo\n")
+        (self.d / "v1.txt.metadata").write_text(
+            json.dumps(
+                {
+                    "version": "v1",
+                    "start_date": "2023-04-01",
+                    "last_modified": datetime(2023, 3, 30, tzinfo=timezone.utc).timestamp(),
+                    "fetch_time": datetime(2023, 4, 2, 11, 15, tzinfo=timezone.utc).timestamp(),
+                }
+            )
+        )
+
+        f = IntermediateFeed(
+            LocalResource(self.d / "v1.txt"),
+            "v1.txt",
+            "v1",
+            Date(2023, 4, 1),
+        )
+        _remove_from_cache(self.d, f)
+
+        self.assertFalse((self.d / "v1.txt").exists())
+        self.assertFalse((self.d / "v1.txt.metadata").exists())
+
+
 # TODO: test MultiFile

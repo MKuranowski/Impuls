@@ -612,7 +612,7 @@ def _remove_from_cache(
     cached: IntermediateFeed[LocalResource],
 ) -> None:
     """Removes a cached intermediate input"""
-    if cached.resource.path.parent != intermediate_inputs_path / f"{cached.resource_name}":
+    if cached.resource.path != intermediate_inputs_path / f"{cached.resource_name}":
         raise AssertionError(
             "save_cached expects feeds saved to the intermediate inputs cache directory"
         )
