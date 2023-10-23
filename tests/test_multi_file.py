@@ -3,14 +3,16 @@ import logging
 from datetime import datetime, timezone
 from operator import attrgetter
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast, final
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from impuls import LocalResource, Pipeline
+from impuls import LocalResource, Pipeline, PipelineOptions, Task, TaskRuntime
 from impuls.model import Date
 from impuls.multi_file import (
     IntermediateFeed,
+    IntermediateFeedProvider,
+    MultiFile,
     Pipelines,
     _CachedFeedMetadata,
     _load_cached,
@@ -19,6 +21,8 @@ from impuls.multi_file import (
     _save_to_cache,
     logger,
 )
+from impuls.tasks import TruncateCalendars, merge
+from impuls.tools.temporal import date_range
 from impuls.tools.testing_mocks import MockDatetimeNow, MockFile, MockResource
 
 
@@ -420,4 +424,223 @@ class TestCache(TestCase):
         self.assertFalse((self.d / "v1.txt.metadata").exists())
 
 
-# TODO: test MultiFile
+@final
+class MockIntermediateFeedProvider(IntermediateFeedProvider[MockResource]):
+    def needed(self) -> list[IntermediateFeed[MockResource]]:
+        v2 = IntermediateFeed(
+            resource=MockResource(),
+            resource_name="v2.txt",
+            version="v2",
+            start_date=Date(2023, 4, 14),
+        )
+        v2.resource.last_modified = datetime(2023, 3, 30, tzinfo=timezone.utc)
+
+        v3 = IntermediateFeed(
+            resource=MockResource(),
+            resource_name="v3.txt",
+            version="v3",
+            start_date=Date(2023, 5, 1),
+        )
+        v3.resource.last_modified = datetime(2023, 4, 5, tzinfo=timezone.utc)
+
+        return [v2, v3]
+
+
+@final
+class DummyTask(Task):
+    def execute(self, r: TaskRuntime) -> None:
+        pass
+
+
+def mock_task_factory(feed: IntermediateFeed[LocalResource]) -> list[Task]:
+    return [DummyTask(f"DummyTask.{feed.version}")]
+
+
+def mock_multi_task_factory(feeds: list[IntermediateFeed[LocalResource]]) -> list[Task]:
+    return [DummyTask("DummyTask.multiple")]
+
+
+class TestMultiFile(TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.workspace = MockFile(directory=True)
+        self.options = PipelineOptions(workspace_directory=self.workspace.path)
+        self.multi_file = MultiFile(
+            options=self.options,
+            intermediate_provider=MockIntermediateFeedProvider(),
+            intermediate_pipeline_tasks_factory=mock_task_factory,
+            final_pipeline_tasks_factory=mock_multi_task_factory,
+        )
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.workspace.cleanup()
+
+    def check_intermediate_pipeline(self, p: Pipeline, version: str) -> None:
+        self.assertEqual(p.options, self.options)
+        self.assertEqual(
+            p.db_path,
+            self.workspace.path / "intermediate_dbs" / f"{version}.db",
+        )
+
+        assert p.managed_resources is not None
+        self.assertEqual(len(p.managed_resources), 1)
+        self.assertIn(f"{version}.txt", p.managed_resources)
+
+        self.assertEqual(len(p.tasks), 1)
+        self.assertIsInstance(p.tasks[0], DummyTask)
+        self.assertEqual(p.tasks[0].name, f"DummyTask.{version}")
+
+    def check_pre_merge_tasks(
+        self,
+        p: Pipeline | None,
+        version: Literal["v2", "v3"],
+        has_pre_merge_dummy_tasks: bool = False,
+    ) -> None:
+        self.assertIsNotNone(p)
+        assert p is not None  # for type checker
+
+        self.assertEqual(p.options, self.options)
+
+        self.assertEqual(len(p.tasks), 2 if has_pre_merge_dummy_tasks else 1)
+
+        self.assertIsInstance(p.tasks[0], TruncateCalendars)
+        truncate_task = cast(TruncateCalendars, p.tasks[0])
+        if version == "v2":
+            self.assertEqual(
+                truncate_task.target,
+                date_range(Date(2023, 4, 14), Date(2023, 4, 30)),
+            )
+        else:
+            self.assertEqual(
+                truncate_task.target,
+                date_range(Date(2023, 5, 1), None),
+            )
+
+        if has_pre_merge_dummy_tasks:
+            self.assertIsInstance(p.tasks[1], DummyTask)
+            self.assertEqual(p.tasks[1].name, f"DummyTask.{version}")
+
+    def check_merge_task(self, t: merge.Merge, has_pre_merge_dummy_tasks: bool = False) -> None:
+        self.assertEqual(len(t.databases_to_merge), 2)
+
+        self.assertEqual(t.databases_to_merge[0].resource_name, "v2.db")
+        self.assertEqual(t.databases_to_merge[0].prefix, "v2")
+        self.check_pre_merge_tasks(
+            t.databases_to_merge[0].pre_merge_pipeline,
+            "v2",
+            has_pre_merge_dummy_tasks,
+        )
+
+        self.assertEqual(t.databases_to_merge[1].resource_name, "v3.db")
+        self.assertEqual(t.databases_to_merge[1].prefix, "v3")
+        self.check_pre_merge_tasks(
+            t.databases_to_merge[1].pre_merge_pipeline,
+            "v3",
+            has_pre_merge_dummy_tasks,
+        )
+
+    def check_final_pipeline(self, p: Pipeline, has_pre_merge_dummy_tasks: bool = False) -> None:
+        self.assertEqual(p.options, self.options)
+
+        assert p.managed_resources is not None
+        self.assertEqual(len(p.managed_resources), 2)
+        self.assertIn("v2.db", p.managed_resources)
+        self.assertIn("v3.db", p.managed_resources)
+
+        self.assertEqual(len(p.tasks), 2)
+        self.assertIsInstance(p.tasks[0], merge.Merge)
+        self.check_merge_task(cast(merge.Merge, p.tasks[0]), has_pre_merge_dummy_tasks)
+
+        self.assertIsInstance(p.tasks[1], DummyTask)
+        self.assertEqual(p.tasks[1].name, "DummyTask.multiple")
+
+    def test(self) -> None:
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 2)
+        self.check_intermediate_pipeline(intermediates[0], "v2")
+        self.check_intermediate_pipeline(intermediates[1], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+    def test_removes_stale_inputs(self) -> None:
+        self.skipTest("TODO")
+
+    def test_raises_input_not_modified(self) -> None:
+        self.skipTest("TODO")
+
+    def test_pre_merge_pipeline(self) -> None:
+        self.skipTest("TODO")
+
+    def test_additional_resources(self) -> None:
+        self.skipTest("TODO")
+
+
+class TestMultiFileForceRun(TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.workspace = MockFile(directory=True)
+        self.options = PipelineOptions(workspace_directory=self.workspace.path, force_run=True)
+        self.multi_file = MultiFile(
+            options=self.options,
+            intermediate_provider=MockIntermediateFeedProvider(),
+            intermediate_pipeline_tasks_factory=mock_task_factory,
+            final_pipeline_tasks_factory=mock_multi_task_factory,
+        )
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.workspace.cleanup()
+
+    def test(self) -> None:
+        self.skipTest("TODO")
+
+
+class TestMultiFileFromCache(TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.workspace = MockFile(directory=True)
+        self.options = PipelineOptions(workspace_directory=self.workspace.path, from_cache=True)
+        self.multi_file = MultiFile(
+            options=self.options,
+            intermediate_provider=MockIntermediateFeedProvider(),
+            intermediate_pipeline_tasks_factory=mock_task_factory,
+            final_pipeline_tasks_factory=mock_multi_task_factory,
+        )
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.workspace.cleanup()
+
+    def test(self) -> None:
+        self.skipTest("TODO")
+
+    def test_with_missing_intermediate_dbs(self) -> None:
+        self.skipTest("TODO")
+
+    def test_with_missing_additional_resources(self) -> None:
+        self.skipTest("TODO")
+
+
+class TestMultiFileForceRunAndFromCache(TestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.workspace = MockFile(directory=True)
+        self.options = PipelineOptions(
+            workspace_directory=self.workspace.path,
+            force_run=True,
+            from_cache=True,
+        )
+        self.multi_file = MultiFile(
+            options=self.options,
+            intermediate_provider=MockIntermediateFeedProvider(),
+            intermediate_pipeline_tasks_factory=mock_task_factory,
+            final_pipeline_tasks_factory=mock_multi_task_factory,
+        )
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.workspace.cleanup()
+
+    def test(self) -> None:
+        self.skipTest("TODO")
