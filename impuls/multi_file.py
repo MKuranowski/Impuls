@@ -3,24 +3,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import getLogger
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Generic,
-    Mapping,
-    NamedTuple,
-    Protocol,
-    Sequence,
-    Type,
-    TypedDict,
-    TypeVar,
-)
+from typing import Any, Callable, Generic, Mapping, NamedTuple, Protocol, Type, TypedDict, TypeVar
 
 from .errors import InputNotModified
 from .model import Date
 from .options import PipelineOptions
 from .pipeline import Pipeline
 from .resource import (
+    DATETIME_MIN_UTC,
     LocalResource,
     ManagedResource,
     Resource,
@@ -139,7 +129,7 @@ class IntermediateFeedProvider(Protocol[AnyResource]):
 
 
 TaskFactory = Callable[[IntermediateFeed[LocalResource]], list[Task]]
-MultiTaskFactory = Callable[[Sequence[IntermediateFeed[LocalResource]]], list[Task]]
+MultiTaskFactory = Callable[[list[IntermediateFeed[LocalResource]]], list[Task]]
 
 
 def empty_tasks_factory(*_: Any) -> list[Task]:
@@ -192,6 +182,9 @@ class MultiFile(Generic[AnyResource]):
     5. Prepare final pipeline for merging intermediate feeds
     """
 
+    options: PipelineOptions
+    """Options for the MultiFile process and created Pipelines."""
+
     intermediate_provider: IntermediateFeedProvider[AnyResource]
     """intermediate_provider is responsible for calculating which intermediate feeds
     are required to create the final database."""
@@ -228,9 +221,6 @@ class MultiFile(Generic[AnyResource]):
 
     additional_resources: Mapping[str, Resource] = field(default_factory=dict)
     """Additional resources, made available for all intermediate and final pipelines"""
-
-    options: PipelineOptions = PipelineOptions()
-    """Options for returned Pipelines."""
 
     merge_separator: str = ":"
     """Passed through to :py:class:`merge.Merge` -
@@ -285,12 +275,12 @@ class MultiFile(Generic[AnyResource]):
         if self.options.from_cache:
             # NOTE: No changes to cached inputs will be made - no need to invalidate the cache
             logger.warning("Using cached intermediate feeds")
-            cached = _load_cached(self.options.workspace_directory)
+            cached = _load_cached(self.intermediate_inputs_path())
             return _ResolvedVersions(up_to_date=cached)
 
         logger.info("Checking needed intermediate feeds")
         needed = self.intermediate_provider.needed()
-        cached = _load_cached(self.options.workspace_directory)
+        cached = _load_cached(self.intermediate_inputs_path())
         return _ResolvedVersions.from_(needed, cached)
 
     def prepare_intermediate_pipelines(
@@ -376,9 +366,14 @@ class MultiFile(Generic[AnyResource]):
         for feed in local:
             resource_name = f"{feed.version}.db"
             resource_path = intermediate_dbs_path / resource_name
+            try:
+                last_modified = datetime.fromtimestamp(resource_path.stat().st_mtime, timezone.utc)
+            except FileNotFoundError:
+                last_modified = DATETIME_MIN_UTC
+
             pipeline.managed_resources[resource_name] = ManagedResource(
                 resource_path,
-                datetime.fromtimestamp(resource_path.stat().st_mtime, timezone.utc),
+                last_modified,
                 feed.resource.fetch_time,
             )
 
