@@ -10,6 +10,7 @@ from .model import Date
 from .options import PipelineOptions
 from .pipeline import Pipeline
 from .resource import (
+    DATETIME_MAX_UTC,
     DATETIME_MIN_UTC,
     LocalResource,
     ManagedResource,
@@ -301,7 +302,7 @@ class MultiFile(Generic[AnyResource]):
         versions_up_to_date = set[str]()
         for db_file in path.iterdir():
             db_mod_time = datetime.fromtimestamp(db_file.stat().st_mtime, timezone.utc)
-            expected_mod_time = version_and_expected_mod_time.get(db_file.stem, datetime.max)
+            expected_mod_time = version_and_expected_mod_time.get(db_file.stem, DATETIME_MAX_UTC)
             if db_file.stem in force or db_mod_time < expected_mod_time:
                 db_file.unlink()
             else:
