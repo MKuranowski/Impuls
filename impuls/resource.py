@@ -26,6 +26,7 @@ from .tools.types import Self
 
 FETCH_CHUNK_SIZE = 1024 * 128
 DATETIME_MIN_UTC = datetime.min.replace(tzinfo=timezone.utc)
+DATETIME_MAX_UTC = datetime.max.replace(tzinfo=timezone.utc)
 
 #
 # Input resources which can be passed to Pipeline

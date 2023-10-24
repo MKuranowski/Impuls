@@ -616,7 +616,13 @@ class TestMultiFile(TestCase):
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
 
     def test_removes_stale_inputs(self) -> None:
-        self.skipTest("TODO")
+        self.mock_input("v1")
+        self.mock_db("v1")
+
+        self.multi_file.prepare()
+
+        self.assertFalse((self.multi_file.intermediate_inputs_path() / "v1.txt").exists())
+        self.assertFalse((self.multi_file.intermediate_dbs_path() / "v1.db").exists())
 
     def test_raises_input_not_modified(self) -> None:
         self.skipTest("TODO")
