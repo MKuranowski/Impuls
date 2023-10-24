@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from operator import attrgetter
 from pathlib import Path
@@ -424,26 +425,37 @@ class TestCache(TestCase):
         self.assertFalse((self.d / "v1.txt.metadata").exists())
 
 
+def mock_feed(version: str) -> IntermediateFeed[MockResource]:
+    match version:
+        case "v1":
+            return IntermediateFeed(
+                resource=MockResource(last_modified=datetime(2023, 3, 28, tzinfo=timezone.utc)),
+                resource_name="v1.txt",
+                version="v1",
+                start_date=Date(2023, 4, 1),
+            )
+        case "v2":
+            return IntermediateFeed(
+                resource=MockResource(last_modified=datetime(2023, 3, 30, tzinfo=timezone.utc)),
+                resource_name="v2.txt",
+                version="v2",
+                start_date=Date(2023, 4, 14),
+            )
+        case "v3":
+            return IntermediateFeed(
+                resource=MockResource(last_modified=datetime(2023, 4, 5, tzinfo=timezone.utc)),
+                resource_name="v3.txt",
+                version="v3",
+                start_date=Date(2023, 5, 1),
+            )
+        case _:
+            raise ValueError(f"invalid mock feed version: {version}")
+
+
 @final
 class MockIntermediateFeedProvider(IntermediateFeedProvider[MockResource]):
     def needed(self) -> list[IntermediateFeed[MockResource]]:
-        v2 = IntermediateFeed(
-            resource=MockResource(),
-            resource_name="v2.txt",
-            version="v2",
-            start_date=Date(2023, 4, 14),
-        )
-        v2.resource.last_modified = datetime(2023, 3, 30, tzinfo=timezone.utc)
-
-        v3 = IntermediateFeed(
-            resource=MockResource(),
-            resource_name="v3.txt",
-            version="v3",
-            start_date=Date(2023, 5, 1),
-        )
-        v3.resource.last_modified = datetime(2023, 4, 5, tzinfo=timezone.utc)
-
-        return [v2, v3]
+        return [mock_feed("v2"), mock_feed("v3")]
 
 
 @final
@@ -475,6 +487,23 @@ class TestMultiFile(TestCase):
     def tearDown(self) -> None:
         super().tearDown()
         self.workspace.cleanup()
+
+    def mock_input(self, version: str, last_modified: datetime | None = None) -> None:
+        p = self.multi_file.intermediate_inputs_path()
+        (p / f"{version}.txt").touch()
+        with (p / f"{version}.txt.metadata").open(mode="w") as f:
+            metadata = mock_feed(version).as_cached_feed_metadata()
+            if last_modified:
+                metadata["last_modified"] = last_modified.timestamp()
+            json.dump(metadata, f)
+
+    def mock_db(self, version: str, last_modified: datetime | None = None) -> None:
+        p = self.multi_file.intermediate_dbs_path()
+        f = p / f"{version}.sb"
+        f.touch()
+
+        t = (last_modified or mock_feed(version).resource.last_modified).timestamp()
+        os.utime(f, (t, t))
 
     def check_intermediate_pipeline(self, p: Pipeline, version: str) -> None:
         self.assertEqual(p.options, self.options)
@@ -556,6 +585,29 @@ class TestMultiFile(TestCase):
         self.assertEqual(p.tasks[1].name, "DummyTask.multiple")
 
     def test(self) -> None:
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 2)
+        self.check_intermediate_pipeline(intermediates[0], "v2")
+        self.check_intermediate_pipeline(intermediates[1], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+    def test_skips_cached_dbs(self) -> None:
+        self.mock_input("v2")
+        self.mock_db("v2")
+
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 1)
+        self.check_intermediate_pipeline(intermediates[0], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+    def test_overwrites_cached_db_if_fetched(self) -> None:
+        # NOTE: This test is particularly nasty, simulating a situation
+        #       when the input resource has changed after a fetch, but before generating a db
+        self.mock_input("v2", datetime(2023, 3, 29, tzinfo=timezone.utc))
+        self.mock_db("v2", datetime(2023, 3, 31, tzinfo=timezone.utc))
+
         intermediates, final = self.multi_file.prepare()
 
         self.assertEqual(len(intermediates), 2)
