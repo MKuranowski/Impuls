@@ -259,7 +259,11 @@ class MultiFile(Generic[AnyResource]):
         local = versions.up_to_date + local_fetched
 
         # 3. Prepare intermediate pipelines for missing local feeds
-        intermediates = self.prepare_intermediate_pipelines(local, resources)
+        intermediates = self.prepare_intermediate_pipelines(
+            local,
+            resources,
+            force={i.version for i in versions.to_fetch},
+        )
 
         # 4. If there were no changes at all and not force_run - raise InputNotModified
         if not intermediates and not self.options.force_run:
@@ -287,6 +291,7 @@ class MultiFile(Generic[AnyResource]):
         self,
         local: list[IntermediateFeed[LocalResource]],
         resources: Mapping[str, ManagedResource],
+        force: set[str],
     ) -> list[Pipeline]:
         path = self.intermediate_dbs_path()
         version_and_expected_mod_time = {i.version: i.resource.last_modified for i in local}
@@ -297,7 +302,7 @@ class MultiFile(Generic[AnyResource]):
         for db_file in path.iterdir():
             db_mod_time = datetime.fromtimestamp(db_file.stat().st_mtime, timezone.utc)
             expected_mod_time = version_and_expected_mod_time.get(db_file.stem, datetime.max)
-            if db_mod_time < expected_mod_time:
+            if db_file.stem in force or db_mod_time < expected_mod_time:
                 db_file.unlink()
             else:
                 versions_up_to_date.add(db_file.stem)
