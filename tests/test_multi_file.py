@@ -9,6 +9,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from impuls import LocalResource, Pipeline, PipelineOptions, Task, TaskRuntime
+from impuls.errors import InputNotModified
 from impuls.model import Date
 from impuls.multi_file import (
     IntermediateFeed,
@@ -499,7 +500,7 @@ class TestMultiFile(TestCase):
 
     def mock_db(self, version: str, last_modified: datetime | None = None) -> None:
         p = self.multi_file.intermediate_dbs_path()
-        f = p / f"{version}.sb"
+        f = p / f"{version}.db"
         f.touch()
 
         t = (last_modified or mock_feed(version).resource.last_modified).timestamp()
@@ -625,13 +626,73 @@ class TestMultiFile(TestCase):
         self.assertFalse((self.multi_file.intermediate_dbs_path() / "v1.db").exists())
 
     def test_raises_input_not_modified(self) -> None:
-        self.skipTest("TODO")
+        self.mock_input("v2")
+        self.mock_input("v3")
+        self.mock_db("v2")
+        self.mock_db("v3")
+
+        with self.assertRaises(InputNotModified):
+            self.multi_file.prepare()
 
     def test_pre_merge_pipeline(self) -> None:
-        self.skipTest("TODO")
+        self.multi_file.pre_merge_pipeline_tasks_factory = mock_task_factory
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 2)
+        self.check_intermediate_pipeline(intermediates[0], "v2")
+        self.check_intermediate_pipeline(intermediates[1], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=True)
 
     def test_additional_resources(self) -> None:
-        self.skipTest("TODO")
+        self.multi_file.additional_resources = {"foo.txt": MockResource(b"Foo\n")}
+        intermediate, final = self.multi_file.prepare()
+
+        # Check that intermediate pipelines have access to the additional resource
+
+        assert intermediate[0].managed_resources is not None
+        self.assertIn("foo.txt", intermediate[0].managed_resources)
+        self.assertEqual(
+            self.workspace.path / "foo.txt",
+            intermediate[0].managed_resources["foo.txt"].stored_at,
+        )
+        self.assertEqual(b"Foo\n", intermediate[0].managed_resources["foo.txt"].bytes())
+
+        assert intermediate[1].managed_resources is not None
+        self.assertIn("foo.txt", intermediate[0].managed_resources)
+        self.assertEqual(
+            self.workspace.path / "foo.txt",
+            intermediate[1].managed_resources["foo.txt"].stored_at,
+        )
+
+        # Check that the pre-merge pipelines have access to the additional resource
+
+        assert isinstance(final.tasks[0], merge.Merge)
+        to_merge = final.tasks[0].databases_to_merge
+        assert to_merge[0].pre_merge_pipeline is not None
+        assert to_merge[0].pre_merge_pipeline.managed_resources is not None
+        assert to_merge[1].pre_merge_pipeline is not None
+        assert to_merge[1].pre_merge_pipeline.managed_resources is not None
+
+        self.assertIn("foo.txt", to_merge[0].pre_merge_pipeline.managed_resources)
+        self.assertEqual(
+            self.workspace.path / "foo.txt",
+            to_merge[0].pre_merge_pipeline.managed_resources["foo.txt"].stored_at,
+        )
+
+        self.assertIn("foo.txt", to_merge[1].pre_merge_pipeline.managed_resources)
+        self.assertEqual(
+            self.workspace.path / "foo.txt",
+            to_merge[1].pre_merge_pipeline.managed_resources["foo.txt"].stored_at,
+        )
+
+        # Check that the final pipeline has access to the additional resource
+
+        assert final.managed_resources is not None
+        self.assertIn("foo.txt", intermediate[0].managed_resources)
+        self.assertEqual(
+            self.workspace.path / "foo.txt",
+            intermediate[0].managed_resources["foo.txt"].stored_at,
+        )
 
 
 class TestMultiFileForceRun(TestCase):

@@ -301,6 +301,11 @@ class MultiFile(Generic[AnyResource]):
         logger.info("Removing stale/unnecessary intermediate databases")
         versions_up_to_date = set[str]()
         for db_file in path.iterdir():
+            # Ignore non-db files
+            if db_file.suffix != ".db":
+                logger.error("Unrecognized file in intermediate databases path: %s", db_file.name)
+                continue
+
             db_mod_time = datetime.fromtimestamp(db_file.stat().st_mtime, timezone.utc)
             expected_mod_time = version_and_expected_mod_time.get(db_file.stem, DATETIME_MAX_UTC)
             if db_file.stem in force or db_mod_time < expected_mod_time:
