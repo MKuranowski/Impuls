@@ -159,6 +159,9 @@ class Calendar(Entity):
         if self.start_date == Date.SIGNALS_EXCEPTIONS and self.end_date == Date.SIGNALS_EXCEPTIONS:
             return set()
 
+        if self.compressed_weekdays == 0:
+            return set()
+
         return {
             date
             for date in date_range(self.start_date, self.end_date)

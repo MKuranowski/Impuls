@@ -5,6 +5,7 @@ from .load_busman import LoadBusManMDB
 from .load_gtfs import LoadGTFS
 from .modify_from_csv import ModifyRoutesFromCSV, ModifyStopsFromCSV
 from .save_db import SaveDB
+from .save_gtfs import SaveGTFS
 from .truncate_calendars import TruncateCalendars
 
 __all__ = [
@@ -16,5 +17,6 @@ __all__ = [
     "ModifyRoutesFromCSV",
     "ModifyStopsFromCSV",
     "SaveDB",
+    "SaveGTFS",
     "TruncateCalendars",
 ]
