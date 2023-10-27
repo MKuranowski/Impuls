@@ -9,7 +9,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from impuls import LocalResource, Pipeline, PipelineOptions, Task, TaskRuntime
-from impuls.errors import InputNotModified
+from impuls.errors import InputNotModified, MultipleDataErrors, ResourceNotCached
 from impuls.model import Date
 from impuls.multi_file import (
     IntermediateFeed,
@@ -694,72 +694,89 @@ class TestMultiFile(TestCase):
             intermediate[0].managed_resources["foo.txt"].stored_at,
         )
 
-
-class TestMultiFileForceRun(TestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.workspace = MockFile(directory=True)
+    def test_force_run(self) -> None:
         self.options = PipelineOptions(workspace_directory=self.workspace.path, force_run=True)
-        self.multi_file = MultiFile(
-            options=self.options,
-            intermediate_provider=MockIntermediateFeedProvider(),
-            intermediate_pipeline_tasks_factory=mock_task_factory,
-            final_pipeline_tasks_factory=mock_multi_task_factory,
-        )
+        self.multi_file.options = self.options
 
-    def tearDown(self) -> None:
-        super().tearDown()
-        self.workspace.cleanup()
+        self.mock_input("v2")
+        self.mock_db("v2")
+        self.mock_input("v3")
+        self.mock_db("v3")
 
-    def test(self) -> None:
-        self.skipTest("TODO")
+        intermediates, final = self.multi_file.prepare()
 
+        self.assertEqual(len(intermediates), 2)
+        self.check_intermediate_pipeline(intermediates[0], "v2")
+        self.check_intermediate_pipeline(intermediates[1], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
 
-class TestMultiFileFromCache(TestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.workspace = MockFile(directory=True)
+    def test_from_cache(self) -> None:
         self.options = PipelineOptions(workspace_directory=self.workspace.path, from_cache=True)
-        self.multi_file = MultiFile(
-            options=self.options,
-            intermediate_provider=MockIntermediateFeedProvider(),
-            intermediate_pipeline_tasks_factory=mock_task_factory,
-            final_pipeline_tasks_factory=mock_multi_task_factory,
-        )
+        self.multi_file.options = self.options
+        self.multi_file.intermediate_provider.needed = Mock()
 
-    def tearDown(self) -> None:
-        super().tearDown()
-        self.workspace.cleanup()
+        self.mock_input("v2")
+        self.mock_db("v2")
+        self.mock_input("v3")
+        self.mock_db("v3")
 
-    def test(self) -> None:
-        self.skipTest("TODO")
+        intermediates, final = self.multi_file.prepare()
 
-    def test_with_missing_intermediate_dbs(self) -> None:
-        self.skipTest("TODO")
+        self.assertEqual(len(intermediates), 0)
+        self.check_final_pipeline(final)
+        self.multi_file.intermediate_provider.needed.assert_not_called()
 
-    def test_with_missing_additional_resources(self) -> None:
-        self.skipTest("TODO")
+    def test_from_cache_with_missing_intermediate_dbs(self) -> None:
+        self.options = PipelineOptions(workspace_directory=self.workspace.path, from_cache=True)
+        self.multi_file.options = self.options
+        self.multi_file.intermediate_provider.needed = Mock()
 
+        self.mock_input("v2")
+        self.mock_db("v2")
+        self.mock_input("v3")
 
-class TestMultiFileForceRunAndFromCache(TestCase):
-    def setUp(self) -> None:
-        super().setUp()
-        self.workspace = MockFile(directory=True)
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 1)
+        self.check_intermediate_pipeline(intermediates[0], "v3")
+        self.check_final_pipeline(final)
+        self.multi_file.intermediate_provider.needed.assert_not_called()
+
+    def test_from_cache_with_missing_additional_resources(self) -> None:
+        self.options = PipelineOptions(workspace_directory=self.workspace.path, from_cache=True)
+        self.multi_file.options = self.options
+        self.multi_file.additional_resources = {"foo.txt": MockResource()}
+        self.multi_file.intermediate_provider.needed = Mock()
+
+        self.mock_input("v2")
+        self.mock_db("v2")
+        self.mock_input("v3")
+        self.mock_db("v3")
+
+        with self.assertRaises(MultipleDataErrors) as c:
+            self.multi_file.prepare()
+
+        self.assertEqual(len(c.exception.errors), 1)
+        self.assertIsInstance(c.exception.errors[0], ResourceNotCached)
+
+    def test_from_cache_and_force_run(self) -> None:
         self.options = PipelineOptions(
             workspace_directory=self.workspace.path,
-            force_run=True,
             from_cache=True,
+            force_run=True,
         )
-        self.multi_file = MultiFile(
-            options=self.options,
-            intermediate_provider=MockIntermediateFeedProvider(),
-            intermediate_pipeline_tasks_factory=mock_task_factory,
-            final_pipeline_tasks_factory=mock_multi_task_factory,
-        )
+        self.multi_file.options = self.options
+        self.multi_file.intermediate_provider.needed = Mock()
 
-    def tearDown(self) -> None:
-        super().tearDown()
-        self.workspace.cleanup()
+        self.mock_input("v2")
+        self.mock_db("v2")
+        self.mock_input("v3")
+        self.mock_db("v3")
 
-    def test(self) -> None:
-        self.skipTest("TODO")
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 2)
+        self.check_intermediate_pipeline(intermediates[0], "v2")
+        self.check_intermediate_pipeline(intermediates[1], "v3")
+        self.check_final_pipeline(final)
+        self.multi_file.intermediate_provider.needed.assert_not_called()

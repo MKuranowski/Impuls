@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import getLogger
+from operator import attrgetter
 from pathlib import Path
 from typing import Any, Callable, Generic, Mapping, NamedTuple, Protocol, Type, TypedDict, TypeVar
 
@@ -170,7 +171,8 @@ class MultiFile(Generic[AnyResource]):
     Several Pipeline options change their meaning in the MultiFile context:
     - from_cache: nothing is ever fetched: additional_resources must be either cached or local,
         all cached intermediate inputs are used, bypassing the intermediate provider.
-        Only the final pipeline is created, unless force_run is also set to True.
+        If the intermediate databases are up-to-date, only the final pipeline is created,
+        unless force_run is also set to True.
     - force_run: any cached intermediate databases are ignored - in other words
         every intermediate input will have a corresponding intermediate pipeline created.
         The final pipeline is also created.
@@ -258,6 +260,7 @@ class MultiFile(Generic[AnyResource]):
         # 3. Fetch missing feed inputs
         local_fetched = versions.fetch(intermediate_inputs_path)
         local = versions.up_to_date + local_fetched
+        local.sort(key=attrgetter("start_date"))
 
         # 3. Prepare intermediate pipelines for missing local feeds
         intermediates = self.prepare_intermediate_pipelines(
@@ -267,7 +270,7 @@ class MultiFile(Generic[AnyResource]):
         )
 
         # 4. If there were no changes at all and not force_run - raise InputNotModified
-        if not intermediates and not self.options.force_run:
+        if not intermediates and not self.options.force_run and not self.options.from_cache:
             raise InputNotModified
 
         # 5. Prepare final pipeline for merging intermediate feeds
