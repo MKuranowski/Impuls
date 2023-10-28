@@ -38,12 +38,14 @@ class SaveGTFS(Task):
     def execute(self, r: TaskRuntime) -> None:
         self.logger.info("Opening %s", self.target)
         with ZipFile(self.target, mode="w") as archive:
-            for table_name, fields in self.headers:
+            for table_name, fields in self.headers.items():
                 self.logger.info("Writing %s", table_name)
                 typ = MODEL_TYPE_BY_GTFS_FILE_NAME[table_name]
 
-                with archive.open(f"{table_name}.txt", mode="w") as file:
-                    buffer = TextIOWrapper(file, "utf-8", newline="")
+                with (
+                    archive.open(f"{table_name}.txt", mode="w") as file,
+                    TextIOWrapper(file, "utf-8", newline="") as buffer,
+                ):
                     if typ is Calendar:
                         self.dump_calendars(r.db, buffer, fields)
                     else:
