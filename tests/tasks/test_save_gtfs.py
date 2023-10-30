@@ -2,6 +2,7 @@ from io import TextIOWrapper
 from typing import IO, AnyStr
 from zipfile import ZipFile
 
+from impuls.model import Calendar, Date
 from impuls.tasks import SaveGTFS
 from impuls.tools.testing_mocks import MockFile
 
@@ -114,6 +115,85 @@ class TestSaveGTFS(AbstractTestTask.Template):
                 self.assertEqual(header, ",".join(t.headers["stop_times"]))
                 self.assertEqual(record, "C-303,0,wsrod,05:05:00,05:05:00")
                 self.assertEqual(count, 6276)
+
+
+class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
+    db_name = None
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.runtime.db.create(
+            Calendar(
+                "0",
+                monday=False,
+                tuesday=False,
+                wednesday=False,
+                thursday=False,
+                friday=False,
+                saturday=False,
+                sunday=False,
+                start_date=Date.SIGNALS_EXCEPTIONS,
+                end_date=Date.SIGNALS_EXCEPTIONS,
+            )
+        )
+
+    def test_set_to_false(self) -> None:
+        with MockFile() as gtfs_path:
+            t = SaveGTFS(
+                headers={
+                    "calendar": (
+                        "service_id",
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                        "sunday",
+                        "start_date",
+                        "end_date",
+                    ),
+                },
+                target=gtfs_path,
+                emit_empty_calendars=False,
+            )
+
+            t.execute(self.runtime)
+
+            with ZipFile(gtfs_path, mode="r") as gtfs:
+                header, record, count = header_first_record_and_record_count(gtfs, "calendar.txt")
+                self.assertEqual(header, ",".join(t.headers["calendar"]))
+                self.assertEqual(record, "")
+                self.assertEqual(count, 0)
+
+    def test_set_to_true(self) -> None:
+        with MockFile() as gtfs_path:
+            t = SaveGTFS(
+                headers={
+                    "calendar": (
+                        "service_id",
+                        "monday",
+                        "tuesday",
+                        "wednesday",
+                        "thursday",
+                        "friday",
+                        "saturday",
+                        "sunday",
+                        "start_date",
+                        "end_date",
+                    ),
+                },
+                target=gtfs_path,
+                emit_empty_calendars=True,
+            )
+
+            t.execute(self.runtime)
+
+            with ZipFile(gtfs_path, mode="r") as gtfs:
+                header, record, count = header_first_record_and_record_count(gtfs, "calendar.txt")
+                self.assertEqual(header, ",".join(t.headers["calendar"]))
+                self.assertEqual(record, "0,0,0,0,0,0,0,0,11111111,11111111")
+                self.assertEqual(count, 1)
 
 
 def header_first_record_and_record_count(z: ZipFile, f: str) -> tuple[str, str, int]:
