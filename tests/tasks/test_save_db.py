@@ -1,4 +1,5 @@
 from impuls.db import DBConnection
+from impuls.model import Agency, StopTime
 from impuls.tasks import SaveDB
 from impuls.tools.testing_mocks import MockFile
 
@@ -14,11 +15,5 @@ class TestSaveDB(AbstractTestTask.Template):
             self.assertTrue(tempfile.exists())
 
             with DBConnection(tempfile) as saved_db:
-                self.assertEqual(
-                    saved_db.raw_execute("SELECT COUNT(*) FROM agencies").one_must("count")[0],
-                    1,
-                )
-                self.assertEqual(
-                    saved_db.raw_execute("SELECT COUNT(*) FROM stop_times").one_must("count")[0],
-                    6276,
-                )
+                self.assertEqual(saved_db.count(Agency), 1)
+                self.assertEqual(saved_db.count(StopTime), 6276)

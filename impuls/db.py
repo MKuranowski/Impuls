@@ -1,6 +1,6 @@
 import sqlite3
 from contextlib import contextmanager
-from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type
+from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type, cast
 
 from .model import ALL_MODEL_ENTITIES, Entity, EntityT
 from .tools.types import AnyPath, Self, SQLNativeType
@@ -415,4 +415,13 @@ class DBConnection:
         self.raw_execute_many(
             self._sql_substitute_typed("UPDATE :table SET :set WHERE :where", typ),
             ((*i.sql_marshall(), *i.sql_primary_key()) for i in entities),
+        )
+
+    def count(self, typ: Type[EntityT]) -> int:
+        """Returns the amount of instances of the provided type"""
+        return cast(
+            int,
+            self.raw_execute(
+                self._sql_substitute_typed("SELECT COUNT(*) FROM :table", typ)
+            ).one_must("SELECT COUNT(*) must return one row")[0],
         )

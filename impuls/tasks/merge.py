@@ -7,7 +7,7 @@ from math import inf
 from operator import itemgetter
 from pathlib import Path
 from tempfile import mkstemp
-from typing import Container, Generator, Iterable, NamedTuple, Type, cast, final
+from typing import Container, Generator, Iterable, NamedTuple, Type, final
 
 from ..db import DBConnection
 from ..model import FeedInfo, Route, Stop
@@ -181,10 +181,7 @@ class Merge(Task):
             self.known_stops[StopHash.of(stop)] = [stop]
 
     def initialize_known_feed_info(self, db: DBConnection) -> None:
-        feed_info_count = cast(
-            int,
-            db.raw_execute("SELECT COUNT(*) FROM feed_info").one_must("COUNT must have rows")[0],
-        )
+        feed_info_count = db.count(FeedInfo)
         self.feed_infos = None if feed_info_count > 0 else []
 
     def merge(

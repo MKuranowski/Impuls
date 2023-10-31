@@ -1,14 +1,12 @@
 from pathlib import Path
-from typing import Type, cast
 
-from impuls import DBConnection, LocalResource
+from impuls import LocalResource
 from impuls.model import (
     Agency,
     Attribution,
     Calendar,
     CalendarException,
     Date,
-    Entity,
     Route,
     Stop,
     StopTime,
@@ -37,13 +35,13 @@ class TestLoadGTFS(AbstractTestTask.Template):
         t = LoadGTFS("wkd.zip")
         t.execute(self.runtime)
 
-        self.assertEqual(count(self.runtime.db, Agency), 1)
-        self.assertEqual(count(self.runtime.db, Route), 3)
-        self.assertEqual(count(self.runtime.db, Stop), 28)
-        self.assertEqual(count(self.runtime.db, Calendar), 2)
-        self.assertEqual(count(self.runtime.db, CalendarException), 14)
-        self.assertEqual(count(self.runtime.db, Trip), 372)
-        self.assertEqual(count(self.runtime.db, StopTime), 6276)
+        self.assertEqual(self.runtime.db.count(Agency), 1)
+        self.assertEqual(self.runtime.db.count(Route), 3)
+        self.assertEqual(self.runtime.db.count(Stop), 28)
+        self.assertEqual(self.runtime.db.count(Calendar), 2)
+        self.assertEqual(self.runtime.db.count(CalendarException), 14)
+        self.assertEqual(self.runtime.db.count(Trip), 372)
+        self.assertEqual(self.runtime.db.count(StopTime), 6276)
 
     def test_missing_required_table(self) -> None:
         t = LoadGTFS("wkd-missing-routes.zip")
@@ -54,8 +52,8 @@ class TestLoadGTFS(AbstractTestTask.Template):
         t = LoadGTFS("wkd-no-agency-id.zip")
         t.execute(self.runtime)
 
-        self.assertEqual(count(self.runtime.db, Agency), 1)
-        self.assertEqual(count(self.runtime.db, Route), 3)
+        self.assertEqual(self.runtime.db.count(Agency), 1)
+        self.assertEqual(self.runtime.db.count(Route), 3)
 
         agency = self.runtime.db.retrieve_must(Agency, "(missing)")
         self.assertEqual(agency.id, "(missing)")
@@ -68,8 +66,8 @@ class TestLoadGTFS(AbstractTestTask.Template):
         t = LoadGTFS("wkd-calendar-dates-only.zip")
         t.execute(self.runtime)
 
-        self.assertEqual(count(self.runtime.db, Calendar), 2)
-        self.assertEqual(count(self.runtime.db, CalendarException), 31)
+        self.assertEqual(self.runtime.db.count(Calendar), 2)
+        self.assertEqual(self.runtime.db.count(CalendarException), 31)
 
         for calendar in self.runtime.db.retrieve_all(Calendar):
             self.assertEqual(calendar.compressed_weekdays, 0)
@@ -83,14 +81,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
         t = LoadGTFS("wkd-attribution-without-id.zip")
         t.execute(self.runtime)
 
-        self.assertEqual(count(self.runtime.db, Attribution), 1)
+        self.assertEqual(self.runtime.db.count(Attribution), 1)
 
         # The generated id is 2, as the first record is on the 2nd line
         self.runtime.db.retrieve_must(Attribution, "2")
-
-
-def count(db: DBConnection, typ: Type[Entity]) -> int:
-    return cast(
-        int,
-        db.raw_execute(f"SELECT COUNT(*) FROM {typ.sql_table_name()}").one_must("select count")[0],
-    )
