@@ -5,6 +5,7 @@ from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type,
 from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
 from ..model import Entity, Route, Stop
+from ..model.meta.gtfs_builder import to_optional_bool_zero_none
 from ..resource import ManagedResource
 from ..task import Task, TaskRuntime
 
@@ -128,7 +129,7 @@ class ModifyFromCSV(Task):
         # Check if all fields were parsed correctly
         if invalid_fields:
             raise DataError(
-                f"{self.resource}:{line_no}: invalid values in " + ", ".join(invalid_fields)
+                f"{self.resource}:{line_no}: invalid value(s) in " + ", ".join(invalid_fields)
             )
 
         # Preserve the entity
@@ -140,7 +141,7 @@ class ModifyFromCSV(Task):
         not_curated = all_ids - self.seen_ids
         if not_curated:
             not_curated_str = "\n\t".join(sorted(not_curated))
-            raise ValueError("The following routes weren't curated:\n\t" + not_curated_str)
+            raise ValueError("The following entities weren't curated:\n\t" + not_curated_str)
 
     def execute(self, r: TaskRuntime) -> None:
         self.clear_state()
@@ -149,7 +150,7 @@ class ModifyFromCSV(Task):
         # Try to curate every entity
         MultipleDataErrors.catch_all(
             self.name,
-            (self.try_curate(r.db, line_no, row) for line_no, row in self.csv_rows(resource)),
+            map(lambda i: self.try_curate(r.db, i[0], i[1]), self.csv_rows(resource)),
         )
 
         # Check if all entities were curated
@@ -157,9 +158,17 @@ class ModifyFromCSV(Task):
             self.check_if_all_entities_were_curated(r.db)
 
         # Print some statistics
-        self.logger.info(f"Curated {len(self.seen_ids)} routes")
+        self.logger.info(
+            "Curated %d %s",
+            len(self.seen_ids),
+            "entity" if len(self.seen_ids) == 1 else "entities",
+        )
         if self.missing_ids:
-            self.logger.warning(f"{len(self.missing_ids)} routes didn't exist in the DB")
+            self.logger.warning(
+                "%d %s didn't exist in the DB",
+                len(self.missing_ids),
+                "entity" if len(self.missing_ids) == 1 else "entities",
+            )
 
 
 @final
@@ -192,6 +201,11 @@ class ModifyStopsFromCSV(ModifyFromCSV):
             "stop_lat": CSVFieldData("lat", float),
             "stop_lon": CSVFieldData("lon", float),
             "zone_id": CSVFieldData("zone_id"),
+            "wheelchair_boarding": CSVFieldData(
+                "wheelchair_boarding",
+                to_optional_bool_zero_none,
+            ),
+            "platform_code": CSVFieldData("platform_code"),
         }
 
     @staticmethod

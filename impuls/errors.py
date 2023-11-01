@@ -55,6 +55,10 @@ class MultipleDataErrors(DataError):
 
         Any other Exception is passed through to the caller.
 
+        Note that `may_raise_data_error` must not be a generator expression,
+        and should usually be a `map` object. Generator expressions stop at the
+        first raised exception, making the whole endeavor useless.
+
         >>> def some_function(x: int) -> int:
         ...    if x % 5 == 0:
         ...        raise DataError(f"Oh no, got {x}")
