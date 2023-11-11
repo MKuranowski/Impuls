@@ -44,6 +44,10 @@ class UntypedQueryResult:
     def __next__(self) -> SQLRow:
         return self._cur.__next__()
 
+    @property
+    def rowcount(self) -> int:
+        return self._cur.rowcount
+
     def one(self) -> SQLRow | None:
         """Returns the next row of the query result, or None if there are no more rows."""
         return self._cur.fetchone()
@@ -98,6 +102,10 @@ class TypedQueryResult(Generic[EntityT]):
 
     def __next__(self) -> EntityT:
         return self._typ.sql_unmarshall(self._cur.__next__())
+
+    @property
+    def rowcount(self) -> int:
+        return self._cur.rowcount
 
     def one(self) -> Optional[EntityT]:
         """Returns the next row of the query result, or None if there are no more rows."""
