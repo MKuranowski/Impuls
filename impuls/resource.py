@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -17,6 +18,7 @@ from typing import (
     Type,
     Union,
 )
+from urllib.parse import urlparse
 
 import requests
 import yaml
@@ -27,6 +29,9 @@ from .tools.types import Self
 FETCH_CHUNK_SIZE = 1024 * 128
 DATETIME_MIN_UTC = datetime.min.replace(tzinfo=timezone.utc)
 DATETIME_MAX_UTC = datetime.max.replace(tzinfo=timezone.utc)
+
+
+logger = logging.getLogger(__name__)
 
 #
 # Input resources which can be passed to Pipeline
@@ -212,8 +217,11 @@ class HTTPResource(Resource):
             resp.raise_for_status()
 
             self.fetch_time = datetime.now(timezone.utc)
-            self.last_modified = parsedate_to_datetime(resp.headers["Last-Modified"])
-            assert self.last_modified.tzinfo is timezone.utc
+            if last_modified_str := resp.headers.get("Last-Modified"):
+                self.last_modified = parsedate_to_datetime(last_modified_str)
+                assert self.last_modified.tzinfo is timezone.utc
+            else:
+                logger.error("%s did not send the Last-Modified header", urlparse(resp.url).netloc)
 
             for chunk in resp.iter_content(FETCH_CHUNK_SIZE, decode_unicode=False):
                 yield chunk
