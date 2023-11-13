@@ -80,6 +80,6 @@ class Pipeline:
             # Run the tasks
             for task in self.tasks:
                 self.logger.info(f"Executing task {task.name}")
-                with machine_load.LoadTracker() as resource_usage, db.transaction():
+                with machine_load.LoadTracker() as resource_usage:
                     task.execute(runtime)
                 self.logger.debug(f"Task {task.name} finished; {resource_usage}")
