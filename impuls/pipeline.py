@@ -32,7 +32,7 @@ class Pipeline:
         # Update task loggers
         if self.name:
             for task in self.tasks:
-                task.logger.name = f"{name}.Task.{task.name}"
+                task.logger = logging.getLogger(f"{name}.Task.{task.name}")
 
         # Ensure the workspace directory exists
         self.options.workspace_directory.mkdir(parents=True, exist_ok=True)
