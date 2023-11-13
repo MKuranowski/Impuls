@@ -2,7 +2,7 @@ import csv
 from io import TextIOWrapper
 from pathlib import Path
 from typing import IO, Mapping, Sequence, Type, final
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from ..model import ALL_MODEL_ENTITIES, Calendar, Entity
 from ..task import DBConnection, Task, TaskRuntime
@@ -37,7 +37,7 @@ class SaveGTFS(Task):
 
     def execute(self, r: TaskRuntime) -> None:
         self.logger.info("Opening %s", self.target)
-        with ZipFile(self.target, mode="w") as archive:
+        with ZipFile(self.target, mode="w", compression=ZIP_DEFLATED) as archive:
             for table_name, fields in self.headers.items():
                 self.logger.info("Writing %s", table_name)
                 typ = MODEL_TYPE_BY_GTFS_FILE_NAME[table_name]
