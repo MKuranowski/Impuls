@@ -344,6 +344,7 @@ class MultiFile(Generic[AnyResource]):
             pipeline = Pipeline(
                 tasks=self.intermediate_pipeline_tasks_factory(feed),
                 options=self.options,
+                name=feed.version,
             )
             pipeline.db_path = path / f"{feed.version}.db"
             pipeline.managed_resources = {**resources}
@@ -372,6 +373,7 @@ class MultiFile(Generic[AnyResource]):
         pipeline = Pipeline(
             tasks=self.final_pipeline_tasks_factory(local),
             options=self.options,
+            name="Final",
         )
         pipeline.tasks.insert(0, merge_task)
 
@@ -409,7 +411,11 @@ class MultiFile(Generic[AnyResource]):
             )
             pre_merge_tasks = self.pre_merge_pipeline_tasks_factory(feed)
             pre_merge_tasks.insert(0, TruncateCalendars(date_range(feed_start, feed_end)))
-            pre_merge_pipeline = Pipeline(pre_merge_tasks, options=self.options)
+            pre_merge_pipeline = Pipeline(
+                pre_merge_tasks,
+                options=self.options,
+                name=f"{feed.version}.PreMerge",
+            )
             pre_merge_pipeline.managed_resources = {**resources}
 
             to_merge.append(
