@@ -41,9 +41,6 @@ class Pipeline:
         self.db_path: Path | None = None
         if self.options.save_db_in_workspace:
             self.db_path = self.options.workspace_directory / "impuls.db"
-            # Remove the existing DB
-            if not self.run_on_existing_db:
-                self.db_path.unlink(missing_ok=True)
 
     def prepare_resources(self) -> None:
         if self.managed_resources is not None:
@@ -66,6 +63,8 @@ class Pipeline:
         elif self.run_on_existing_db and self.db_path.exists():
             return DBConnection(self.db_path)
         else:
+            if not self.run_on_existing_db:
+                self.db_path.unlink(missing_ok=True)
             return DBConnection.create_with_schema(self.db_path)
 
     def run(self) -> None:

@@ -225,7 +225,8 @@ class TestPipeline(TestCase):
 
         assert p.db_path is not None  # for type checking
         self.assertEqual(p.db_path, self.workspace_dir.path / "impuls.db")
-        self.assertFalse(p.db_path.exists())
+        # NOTE: Removing is deferred until open_db()
+        # self.assertFalse(p.db_path.exists())
 
         p.run()
         self.assertTrue(p.db_path.exists())
