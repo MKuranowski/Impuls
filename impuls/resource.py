@@ -429,7 +429,7 @@ def _write_metadata(r: Resource, metadata_path: Path) -> None:
         )
 
 
-def _download_resource(r: Resource, to: Path) -> None:
+def _download_resource(r: Resource, to: Path, conditional: bool = True) -> None:
     """_cache_resource ensures the latest content of the resource
     is saved in the `to` file.
     """
@@ -450,7 +450,7 @@ def _download_resource(r: Resource, to: Path) -> None:
     temp_to = to.parent / (to.name + ".tmp")
     try:
         with temp_to.open(mode="wb", buffering=0) as f:
-            for chunk in r.fetch(conditional=True):
+            for chunk in r.fetch(conditional):
                 f.write(chunk)
         temp_to.rename(to)
     finally:

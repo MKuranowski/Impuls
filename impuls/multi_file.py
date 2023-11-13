@@ -604,7 +604,7 @@ def _save_to_cache(
 
     # Fetch the resource
     target_path = intermediate_inputs_path / feed.resource_name
-    _download_resource(feed.resource, target_path)
+    _download_resource(feed.resource, target_path, conditional=False)
 
     # Save its metadata
     metadata_path = intermediate_inputs_path / f"{feed.resource_name}.metadata"
