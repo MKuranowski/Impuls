@@ -4,6 +4,7 @@
 __pycache__
 *.pyc
 _impuls_workspace
+_workspace_*
 *.egg-info
 .coverage
 htmlcov
