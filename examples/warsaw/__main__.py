@@ -3,6 +3,7 @@ from pathlib import Path
 from impuls import HTTPResource, Pipeline, PipelineOptions, initialize_logging
 from impuls.tasks import SaveGTFS
 
+from .fix_stop_locations import FixStopLocations
 from .import_ztm import ImportZTM
 from .merge_railway_stations import MergeRailwayStations
 from .ztm_ftp import FTPResource
@@ -59,12 +60,16 @@ Pipeline(
     tasks=[
         ImportZTM("ztm.7z", compressed=True, stop_names_resource="stop_names.json"),
         MergeRailwayStations(),
+        FixStopLocations("stop_locations.json"),
         SaveGTFS(GTFS_HEADERS, Path("_workspace_warsaw/warsaw.zip")),
     ],
     resources={
         "ztm.7z": FTPResource("RA231111.7z"),
         "stop_names.json": HTTPResource.get(
             "https://raw.githubusercontent.com/MKuranowski/WarsawGTFS/master/data_curated/stop_names.json"  # noqa: E501
+        ),
+        "stop_locations.json": HTTPResource.get(
+            "https://raw.githubusercontent.com/MKuranowski/WarsawGTFS/master/data_curated/missing_stop_locations.json"  # noqa: E501
         ),
     },
     options=PipelineOptions(
