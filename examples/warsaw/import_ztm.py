@@ -56,10 +56,16 @@ class RouteParsingState:
 
 @final
 class ImportZTM(impuls.Task):
-    def __init__(self, resource_name: str, compressed: bool = False) -> None:
+    def __init__(
+        self,
+        resource_name: str,
+        compressed: bool = False,
+        stop_names_resource: str = "",
+    ) -> None:
         super().__init__()
         self.resource_name = resource_name
         self.compressed = compressed
+        self.stop_names_resource = stop_names_resource
 
         self.request_stop_route_pairs = set[tuple[str, str]]()
         self.calendar_hierarchy = list[parser.CalendarHierarchy]()
@@ -70,15 +76,15 @@ class ImportZTM(impuls.Task):
         self.request_stop_route_pairs.clear()
         self.calendar_hierarchy.clear()
         self.stop_area_zones.clear()
+        self.stop_area_names.clear()
 
-        # TODO: Pull stop_area_names from an external resource
-        self.stop_area_names = {
-            "1484": "Dom Samotnej Matki",
-            "4040": "Lotnisko Chopina",
-        }
+    def load_stop_area_names(self, r: ManagedResource | None) -> None:
+        if r:
+            self.stop_area_names = r.json()
 
     def execute(self, r: impuls.TaskRuntime) -> None:
         self.clear_state()
+        self.load_stop_area_names(r.resources.get(self.stop_names_resource))
         with r.db.transaction():
             self.create_agency(r.db)
             with self.open(r.resources[self.resource_name]) as input_file:
@@ -116,7 +122,9 @@ class ImportZTM(impuls.Task):
             stop_area.name = self.normalize_stop_name(stop_area.name)
             stop_area.town_name = self.normalize_town_name(stop_area.town_name)
 
-            if self.should_town_name_be_added_to_name(
+            if curated_name := self.stop_area_names.get(stop_area.id):
+                name = curated_name
+            elif self.should_town_name_be_added_to_name(
                 stop_area.id,
                 stop_area.name,
                 stop_area.town_code,
@@ -459,6 +467,7 @@ class ImportZTM(impuls.Task):
 @dataclass
 class OriginDestinationCollector:
     """Collects information on direction origin and destination"""
+
     current_sort_order: int = 1_000
     origin: str = ""
     dest: str = ""
