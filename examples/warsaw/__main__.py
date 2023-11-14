@@ -1,12 +1,13 @@
 from pathlib import Path
 
 from impuls import HTTPResource, Pipeline, PipelineOptions, initialize_logging
-from impuls.tasks import SaveGTFS
+from impuls.tasks import RemoveUnusedEntities, SaveGTFS
 
 from .fix_stop_locations import FixStopLocations
 from .generate_trip_headsign import GenerateTripHeadsign
 from .import_ztm import ImportZTM
 from .merge_railway_stations import MergeRailwayStations
+from .remove_stops_without_locations import RemoveStopsWithoutLocations
 from .ztm_ftp import FTPResource
 
 GTFS_HEADERS = {
@@ -63,6 +64,8 @@ Pipeline(
         MergeRailwayStations(),
         FixStopLocations("stop_locations.json"),
         GenerateTripHeadsign(),
+        RemoveStopsWithoutLocations(),
+        RemoveUnusedEntities(),
         SaveGTFS(GTFS_HEADERS, Path("_workspace_warsaw/warsaw.zip")),
     ],
     resources={
