@@ -4,6 +4,7 @@ from impuls import HTTPResource, Pipeline, PipelineOptions, initialize_logging
 from impuls.tasks import SaveGTFS
 
 from .import_ztm import ImportZTM
+from .merge_railway_stations import MergeRailwayStations
 from .ztm_ftp import FTPResource
 
 GTFS_HEADERS = {
@@ -57,6 +58,7 @@ initialize_logging(verbose=True)
 Pipeline(
     tasks=[
         ImportZTM("ztm.7z", compressed=True, stop_names_resource="stop_names.json"),
+        MergeRailwayStations(),
         SaveGTFS(GTFS_HEADERS, Path("_workspace_warsaw/warsaw.zip")),
     ],
     resources={
