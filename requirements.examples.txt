@@ -1,2 +1,4 @@
 -r requirements.txt
+lxml
 py7zr
+zeep
