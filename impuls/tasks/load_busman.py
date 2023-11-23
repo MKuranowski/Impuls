@@ -153,7 +153,7 @@ class LoadBusManMDB(Task):
                     sunday=False,
                     start_date=Date.SIGNALS_EXCEPTIONS,
                     end_date=Date.SIGNALS_EXCEPTIONS,
-                    desc=row["nName"],
+                    desc=row["nName"].strip(),
                 )
             )
 
