@@ -95,20 +95,21 @@ class LoadBusManMDB(Task):
         # | tPassages  | StopTime             |
         # | tDays      | CalendarException    | (usually empty/useless)
 
-        self.logger.info("Loading routes")
-        self.load_routes(mdb_path, r.db)
+        with r.db.transaction():
+            self.logger.info("Loading routes")
+            self.load_routes(mdb_path, r.db)
 
-        self.logger.info("Loading calendars")
-        self.load_calendars(mdb_path, r.db)
+            self.logger.info("Loading calendars")
+            self.load_calendars(mdb_path, r.db)
 
-        self.logger.info("Loading stops")
-        self.load_stops(mdb_path, r.db)
+            self.logger.info("Loading stops")
+            self.load_stops(mdb_path, r.db)
 
-        self.logger.info("Loading trips")
-        self.load_trips(mdb_path, r.db)
+            self.logger.info("Loading trips")
+            self.load_trips(mdb_path, r.db)
 
-        self.logger.info("Loading stop times")
-        self.load_stop_times(mdb_path, r.db)
+            self.logger.info("Loading stop times")
+            self.load_stop_times(mdb_path, r.db)
 
     def load_routes(self, mdb_path: Path, db: DBConnection) -> None:
         # Fix for duplicate routes when using ignore_route_id
@@ -192,24 +193,29 @@ class LoadBusManMDB(Task):
             for row in dump_mdb_table(mdb_path, "tDirs")
         }
 
-        for row in dump_mdb_table(mdb_path, "tDepts"):
-            db.create(
+        db.create_many(
+            Trip,
+            (
                 Trip(
                     id=row["ID"],
                     route_id=pattern_to_route_id[row["nDir"]],
                     calendar_id=row["nDayType"],
                 )
-            )
+                for row in dump_mdb_table(mdb_path, "tDepts")
+            ),
+        )
 
     def load_stop_times(self, mdb_path: Path, db: DBConnection) -> None:
-        for row in dump_mdb_table(mdb_path, "tPassages"):
-            time = TimePoint(seconds=int(row["nTime"]) * 60)
-            db.create(
+        db.create_many(
+            StopTime,
+            (
                 StopTime(
                     trip_id=row["nDept"],
                     stop_id=self._stop_id_map.get(row["nStake"], row["nStake"]),
                     stop_sequence=int(row["nOrder"]),
-                    arrival_time=time,
-                    departure_time=time,
+                    arrival_time=TimePoint(seconds=int(row["nTime"]) * 60),
+                    departure_time=TimePoint(seconds=int(row["nTime"]) * 60),
                 )
-            )
+                for row in dump_mdb_table(mdb_path, "tPassages")
+            ),
+        )
