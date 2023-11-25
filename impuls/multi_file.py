@@ -1,4 +1,5 @@
 import json
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import getLogger
@@ -128,6 +129,26 @@ class IntermediateFeedProvider(Protocol[AnyResource]):
 
     def needed(self) -> list[IntermediateFeed[AnyResource]]:
         ...
+
+
+def prune_outdated_feeds(feeds: list[IntermediateFeed[AnyResource]], today: Date) -> None:
+    """Removes feeds which end before `today`."""
+    feeds.sort(key=attrgetter("start_date"))
+
+    # Find the feed corresponding to `self.for_date`; see `find_le` in
+    # https://docs.python.org/3/library/bisect.html#searching-sorted-lists
+    cutoff_idx = max(
+        bisect_right(
+            feeds,
+            today,
+            key=attrgetter("start_date"),
+        )
+        - 1,
+        0,
+    )
+
+    # Only return the needed feeds - those active on and after `self.for_date`
+    feeds[:cutoff_idx] = []
 
 
 TaskFactory = Callable[[IntermediateFeed[LocalResource]], list[Task]]
