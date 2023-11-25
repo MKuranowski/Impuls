@@ -1,26 +1,72 @@
 from pathlib import Path
 
-from impuls import HTTPResource, Pipeline, PipelineOptions, initialize_logging
-from impuls.model import Agency, Date
-from impuls.tasks import AddEntity, ExecuteSQL, LoadBusManMDB, ModifyStopsFromCSV, SaveDB
+from impuls import HTTPResource, PipelineOptions, initialize_logging
+from impuls.model import Agency, FeedInfo
+from impuls.multi_file import MultiFile
+from impuls.tasks import AddEntity, ExecuteSQL, LoadBusManMDB, ModifyStopsFromCSV, SaveGTFS
 
 from .generate_calendars import GenerateCalendars
+from .provider import RadomProvider
 from .stops_resource import RadomStopsResource
 from .zip_resource import ZippedResource
 
+GTFS_HEADERS = {
+    "agency": (
+        "agency_id",
+        "agency_name",
+        "agency_url",
+        "agency_timezone",
+        "agency_lang",
+    ),
+    "stops": (
+        "stop_id",
+        "stop_name",
+        "stop_lat",
+        "stop_lon",
+    ),
+    "routes": (
+        "agency_id",
+        "route_id",
+        "route_short_name",
+        "route_long_name",
+        "route_type",
+    ),
+    "trips": (
+        "route_id",
+        "service_id",
+        "trip_id",
+    ),
+    "stop_times": (
+        "trip_id",
+        "stop_sequence",
+        "stop_id",
+        "arrival_time",
+        "departure_time",
+    ),
+    "calendar": (
+        "service_id",
+        "start_date",
+        "end_date",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+        "service_desc",
+    ),
+    "calendar_dates": ("service_id", "date", "exception_type"),
+}
+
 initialize_logging(verbose=False)
-Pipeline(
+MultiFile(
     options=PipelineOptions(
         force_run=True,
         workspace_directory=Path("_workspace_radom"),
     ),
-    resources={
-        "radom.mdb": ZippedResource(
-            HTTPResource.get("http://mzdik.pl/upload/file/Rozklady-2023-11-25.zip")
-        ),
-        "soap_stops.csv": RadomStopsResource(),
-    },
-    tasks=[
+    intermediate_provider=RadomProvider(),
+    intermediate_pipeline_tasks_factory=lambda feed: [
         AddEntity(
             Agency(
                 id="0",
@@ -31,7 +77,21 @@ Pipeline(
             ),
             task_name="AddAgency",
         ),
-        LoadBusManMDB("radom.mdb", agency_id="0", ignore_route_id=True, ignore_stop_id=False),
+        AddEntity(
+            FeedInfo(
+                publisher_name="Mikołaj Kuranowski",
+                publisher_url="https://mkuran.pl/gtfs/",
+                lang="pl",
+                version=feed.version,
+            ),
+            task_name="AddFeedInfo",
+        ),
+        LoadBusManMDB(
+            feed.resource_name,
+            agency_id="0",
+            ignore_route_id=True,
+            ignore_stop_id=False,
+        ),
         ExecuteSQL(
             task_name="RemoveUnknownStops",
             statement=(
@@ -47,8 +107,16 @@ Pipeline(
                 "DELETE FROM calendars WHERE desc NOT IN ('POWSZEDNI', 'SOBOTA', 'NIEDZIELA')"
             ),
         ),
-        GenerateCalendars(Date.today()),
+        GenerateCalendars(feed.start_date),
         ModifyStopsFromCSV("soap_stops.csv"),
-        SaveDB(Path("_workspace_radom", "impuls.db")),
     ],
-).run()
+    final_pipeline_tasks_factory=lambda _: [
+        SaveGTFS(GTFS_HEADERS, Path("_workspace_radom", "radom.zip")),
+    ],
+    additional_resources={
+        "radom.mdb": ZippedResource(
+            HTTPResource.get("http://mzdik.pl/upload/file/Rozklady-2023-11-25.zip")
+        ),
+        "soap_stops.csv": RadomStopsResource(),
+    },
+).prepare().run()
