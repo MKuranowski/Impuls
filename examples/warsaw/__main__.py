@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from impuls import HTTPResource, Pipeline, PipelineOptions, initialize_logging, model
+from impuls import HTTPResource, PipelineOptions, initialize_logging, model
 from impuls.multi_file import MultiFile
 from impuls.tasks import AddEntity, RemoveUnusedEntities, SaveGTFS
 
