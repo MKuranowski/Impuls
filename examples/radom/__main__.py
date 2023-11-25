@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from impuls import HTTPResource, PipelineOptions, initialize_logging
+from impuls import PipelineOptions, initialize_logging
 from impuls.model import Agency, FeedInfo
 from impuls.multi_file import MultiFile
 from impuls.tasks import AddEntity, ExecuteSQL, LoadBusManMDB, ModifyStopsFromCSV, SaveGTFS
@@ -8,7 +8,6 @@ from impuls.tasks import AddEntity, ExecuteSQL, LoadBusManMDB, ModifyStopsFromCS
 from .generate_calendars import GenerateCalendars
 from .provider import RadomProvider
 from .stops_resource import RadomStopsResource
-from .zip_resource import ZippedResource
 
 GTFS_HEADERS = {
     "agency": (
@@ -114,9 +113,6 @@ MultiFile(
         SaveGTFS(GTFS_HEADERS, Path("_workspace_radom", "radom.zip")),
     ],
     additional_resources={
-        "radom.mdb": ZippedResource(
-            HTTPResource.get("http://mzdik.pl/upload/file/Rozklady-2023-11-25.zip")
-        ),
         "soap_stops.csv": RadomStopsResource(),
     },
 ).prepare().run()

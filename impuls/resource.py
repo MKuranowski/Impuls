@@ -2,13 +2,19 @@ import csv
 import json
 import logging
 import os
+from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime, parsedate_to_datetime
+from io import BytesIO
 from pathlib import Path
+from tempfile import TemporaryFile
 from typing import (
     Any,
     BinaryIO,
+    ContextManager,
+    Generator,
     Iterator,
     Mapping,
     Optional,
@@ -17,8 +23,10 @@ from typing import (
     TextIO,
     Type,
     Union,
+    final,
 )
 from urllib.parse import urlparse
+from zipfile import ZipFile, ZipInfo
 
 import requests
 import yaml
@@ -227,20 +235,18 @@ class HTTPResource(Resource):
                 yield chunk
 
 
-class TimeLimitedResource(Resource):
-    """TimeLimitedResource wraps an Resource and ensures the time between conditional
-    fetches is at least `minimal_time_between`.
+class WrappedResource(ABC, Resource):
+    """WrappedResource is a helper abstract class for implementing
+    modification on existing resources using the adapter pattern.
 
-    TimeLimitedResource can be used to cache constantly-changing resources
-    or to prevent bothering an external server.
+    WrappedResource simply proxies the last_modified and fetch_time properties
+    to the wrapped resource, leaving out fetch implementation.
     """
 
     r: Resource
-    minimal_time_between: timedelta
 
-    def __init__(self, r: Resource, minimal_time_between: timedelta) -> None:
+    def __init__(self, r: Resource) -> None:
         self.r = r
-        self.minimal_time_between = minimal_time_between
 
     @property
     def last_modified(self) -> datetime:
@@ -258,6 +264,26 @@ class TimeLimitedResource(Resource):
     def fetch_time(self, new: datetime) -> None:  # type: ignore
         self.r.fetch_time = new
 
+    @abstractmethod
+    def fetch(self, conditional: bool) -> Iterator[bytes]:
+        raise NotImplementedError
+
+
+@final
+class TimeLimitedResource(WrappedResource):
+    """TimeLimitedResource wraps a Resource and ensures the time between conditional
+    fetches is at least `minimal_time_between`.
+
+    TimeLimitedResource can be used to cache constantly-changing resources
+    or to prevent bothering an external server.
+    """
+
+    minimal_time_between: timedelta
+
+    def __init__(self, r: Resource, minimal_time_between: timedelta) -> None:
+        super().__init__(r)
+        self.minimal_time_between = minimal_time_between
+
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         # Stop time-limited requests
         now = datetime.now(timezone.utc)
@@ -267,6 +293,75 @@ class TimeLimitedResource(Resource):
 
         # Delegate the call to the wrapped resource
         return self.r.fetch(conditional)
+
+
+@final
+class ZippedResource(WrappedResource):
+    """ZippedResource wraps a Resource pointing to a zip archive,
+    creating a Resource which reads the content of one file from that archive.
+
+    - `file_name_in_zip` dictates which file to extract from the archive.
+        It defaults to None, which first checks if there's one file in the archive,
+        and extracts it.
+    - `save_zip_in_memory` dictates whether the zipfile can be saved in memory.
+        It defaults to True, but if the archive itself is huge this option may be
+        set to False, causing the zip file to be written to a temporary file.
+    """
+
+    file_name_in_zip: str | None
+    save_zip_in_memory: bool
+
+    def __init__(
+        self,
+        r: Resource,
+        file_name_in_zip: str | None = None,
+        save_zip_in_memory: bool = True,
+    ) -> None:
+        super().__init__(r)
+        self.file_name_in_zip = file_name_in_zip
+        self.save_zip_in_memory = save_zip_in_memory
+
+    def fetch(self, conditional: bool) -> Iterator[bytes]:
+        with self.fetch_zip(conditional) as zip_buffer, ZipFile(zip_buffer) as zip:
+            with zip.open(self.pick_file(zip), mode="r") as buffer:
+                while chunk := buffer.read(FETCH_CHUNK_SIZE):
+                    yield chunk
+
+    def pick_file(self, in_: ZipFile) -> ZipInfo:
+        """Picks the file to decompress"""
+        if self.file_name_in_zip is None:
+            files = in_.infolist()
+            if len(files) != 1:
+                raise ValueError(f"Expected one file in ZIP, got {len(files)}")
+            return files[0]
+
+        try:
+            return in_.getinfo(self.file_name_in_zip)
+        except KeyError as e:
+            raise ValueError(f"Can't find file {self.file_name_in_zip!r} in ZIP") from e
+
+    def fetch_zip(self, conditional: bool) -> ContextManager[BinaryIO]:
+        """Fetches the bytes of the zip file, depending on the `save_zip_in_memory`"""
+        if self.save_zip_in_memory:
+            return self.fetch_zip_to_memory(conditional)
+        else:
+            return self.fetch_zip_to_temp_file(conditional)
+
+    def fetch_zip_to_memory(self, conditional: bool) -> BytesIO:
+        """Fetches the zipfile to a BytesIO and returns it"""
+        b = BytesIO()
+        for chunk in self.r.fetch(conditional):
+            b.write(chunk)
+        return b
+
+    @contextmanager
+    def fetch_zip_to_temp_file(self, conditional: bool) -> Generator[BinaryIO, None, None]:
+        """Fetches the zipfile to a TemporaryFile and returns it"""
+        with TemporaryFile(mode="w+b", prefix="impuls-zip") as temp_file:
+            for chunk in self.r.fetch(conditional):
+                temp_file.write(chunk)
+            temp_file.seek(0)
+            yield temp_file
 
 
 #

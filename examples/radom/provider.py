@@ -8,9 +8,7 @@ from lxml import etree  # type: ignore
 
 from impuls.model import Date
 from impuls.multi_file import IntermediateFeed, IntermediateFeedProvider, prune_outdated_feeds
-from impuls.resource import HTTPResource
-
-from .zip_resource import ZippedResource
+from impuls.resource import HTTPResource, ZippedResource
 
 LIST_URL = "http://mzdik.pl/index.php?id=145"
 
