@@ -1,12 +1,10 @@
-from bisect import bisect_right
 from datetime import datetime, timezone
 from ftplib import FTP
-from operator import attrgetter
 from typing import Iterator, final
 
 from impuls.errors import InputNotModified
 from impuls.model import Date
-from impuls.multi_file import IntermediateFeed, IntermediateFeedProvider
+from impuls.multi_file import IntermediateFeed, IntermediateFeedProvider, prune_outdated_feeds
 from impuls.resource import DATETIME_MIN_UTC, Resource
 
 FTP_URL = "rozklady.ztm.waw.pl"
@@ -83,19 +81,6 @@ class ZTMFeedProvider(IntermediateFeedProvider[FTPResource]):
                 for filename, metadata in ftp.mlsd()
                 if filename.startswith("RA") and filename.endswith(".7z")
             ]
-            all_feeds.sort(key=attrgetter("start_date"))
 
-            # Find the feed corresponding to `self.for_date`; see `find_le` in
-            # https://docs.python.org/3/library/bisect.html#searching-sorted-lists
-            cutoff_idx = max(
-                bisect_right(
-                    all_feeds,
-                    self.for_date,
-                    key=attrgetter("start_date"),
-                )
-                - 1,
-                0,
-            )
-
-            # Only return the needed feeds - those active on and after `self.for_date`
-            return all_feeds[cutoff_idx:]
+            prune_outdated_feeds(all_feeds, self.for_date)
+            return all_feeds

@@ -22,6 +22,7 @@ from impuls.multi_file import (
     _ResolvedVersions,
     _save_to_cache,
     logger,
+    prune_outdated_feeds,
 )
 from impuls.tasks import TruncateCalendars, merge
 from impuls.tools.temporal import date_range
@@ -122,6 +123,21 @@ class TestIntermediateFeed(TestCase):
         self.assertEqual(f.resource_name, "foo_v1.txt")
         self.assertEqual(f.version, "v1")
         self.assertEqual(f.start_date, Date(2023, 4, 1))
+
+    def test_prune_outdated_feeds(self) -> None:
+        feeds = [
+            IntermediateFeed(MockResource(), "v4.txt", "v4", Date(2023, 5, 14)),
+            IntermediateFeed(MockResource(), "v3.txt", "v3", Date(2023, 5, 1)),
+            IntermediateFeed(MockResource(), "v2.txt", "v2", Date(2023, 4, 20)),
+            IntermediateFeed(MockResource(), "v1.txt", "v1", Date(2023, 4, 1)),
+        ]
+        today = Date(2023, 4, 30)
+        prune_outdated_feeds(feeds, today)
+
+        self.assertEqual(len(feeds), 3)
+        self.assertEqual(feeds[0].version, "v2")
+        self.assertEqual(feeds[1].version, "v3")
+        self.assertEqual(feeds[2].version, "v4")
 
 
 class TestResolvedVersions(TestCase):
