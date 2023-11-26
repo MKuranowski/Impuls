@@ -338,7 +338,7 @@ class Parser:
 
         >>> Parser._minutes_only('01')
         '01'
-        >>> Parser._minutes_inly('[01n^')
+        >>> Parser._minutes_only('[01n^')
         '01'
         """
         # Slower alternative: re.sub(r"\D", "", timetable_entry)
