@@ -39,6 +39,7 @@ class StopTime(Entity):
     stop_headsign: str = field(default="", compare=False, repr=False)
     shape_dist_traveled: Optional[float] = field(default=None, compare=False, repr=False)
     original_stop_id: str = field(default="", compare=False, repr=False)
+    platform: str = field(default="", compare=False, repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
@@ -58,6 +59,7 @@ class StopTime(Entity):
                 str(self.shape_dist_traveled) if self.shape_dist_traveled is not None else ""
             ),
             "original_stop_id": self.original_stop_id,
+            "platform": self.platform,
         }
 
     @classmethod
@@ -92,6 +94,7 @@ class StopTime(Entity):
                 lambda x: float(x) if x else None,
                 fallback_value=None,
             )
+            .field("platform", "platform", fallback_value="")
             .kwargs()
         )
 
@@ -112,13 +115,14 @@ class StopTime(Entity):
             stop_headsign TEXT NOT NULL DEFAULT '',
             shape_dist_traveled REAL DEFAULT NULL,
             original_stop_id TEXT NOT NULL DEFAULT '',
+            platform TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (trip_id, stop_sequence)
         ) STRICT;
         CREATE INDEX idx_stop_times_stop_id ON stop_times(stop_id);"""
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -129,7 +133,7 @@ class StopTime(Entity):
         return (
             "trip_id = ?, stop_id = ?, stop_sequence = ?, arrival_time = ?, departure_time = ?, "
             "pickup_type = ?, drop_off_type = ?, stop_headsign = ?, shape_dist_traveled = ?, "
-            "original_stop_id = ?"
+            "original_stop_id = ?, platform = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -144,6 +148,7 @@ class StopTime(Entity):
             self.stop_headsign,
             self.shape_dist_traveled,
             self.original_stop_id,
+            self.platform,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -163,5 +168,6 @@ class StopTime(Entity):
             .field("stop_headsign", str)
             .field("shape_dist_traveled", float, nullable=True)
             .field("original_stop_id", str)
+            .field("platform", str)
             .kwargs()
         )
