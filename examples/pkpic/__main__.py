@@ -4,10 +4,11 @@ from pathlib import Path
 from impuls import Pipeline, PipelineOptions, initialize_logging
 from impuls.model import Agency
 from impuls.resource import HTTPResource, ZippedResource
-from impuls.tasks import AddEntity
+from impuls.tasks import AddEntity, GenerateTripHeadsign
 
 from .csv_import import CSVImport
 from .ftp_resource import FTPResource
+from .split_bus_legs import SplitBusLegs
 from .station_import import ImportStationData
 
 arg_parser = ArgumentParser()
@@ -15,10 +16,11 @@ arg_parser.add_argument("username", help="ftps.intercity.pl username")
 arg_parser.add_argument("password", help="ftps.intercity.pl password")
 args = arg_parser.parse_args()
 
-initialize_logging(verbose=False)
+initialize_logging(verbose=True)
 Pipeline(
     options=PipelineOptions(
         force_run=True,
+        from_cache=True,
         workspace_directory=Path("_workspace_pkpic"),
         save_db_in_workspace=True,
     ),
@@ -36,6 +38,8 @@ Pipeline(
         ),
         CSVImport("rozklad_kpd.csv"),
         ImportStationData("pl_rail_map.osm"),
+        GenerateTripHeadsign(),
+        SplitBusLegs(),
     ],
     resources={
         "rozklad_kpd.csv": ZippedResource(
