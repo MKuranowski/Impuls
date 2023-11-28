@@ -83,7 +83,7 @@ class CSVImport(Task):
             platform = row["PeronWyjazd"]
             if row["BUS"] == "1":
                 platform = "BUS"
-            elif platform == "NULL":
+            elif platform in ("NULL", "BUS"):
                 platform = ""
 
             arrival = TimePoint.from_str(row["Przyjazd"])
