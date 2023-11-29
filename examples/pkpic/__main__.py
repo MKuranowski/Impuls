@@ -4,12 +4,67 @@ from pathlib import Path
 from impuls import Pipeline, PipelineOptions, initialize_logging
 from impuls.model import Agency
 from impuls.resource import HTTPResource, ZippedResource
-from impuls.tasks import AddEntity, GenerateTripHeadsign
+from impuls.tasks import AddEntity, GenerateTripHeadsign, SaveGTFS
 
 from .csv_import import CSVImport
 from .ftp_resource import FTPResource
+from .set_colors import SetRouteColors
 from .split_bus_legs import SplitBusLegs
 from .station_import import ImportStationData
+
+GTFS_HEADERS = {
+    "agency": (
+        "agency_id",
+        "agency_name",
+        "agency_url",
+        "agency_timezone",
+        "agency_lang",
+        "agency_phone",
+    ),
+    "stops": (
+        "stop_id",
+        "stop_name",
+        "stop_lat",
+        "stop_lon",
+    ),
+    "routes": (
+        "agency_id",
+        "route_id",
+        "route_short_name",
+        "route_long_name",
+        "route_type",
+        "route_color",
+        "route_text_color",
+    ),
+    "trips": (
+        "route_id",
+        "service_id",
+        "trip_id",
+        "trip_headsign",
+        "trip_short_name",
+    ),
+    "stop_times": (
+        "trip_id",
+        "stop_sequence",
+        "stop_id",
+        "arrival_time",
+        "departure_time",
+        "platform",
+    ),
+    "calendar": (
+        "service_id",
+        "start_date",
+        "end_date",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ),
+}
+
 
 arg_parser = ArgumentParser()
 arg_parser.add_argument("username", help="ftps.intercity.pl username")
@@ -40,6 +95,8 @@ Pipeline(
         ImportStationData("pl_rail_map.osm"),
         GenerateTripHeadsign(),
         SplitBusLegs(),
+        SetRouteColors(),
+        SaveGTFS(GTFS_HEADERS, Path("_workspace_pkpic", "pkpic.zip"))
     ],
     resources={
         "rozklad_kpd.csv": ZippedResource(
