@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from contextlib import contextmanager
 from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type, cast
@@ -189,6 +190,7 @@ class DBConnection:
     - `unicode_upper` - equivalent to Python's str.upper
     - `unicode_casefold` - equivalent to Python's str.casefold
     - `unicode_title` - equivalent to Python's str.title
+    - `re_sub` - equivalent to Python's re.sub
     """
 
     def __init__(self, path: AnyPath = ":memory:") -> None:
@@ -201,6 +203,7 @@ class DBConnection:
         self._con.create_function("unicode_upper", 1, str.upper, deterministic=True)
         self._con.create_function("unicode_casefold", 1, str.casefold, deterministic=True)
         self._con.create_function("unicode_title", 1, str.title, deterministic=True)
+        self._con.create_function("re_sub", 3, re.sub, deterministic=True)
 
     @classmethod
     def create_with_schema(cls: Type[Self], path: AnyPath = ":memory:") -> Self:
