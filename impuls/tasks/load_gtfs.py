@@ -31,7 +31,7 @@ class LoadGTFS(Task):
         #       but missing calendars will trigger foreign key violations on import
         required_tables = {"routes", "stops", "trips", "stop_times"}
 
-        with ZipFile(gtfs_path, mode="r") as arch:
+        with ZipFile(gtfs_path, mode="r") as arch, r.db.transaction():
             for typ in ALL_MODEL_ENTITIES:
                 # Find the table file
                 try:
