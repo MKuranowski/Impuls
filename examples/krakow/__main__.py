@@ -25,7 +25,7 @@ Pipeline(
     ),
     tasks=[
         LoadGTFS(source_name),
-        ExecuteSQL(statement="UPDATE trips SET block_id = NULL", task_name="Drop block_id"),
+        ExecuteSQL(statement="UPDATE trips SET block_id = NULL", task_name="DropBlockID"),
     ],
     resources={
         source_name: HTTPResource.get(source_url),
