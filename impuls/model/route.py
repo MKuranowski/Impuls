@@ -60,7 +60,7 @@ class Route(Entity):
             .field("agency_id", "agency_id")
             .field("short_name", "route_short_name")
             .field("long_name", "route_long_name")
-            .field("type", "route_type", lambda x: cls.Type(int(x)))
+            .field("type", "route_type", _parse_gtfs_route_type)
             .field("color", "route_color", fallback_value="")
             .field("text_color", "route_text_color", fallback_value="")
             .field(
@@ -137,3 +137,53 @@ class Route(Entity):
             .field("sort_order", int, nullable=True)
             .kwargs()
         )
+
+
+def _parse_gtfs_route_type(raw_value: str) -> Route.Type:
+    v = int(raw_value)
+    if v == 0:
+        return Route.Type.TRAM
+    elif v == 1:
+        return Route.Type.METRO
+    elif v == 2:
+        return Route.Type.RAIL
+    elif v == 3:
+        return Route.Type.BUS
+    elif v == 4:
+        return Route.Type.FERRY
+    elif v == 5:
+        return Route.Type.CABLE_TRAM
+    elif v == 6:
+        return Route.Type.GONDOLA
+    elif v == 7:
+        return Route.Type.FUNICULAR
+    elif v == 11:
+        return Route.Type.TROLLEYBUS
+    elif v == 12:
+        return Route.Type.MONORAIL
+    elif 100 <= v < 200:
+        return Route.Type.RAIL
+    elif 200 <= v < 300:
+        return Route.Type.BUS
+    elif v == 405:
+        return Route.Type.MONORAIL
+    elif 400 <= v < 500:
+        return Route.Type.METRO
+    elif 700 <= v < 800:
+        return Route.Type.BUS
+    elif 800 <= v < 900:
+        return Route.Type.TROLLEYBUS
+    elif 900 <= v < 1000:
+        return Route.Type.TRAM
+    elif 1000 <= v < 1100:
+        return Route.Type.FERRY
+    # elif 1100 <= v < 1200:
+    #     No corresponding type for air transportation
+    elif 1200 <= v < 1300:
+        return Route.Type.FERRY
+    elif 1300 <= v < 1400:
+        return Route.Type.GONDOLA
+    elif 1400 <= v < 1500:
+        return Route.Type.FUNICULAR
+    else:
+        raise ValueError(f"Unknown GTFS route_type: {v}")
