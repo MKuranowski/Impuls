@@ -96,7 +96,7 @@ Pipeline(
         GenerateTripHeadsign(),
         SplitBusLegs(),
         SetRouteColors(),
-        SaveGTFS(GTFS_HEADERS, Path("_workspace_pkpic", "pkpic.zip"))
+        SaveGTFS(GTFS_HEADERS, Path("_workspace_pkpic", "pkpic.zip")),
     ],
     resources={
         "rozklad_kpd.csv": ZippedResource(
