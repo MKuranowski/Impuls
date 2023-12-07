@@ -50,8 +50,9 @@ class RouteParsingState:
 
     def exclude_overlapping_stops_from_dir(self) -> None:
         """Removes any overlapping stop IDs for direction detection"""
-        self.dir_0_stops -= self.dir_1_stops
-        self.dir_1_stops -= self.dir_0_stops
+        overlap = self.dir_0_stops & self.dir_1_stops
+        self.dir_0_stops -= overlap
+        self.dir_1_stops -= overlap
 
 
 @final
