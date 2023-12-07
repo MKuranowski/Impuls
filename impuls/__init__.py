@@ -1,4 +1,5 @@
 from . import errors, model, tools
+from .app import App
 from .db import DBConnection
 from .pipeline import Pipeline, PipelineOptions, Task, TaskRuntime
 from .resource import HTTPResource, LocalResource, Resource
@@ -8,6 +9,7 @@ __all__ = [
     "errors",
     "model",
     "tools",
+    "App",
     "DBConnection",
     "Pipeline",
     "PipelineOptions",
