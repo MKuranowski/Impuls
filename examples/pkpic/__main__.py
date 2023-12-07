@@ -1,7 +1,7 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
-from impuls import Pipeline, PipelineOptions, initialize_logging
+from impuls import App, Pipeline, PipelineOptions
 from impuls.model import Agency
 from impuls.resource import HTTPResource, ZippedResource
 from impuls.tasks import AddEntity, GenerateTripHeadsign, SaveGTFS
@@ -66,45 +66,44 @@ GTFS_HEADERS = {
 }
 
 
-arg_parser = ArgumentParser()
-arg_parser.add_argument("username", help="ftps.intercity.pl username")
-arg_parser.add_argument("password", help="ftps.intercity.pl password")
-args = arg_parser.parse_args()
+class PKPIntercityGTFS(App):
+    def add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument("username", help="ftps.intercity.pl username")
+        parser.add_argument("password", help="ftps.intercity.pl password")
 
-initialize_logging(verbose=True)
-Pipeline(
-    options=PipelineOptions(
-        force_run=True,
-        from_cache=True,
-        workspace_directory=Path("_workspace_pkpic"),
-        save_db_in_workspace=True,
-    ),
-    tasks=[
-        AddEntity(
-            Agency(
-                id="0",
-                name="PKP Intercity",
-                url="https://intercity.pl",
-                timezone="Europe/Warsaw",
-                lang="pl",
-                phone="+48703200200",
-            ),
-            task_name="AddAgency",
-        ),
-        CSVImport("rozklad_kpd.csv"),
-        ImportStationData("pl_rail_map.osm"),
-        GenerateTripHeadsign(),
-        SplitBusLegs(),
-        SetRouteColors(),
-        SaveGTFS(GTFS_HEADERS, Path("_workspace_pkpic", "pkpic.zip")),
-    ],
-    resources={
-        "rozklad_kpd.csv": ZippedResource(
-            FTPResource("rozklad/KPD_Rozklad.zip", args.username, args.password),
-            file_name_in_zip="KPD_Rozklad.csv",
-        ),
-        "pl_rail_map.osm": HTTPResource.get(
-            "https://raw.githubusercontent.com/MKuranowski/PLRailMap/master/plrailmap.osm",
-        ),
-    },
-).run()
+    def prepare(self, args: Namespace, options: PipelineOptions) -> Pipeline:
+        return Pipeline(
+            options=options,
+            tasks=[
+                AddEntity(
+                    Agency(
+                        id="0",
+                        name="PKP Intercity",
+                        url="https://intercity.pl",
+                        timezone="Europe/Warsaw",
+                        lang="pl",
+                        phone="+48703200200",
+                    ),
+                    task_name="AddAgency",
+                ),
+                CSVImport("rozklad_kpd.csv"),
+                ImportStationData("pl_rail_map.osm"),
+                GenerateTripHeadsign(),
+                SplitBusLegs(),
+                SetRouteColors(),
+                SaveGTFS(GTFS_HEADERS, Path("_workspace_pkpic", "pkpic.zip")),
+            ],
+            resources={
+                "rozklad_kpd.csv": ZippedResource(
+                    FTPResource("rozklad/KPD_Rozklad.zip", args.username, args.password),
+                    file_name_in_zip="KPD_Rozklad.csv",
+                ),
+                "pl_rail_map.osm": HTTPResource.get(
+                    "https://raw.githubusercontent.com/MKuranowski/PLRailMap/master/plrailmap.osm",
+                ),
+            },
+        )
+
+
+if __name__ == "__main__":
+    PKPIntercityGTFS(__name__, Path("_workspace_pkpic")).run()
