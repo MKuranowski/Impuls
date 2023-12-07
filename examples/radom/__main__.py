@@ -1,8 +1,11 @@
+import logging
+from argparse import Namespace
 from pathlib import Path
 
-from impuls import PipelineOptions, initialize_logging
+from impuls import App, PipelineOptions
 from impuls.model import Agency, FeedInfo
 from impuls.multi_file import MultiFile
+from impuls.resource import ZippedResource
 from impuls.tasks import AddEntity, ExecuteSQL, LoadBusManMDB, ModifyStopsFromCSV, SaveGTFS
 
 from .generate_calendars import GenerateCalendars
@@ -58,61 +61,68 @@ GTFS_HEADERS = {
     "calendar_dates": ("service_id", "date", "exception_type"),
 }
 
-initialize_logging(verbose=False)
-MultiFile(
-    options=PipelineOptions(
-        force_run=True,
-        workspace_directory=Path("_workspace_radom"),
-    ),
-    intermediate_provider=RadomProvider(),
-    intermediate_pipeline_tasks_factory=lambda feed: [
-        AddEntity(
-            Agency(
-                id="0",
-                name="MZDiK Radom",
-                url="http://www.mzdik.radom.pl/",
-                timezone="Europe/Warsaw",
-                lang="pl",
-            ),
-            task_name="AddAgency",
-        ),
-        AddEntity(
-            FeedInfo(
-                publisher_name="Mikołaj Kuranowski",
-                publisher_url="https://mkuran.pl/gtfs/",
-                lang="pl",
-                version=feed.version,
-            ),
-            task_name="AddFeedInfo",
-        ),
-        LoadBusManMDB(
-            feed.resource_name,
-            agency_id="0",
-            ignore_route_id=True,
-            ignore_stop_id=False,
-        ),
-        ExecuteSQL(
-            task_name="RemoveUnknownStops",
-            statement=(
-                "DELETE FROM stops WHERE stop_id IN ("
-                "    '1220', '1221', '1222', '1223', '1224', '1225', '1226', '1227', '1228', "
-                "    '1229', '649', '652', '653', '659', '662'"
-                ")"
-            ),
-        ),
-        ExecuteSQL(
-            task_name="RetainKnownCalendars",
-            statement=(
-                "DELETE FROM calendars WHERE desc NOT IN ('POWSZEDNI', 'SOBOTA', 'NIEDZIELA')"
-            ),
-        ),
-        GenerateCalendars(feed.start_date),
-        ModifyStopsFromCSV("soap_stops.csv"),
-    ],
-    final_pipeline_tasks_factory=lambda _: [
-        SaveGTFS(GTFS_HEADERS, Path("_workspace_radom", "radom.zip")),
-    ],
-    additional_resources={
-        "soap_stops.csv": RadomStopsResource(),
-    },
-).prepare().run()
+
+class RadomGTFS(App):
+    def before_run(self) -> None:
+        logging.getLogger("zeep").setLevel(logging.INFO)
+
+    def prepare(self, args: Namespace, options: PipelineOptions) -> MultiFile[ZippedResource]:
+        return MultiFile(
+            options=options,
+            intermediate_provider=RadomProvider(),
+            intermediate_pipeline_tasks_factory=lambda feed: [
+                AddEntity(
+                    Agency(
+                        id="0",
+                        name="MZDiK Radom",
+                        url="http://www.mzdik.radom.pl/",
+                        timezone="Europe/Warsaw",
+                        lang="pl",
+                    ),
+                    task_name="AddAgency",
+                ),
+                AddEntity(
+                    FeedInfo(
+                        publisher_name="Mikołaj Kuranowski",
+                        publisher_url="https://mkuran.pl/gtfs/",
+                        lang="pl",
+                        version=feed.version,
+                    ),
+                    task_name="AddFeedInfo",
+                ),
+                LoadBusManMDB(
+                    feed.resource_name,
+                    agency_id="0",
+                    ignore_route_id=True,
+                    ignore_stop_id=False,
+                ),
+                ExecuteSQL(
+                    task_name="RemoveUnknownStops",
+                    statement=(
+                        "DELETE FROM stops WHERE stop_id IN ("
+                        "    '1220', '1221', '1222', '1223', '1224', '1225', '1226', '1227', "
+                        "    '1228', '1229', '649', '652', '653', '659', '662'"
+                        ")"
+                    ),
+                ),
+                ExecuteSQL(
+                    task_name="RetainKnownCalendars",
+                    statement=(
+                        "DELETE FROM calendars WHERE desc NOT IN "
+                        "('POWSZEDNI', 'SOBOTA', 'NIEDZIELA')"
+                    ),
+                ),
+                GenerateCalendars(feed.start_date),
+                ModifyStopsFromCSV("soap_stops.csv"),
+            ],
+            final_pipeline_tasks_factory=lambda _: [
+                SaveGTFS(GTFS_HEADERS, Path("_workspace_radom", "radom.zip")),
+            ],
+            additional_resources={
+                "soap_stops.csv": RadomStopsResource(),
+            },
+        )
+
+
+if __name__ == "__main__":
+    RadomGTFS(__name__, Path("_workspace_radom")).run()
