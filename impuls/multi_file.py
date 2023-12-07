@@ -26,6 +26,7 @@ from .tools.temporal import date_range
 from .tools.types import Self
 
 AnyResource = TypeVar("AnyResource", bound=Resource)
+AnyResource_co = TypeVar("AnyResource_co", bound=Resource, covariant=True)
 
 logger = getLogger("MultiFile")
 
@@ -160,7 +161,7 @@ def empty_tasks_factory(*_: Any) -> list[Task]:
 
 
 @dataclass
-class MultiFile(Generic[AnyResource]):
+class MultiFile(Generic[AnyResource_co]):
     """MultiFile prepares Pipelines and Resources for creating a single,
     continuous database, when the source data is available in multiple disjoint files.
 
@@ -209,7 +210,7 @@ class MultiFile(Generic[AnyResource]):
     options: PipelineOptions
     """Options for the MultiFile process and created Pipelines."""
 
-    intermediate_provider: IntermediateFeedProvider[AnyResource]
+    intermediate_provider: IntermediateFeedProvider[AnyResource_co]
     """intermediate_provider is responsible for calculating which intermediate feeds
     are required to create the final database."""
 
@@ -299,7 +300,7 @@ class MultiFile(Generic[AnyResource]):
 
         return Pipelines(intermediates, final)
 
-    def resolve_versions(self) -> "_ResolvedVersions[AnyResource]":
+    def resolve_versions(self) -> "_ResolvedVersions[AnyResource_co]":
         # If from_cache - resolve only based on locally cached files
         if self.options.from_cache:
             # NOTE: No changes to cached inputs will be made - no need to invalidate the cache
