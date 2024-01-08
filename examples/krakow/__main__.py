@@ -3,9 +3,67 @@ from pathlib import Path
 from typing import final
 
 from impuls import App, HTTPResource, Pipeline, PipelineOptions
-from impuls.tasks import ExecuteSQL, LoadGTFS, RemoveUnusedEntities
+from impuls.tasks import ExecuteSQL, LoadGTFS, RemoveUnusedEntities, SaveGTFS
 
 from .generate_route_long_name import GenerateRouteLongName
+
+GTFS_HEADERS = {
+    "agency": (
+        "agency_id",
+        "agency_name",
+        "agency_url",
+        "agency_timezone",
+        "agency_lang",
+        "agency_phone",
+    ),
+    "stops": (
+        "stop_id",
+        "stop_code",
+        "stop_name",
+        "stop_lat",
+        "stop_lon",
+    ),
+    "routes": (
+        "agency_id",
+        "route_id",
+        "route_short_name",
+        "route_long_name",
+        "route_type",
+        "route_color",
+        "route_text_color",
+    ),
+    "trips": (
+        "route_id",
+        "service_id",
+        "trip_id",
+        "trip_headsign",
+        "direction_id",
+    ),
+    "stop_times": (
+        "trip_id",
+        "stop_sequence",
+        "stop_id",
+        "arrival_time",
+        "departure_time",
+    ),
+    "calendar": (
+        "service_id",
+        "start_date",
+        "end_date",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ),
+    "calendar_dates": (
+        "service_id",
+        "date",
+        "exception_type",
+    ),
+}
 
 
 @final
@@ -82,6 +140,10 @@ class KrakowGTFS(App):
                     ),
                 ),
                 GenerateRouteLongName(),
+                SaveGTFS(
+                    GTFS_HEADERS,
+                    options.workspace_directory / f"krakow.{args.type}.out.zip",
+                ),
             ],
             resources={
                 source_name: HTTPResource.get(source_url),
