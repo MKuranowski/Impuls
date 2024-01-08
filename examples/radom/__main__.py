@@ -116,7 +116,7 @@ class RadomGTFS(App):
                 ModifyStopsFromCSV("soap_stops.csv"),
             ],
             final_pipeline_tasks_factory=lambda _: [
-                SaveGTFS(GTFS_HEADERS, Path("_workspace_radom", "radom.zip")),
+                SaveGTFS(GTFS_HEADERS, options.workspace_directory / "radom.zip"),
             ],
             additional_resources={
                 "soap_stops.csv": RadomStopsResource(),

@@ -67,7 +67,9 @@ class WarsawGTFS(App):
             intermediate_provider=ZTMFeedProvider(),
             intermediate_pipeline_tasks_factory=lambda feed: [
                 ImportZTM(
-                    feed.resource_name, compressed=True, stop_names_resource="stop_names.json"
+                    feed.resource_name,
+                    compressed=True,
+                    stop_names_resource="stop_names.json",
                 ),
                 AddEntity(
                     model.FeedInfo(
@@ -84,7 +86,7 @@ class WarsawGTFS(App):
                 RemoveUnusedEntities(),
             ],
             final_pipeline_tasks_factory=lambda _: [
-                SaveGTFS(GTFS_HEADERS, Path("_workspace_warsaw/warsaw.zip")),
+                SaveGTFS(GTFS_HEADERS, options.workspace_directory / "warsaw.zip"),
             ],
             additional_resources={
                 "stop_names.json": HTTPResource.get(

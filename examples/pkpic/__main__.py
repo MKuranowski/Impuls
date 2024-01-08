@@ -91,7 +91,7 @@ class PKPIntercityGTFS(App):
                 GenerateTripHeadsign(),
                 SplitBusLegs(),
                 SetRouteColors(),
-                SaveGTFS(GTFS_HEADERS, Path("_workspace_pkpic", "pkpic.zip")),
+                SaveGTFS(GTFS_HEADERS, options.workspace_directory / "pkpic.zip"),
             ],
             resources={
                 "rozklad_kpd.csv": ZippedResource(
