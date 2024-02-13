@@ -515,7 +515,7 @@ class _ResolvedVersions(Generic[AnyResource]):
 
         to_fetch = [i for i in needed if i.version not in up_to_date_versions]
 
-        return _ResolvedVersions(to_remove, up_to_date, to_fetch)
+        return cls(to_remove, up_to_date, to_fetch)
 
     def log_result(self) -> None:
         """Logs the result of version resolution"""
