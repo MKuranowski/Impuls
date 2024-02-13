@@ -83,3 +83,4 @@ class Pipeline:
                 with machine_load.LoadTracker() as resource_usage:
                     task.execute(runtime)
                 self.logger.debug(f"Task {task.name} finished; {resource_usage}")
+            self.logger.info("All tasks finished")
