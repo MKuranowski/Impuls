@@ -24,7 +24,7 @@ from impuls.multi_file import (
     logger,
     prune_outdated_feeds,
 )
-from impuls.tasks import TruncateCalendars, merge
+from impuls.tasks import SaveDB, TruncateCalendars, merge
 from impuls.tools.temporal import date_range
 from impuls.tools.testing_mocks import MockDatetimeNow, MockFile, MockResource
 
@@ -524,18 +524,24 @@ class TestMultiFile(TestCase):
 
     def check_intermediate_pipeline(self, p: Pipeline, version: str) -> None:
         self.assertEqual(p.options, self.options)
-        self.assertEqual(
-            p.db_path,
-            self.workspace.path / "intermediate_dbs" / f"{version}.db",
-        )
+
+        db_path = self.workspace.path / "intermediate_dbs" / f"{version}.db"
+        if p.options.save_db_in_workspace:
+            self.assertEqual(p.db_path, db_path)
+        else:
+            self.assertIsNone(p.db_path)
 
         assert p.managed_resources is not None
         self.assertEqual(len(p.managed_resources), 1)
         self.assertIn(f"{version}.txt", p.managed_resources)
 
-        self.assertEqual(len(p.tasks), 1)
+        self.assertEqual(len(p.tasks), 1 if p.options.save_db_in_workspace else 2)
         self.assertIsInstance(p.tasks[0], DummyTask)
         self.assertEqual(p.tasks[0].name, f"DummyTask.{version}")
+
+        if not p.options.save_db_in_workspace:
+            self.assertIsInstance(p.tasks[1], SaveDB)
+            self.assertEqual(cast(SaveDB, p.tasks[1]).to, db_path)
 
     def check_pre_merge_tasks(
         self,
@@ -796,3 +802,16 @@ class TestMultiFile(TestCase):
         self.check_intermediate_pipeline(intermediates[1], "v3")
         self.check_final_pipeline(final)
         self.multi_file.intermediate_provider.needed.assert_not_called()
+
+    def test_save_db_in_workspace(self) -> None:
+        self.options = PipelineOptions(
+            workspace_directory=self.workspace.path,
+            save_db_in_workspace=True,
+        )
+        self.multi_file.options = self.options
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 2)
+        self.check_intermediate_pipeline(intermediates[0], "v2")
+        self.check_intermediate_pipeline(intermediates[1], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
