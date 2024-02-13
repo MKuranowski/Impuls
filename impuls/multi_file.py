@@ -21,7 +21,7 @@ from .resource import (
     prepare_resources,
 )
 from .task import Task
-from .tasks import TruncateCalendars, merge
+from .tasks import SaveDB, TruncateCalendars, merge
 from .tools.temporal import date_range
 from .tools.types import Self
 
@@ -128,8 +128,7 @@ class IntermediateFeedProvider(Protocol[AnyResource]):
     The IntermediateFeedProvider is also responsible for filling in the last_modified
     field of generated feeds' resources."""
 
-    def needed(self) -> list[IntermediateFeed[AnyResource]]:
-        ...
+    def needed(self) -> list[IntermediateFeed[AnyResource]]: ...
 
 
 def prune_outdated_feeds(feeds: list[IntermediateFeed[AnyResource]], today: Date) -> None:
@@ -368,13 +367,23 @@ class MultiFile(Generic[AnyResource_co]):
                 options=self.options,
                 name=feed.version,
             )
-            pipeline.db_path = path / f"{feed.version}.db"
+
+            # Unless asked to, work on an in-memory database
+            intermediate_db_path = path / f"{feed.version}.db"
+            if self.options.save_db_in_workspace:
+                pipeline.db_path = intermediate_db_path
+            else:
+                pipeline.db_path = None
+                pipeline.tasks.append(SaveDB(intermediate_db_path))
+
+            # Make the intermediate input and additional resources available
             pipeline.managed_resources = {**resources}
             pipeline.managed_resources[feed.resource_name] = ManagedResource(
                 feed.resource.path,
                 feed.resource.last_modified,
                 feed.resource.fetch_time,
             )
+
             pipelines.append(pipeline)
 
         return pipelines
