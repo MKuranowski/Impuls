@@ -148,7 +148,7 @@ def prune_outdated_feeds(feeds: list[IntermediateFeed[AnyResource]], today: Date
     )
 
     # Only return the needed feeds - those active on and after `self.for_date`
-    feeds[:cutoff_idx] = []
+    del feeds[:cutoff_idx]
 
 
 TaskFactory = Callable[[IntermediateFeed[LocalResource]], list[Task]]
