@@ -30,10 +30,10 @@ class Transfer(Entity):
     type: Type = Type.RECOMMENDED
     min_transfer_time: Optional[int] = field(default=None, repr=False)
 
-    id: int = 0
+    id: int = field(default=0, repr=False)
     """This field is ignored on `DBConnection.create` - SQLite automatically generates an ID.
 
-    The GTFS primary key clause is incompatible with SQL, as it contains nullable columns
+    The GTFS primary key clause is incompatible with SQL, as it contains optional columns
     (in SQL PRIMARY KEY implies NOT NULL) - hence the need for a separate ID.
     """
 
