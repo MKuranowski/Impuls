@@ -11,6 +11,7 @@ from ..model import (
     Calendar,
     CalendarException,
     Date,
+    FareAttribute,
     Route,
     ShapePoint,
 )
@@ -31,6 +32,11 @@ class LoadGTFS(Task):
         # NOTE: neither calendar nor calendar_dates are required,
         #       but missing calendars will trigger foreign key violations on import
         required_tables = {"routes", "stops", "trips", "stop_times"}
+
+        # If there was only one agency_id, remember its ID
+        # This is required for loading fare_attributes, where agency_id can be ommited
+        # if there is exactly one agency defined in agency.txt
+        agency_ids: list[str] = []
 
         with ZipFile(gtfs_path, mode="r") as arch, r.db.transaction():
             for typ in ALL_MODEL_ENTITIES:
@@ -58,6 +64,17 @@ class LoadGTFS(Task):
                         # agency_id is required by Impuls, but not GTFS
                         if typ in (Agency, Route) and not row.get("agency_id"):
                             row["agency_id"] = "(missing)"
+
+                        # Remember & recall agency_ids, for loading fare_attributes
+                        if typ is Agency:
+                            agency_ids.append(row["agency_id"])
+                        if typ is FareAttribute and not row.get("agency_id"):
+                            if len(agency_ids) != 1:
+                                raise ValueError(
+                                    "fare_attribute has no agency_id, but there were "
+                                    f"multiple agencies defined ({agency_ids})"
+                                )
+                            row["agency_id"] = agency_ids[0]
 
                         # CalendarException can exist without parent Calendar in GTFS,
                         # but not Impuls
