@@ -113,7 +113,8 @@ class Trip(Entity):
             short_name TEXT NOT NULL DEFAULT '',
             direction INTEGER DEFAULT NULL CHECK (direction IN (0, 1)),
             block_id TEXT DEFAULT NULL,
-            shape_id TEXT DEFAULT NULL,
+            shape_id TEXT DEFAULT NULL REFERENCES shapes(shape_id)
+                ON DELETE CASCADE ON UPDATE CASCADE,
             wheelchair_accessible INTEGER DEFAULT NULL CHECK (wheelchair_accessible IN (0, 1)),
             bikes_allowed INTEGER DEFAULT NULL CHECK (bikes_allowed IN (0, 1)),
             exceptional INTEGER DEFAULT NULL CHECK (exceptional IN (0, 1))

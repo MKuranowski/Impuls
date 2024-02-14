@@ -8,6 +8,7 @@ from impuls.model import (
     CalendarException,
     Date,
     Route,
+    ShapePoint,
     Stop,
     StopTime,
     Trip,
@@ -40,6 +41,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
         self.assertEqual(self.runtime.db.count(Stop), 28)
         self.assertEqual(self.runtime.db.count(Calendar), 2)
         self.assertEqual(self.runtime.db.count(CalendarException), 14)
+        self.assertEqual(self.runtime.db.count(ShapePoint), 1128)
         self.assertEqual(self.runtime.db.count(Trip), 372)
         self.assertEqual(self.runtime.db.count(StopTime), 6276)
 
