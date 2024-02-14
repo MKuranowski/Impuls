@@ -1,6 +1,6 @@
 from typing import Type, final
 
-from impuls.model import FeedInfo
+from impuls.model import Date, FeedInfo
 
 from .template_entity import AbstractTestEntity
 
@@ -15,6 +15,7 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
             version="2020-02-29b",
             contact_email="",
             contact_url="",
+            start_date=Date(2020, 2, 29),
         )
 
     def get_type(self) -> Type[FeedInfo]:
@@ -30,6 +31,8 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
                 "feed_version": "2020-02-29b",
                 "feed_contact_email": "",
                 "feed_contact_url": "",
+                "feed_start_date": "20200229",
+                "feed_end_date": "",
             },
         )
 
@@ -42,6 +45,8 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
                 "feed_version": "2020-02-29b",
                 "feed_contact_email": "",
                 "feed_contact_url": "",
+                "feed_start_date": "20200229",
+                "feed_end_date": "",
             },
         )
 
@@ -51,26 +56,30 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
         self.assertEqual(fi.version, "2020-02-29b")
         self.assertEqual(fi.contact_email, "")
         self.assertEqual(fi.contact_url, "")
+        self.assertEqual(fi.start_date, Date(2020, 2, 29))
+        self.assertIsNone(fi.end_date)
 
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),
-            ("0", "Foo", "https://example.com/", "en", "2020-02-29b", "", ""),
+            (0, "Foo", "https://example.com/", "en", "2020-02-29b", "", "", "2020-02-29", None),
         )
 
     def test_sql_primary_key(self) -> None:
-        self.assertTupleEqual(self.get_entity().sql_primary_key(), ("0",))
+        self.assertTupleEqual(self.get_entity().sql_primary_key(), (0,))
 
     def test_sql_unmarshall(self) -> None:
         fi = FeedInfo.sql_unmarshall(
             (
-                "0",
+                0,
                 "Foo",
                 "https://example.com/",
                 "en",
                 "2020-02-29b",
                 "",
                 "",
+                "2020-02-29",
+                None,
             )
         )
 
@@ -80,3 +89,5 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
         self.assertEqual(fi.version, "2020-02-29b")
         self.assertEqual(fi.contact_email, "")
         self.assertEqual(fi.contact_url, "")
+        self.assertEqual(fi.start_date, Date(2020, 2, 29))
+        self.assertIsNone(fi.end_date)
