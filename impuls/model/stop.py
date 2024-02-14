@@ -17,25 +17,30 @@ from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class Stop(Entity):
     class LocationType(IntEnum):
         STOP = 0
         STATION = 1
         EXIT = 2
 
-    id: str = field(compare=True)
-    name: str = field(compare=False)
-    lat: float = field(compare=False, repr=False)
-    lon: float = field(compare=False, repr=False)
-    code: str = field(default="", compare=False)
-    zone_id: str = field(default="", compare=False, repr=False)
-    location_type: LocationType = field(default=LocationType.STOP, compare=False, repr=False)
-    parent_station: str = field(default="", compare=False, repr=False)
-    wheelchair_boarding: Optional[bool] = field(default=None, compare=False, repr=False)
-    platform_code: str = field(default="", compare=False, repr=False)
-    pkpplk_code: str = field(default="", compare=False, repr=False)
-    ibnr_code: str = field(default="", compare=False, repr=False)
+    id: str
+    name: str
+    lat: float
+    lon: float
+    code: str = field(default="")
+    zone_id: str = field(default="", repr=False)
+    location_type: LocationType = field(default=LocationType.STOP, repr=False)
+
+    # NOTE: parent_station is a special case when serialized to SQL;
+    #       the empty string is mapped to NULL.
+    #       This makes it easier to treat it as a key referencing Stop.id.
+    parent_station: str = field(default="", repr=False)
+
+    wheelchair_boarding: Optional[bool] = field(default=None, repr=False)
+    platform_code: str = field(default="", repr=False)
+    pkpplk_code: str = field(default="", repr=False)
+    ibnr_code: str = field(default="", repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
@@ -155,7 +160,7 @@ class Stop(Entity):
             .field("code", str)
             .field("zone_id", str)
             .field("location_type", int, lambda x: cls.LocationType(x))
-            .field("parent_station", Optional[str], lambda x: x or "")
+            .field("parent_station", Optional[str], lambda x: x or "")  # type: ignore
             .field("wheelchair_boarding", bool, nullable=True)
             .field("platform_code", str)
             .field("pkpplk_code", str)

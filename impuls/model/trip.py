@@ -19,32 +19,32 @@ from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class Trip(Entity):
     class Direction(IntEnum):
         OUTBOUND = 0
         INBOUND = 1
 
-    id: str = field(compare=True)
-    route_id: str = field(compare=False)
-    calendar_id: str = field(compare=False)
-    headsign: str = field(default="", compare=False)
-    short_name: str = field(default="", compare=False, repr=False)
-    direction: Optional[Direction] = field(default=None, compare=False, repr=False)
+    id: str
+    route_id: str
+    calendar_id: str
+    headsign: str = field(default="")
+    short_name: str = field(default="", repr=False)
+    direction: Optional[Direction] = field(default=None, repr=False)
 
     # NOTE: block_id is a special case when serialized to SQL;
     #       the empty string is mapped to NULL.
     #       This makes it easier to treat it as a key of some sorts.
-    block_id: str = field(default="", compare=False, repr=False)
+    block_id: str = field(default="", repr=False)
 
     # NOTE: shape_id is a special case when serialized to SQL;
     #       the empty string is mapped to NULL.
     #       This makes it easier to treat it as a key of some sorts.
-    shape_id: str = field(default="", compare=False, repr=False)
+    shape_id: str = field(default="", repr=False)
 
-    wheelchair_accessible: Optional[bool] = field(default=None, compare=False, repr=False)
-    bikes_allowed: Optional[bool] = field(default=None, compare=False, repr=False)
-    exceptional: Optional[bool] = field(default=None, compare=False, repr=False)
+    wheelchair_accessible: Optional[bool] = field(default=None, repr=False)
+    bikes_allowed: Optional[bool] = field(default=None, repr=False)
+    exceptional: Optional[bool] = field(default=None, repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
@@ -167,8 +167,8 @@ class Trip(Entity):
             .field("headsign", str)
             .field("short_name", str)
             .field("direction", int, cls.Direction, nullable=True)
-            .field("block_id", Optional[str], lambda x: x or "")
-            .field("shape_id", Optional[str], lambda x: x or "")
+            .field("block_id", Optional[str], lambda x: x or "")  # type: ignore
+            .field("shape_id", Optional[str], lambda x: x or "")  # type: ignore
             .field("wheelchair_accessible", bool, nullable=True)
             .field("bikes_allowed", bool, nullable=True)
             .field("exceptional", bool, nullable=True)

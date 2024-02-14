@@ -12,15 +12,15 @@ from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class Agency(Entity):
-    id: str = field(compare=True)
-    name: str = field(compare=False)
-    url: str = field(compare=False, repr=False)
-    timezone: str = field(compare=False, repr=False)
-    lang: str = field(default="", compare=False, repr=False)
-    phone: str = field(default="", compare=False, repr=False)
-    fare_url: str = field(default="", compare=False, repr=False)
+    id: str
+    name: str
+    url: str = field(repr=False)
+    timezone: str = field(repr=False)
+    lang: str = field(default="", repr=False)
+    phone: str = field(default="", repr=False)
+    fare_url: str = field(default="", repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
