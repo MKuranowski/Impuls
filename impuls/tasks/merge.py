@@ -213,6 +213,7 @@ class Merge(Task):
         self.merge_stops(db)
         self.merge_calendars(db, incoming_prefix)
         self.merge_calendar_exceptions(db)
+        self.merge_shapes(db, incoming_prefix)
         self.merge_trips(db, incoming_prefix)
         self.merge_stop_times(db)
         self.collect_incoming_feed_info(db)
@@ -336,21 +337,30 @@ class Merge(Task):
             "INSERT OR ABORT INTO calendar_exceptions SELECT * FROM incoming.calendar_exceptions",
         )
 
+    def merge_shapes(self, db: DBConnection, incoming_prefix: str) -> None:
+        self.logger.debug("Joining Shapes")
+
+        db.raw_execute(
+            "UPDATE incoming.shapes SET shape_id = ? || ? || shape_id",
+            (incoming_prefix, self.separator),
+        )
+        db.raw_execute("INSERT OR ABORT INTO shapes SELECT * FROM incoming.shapes")
+
+        self.logger.debug("Joining Shapes Points")
+        db.raw_execute("INSERT OR ABORT INTO shape_points SELECT * FROM incoming.shape_points")
+
     def merge_trips(self, db: DBConnection, incoming_prefix: str) -> None:
         self.logger.debug("Joining Trips")
 
         # NOTE: merge_routes should have updated the route_id
         # NOTE: merge_calendars should have updated the calendar_id
+        # NOTE: merge_shapes should have updated the shape_id
         db.raw_execute(
             "UPDATE incoming.trips SET trip_id = ? || ? || trip_id",
             (incoming_prefix, self.separator),
         )
         db.raw_execute(
             "UPDATE incoming.trips SET block_id = ? || ? || block_id WHERE block_id IS NOT NULL",
-            (incoming_prefix, self.separator),
-        )
-        db.raw_execute(
-            "UPDATE incoming.trips SET shape_id = ? || ? || shape_id WHERE shape_id IS NOT NULL",
             (incoming_prefix, self.separator),
         )
         db.raw_execute("INSERT OR ABORT INTO trips SELECT * FROM incoming.trips")

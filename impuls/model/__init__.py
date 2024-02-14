@@ -8,6 +8,7 @@ from .feed_info import FeedInfo
 from .meta.entity import Entity, EntityT
 from .meta.utility_types import Date, TimePoint
 from .route import Route
+from .shape_point import ShapePoint
 from .stop import Stop
 from .stop_time import StopTime
 from .trip import Trip
@@ -23,6 +24,7 @@ __all__ = [
     "Entity",
     "EntityT",
     "Route",
+    "ShapePoint",
     "Stop",
     "StopTime",
     "TimePoint",
@@ -39,6 +41,7 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     FeedInfo,
     Route,
     Stop,
+    ShapePoint,
     Trip,
     StopTime,
 ]

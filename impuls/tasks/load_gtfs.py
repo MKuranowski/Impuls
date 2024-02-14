@@ -12,6 +12,7 @@ from ..model import (
     CalendarException,
     Date,
     Route,
+    ShapePoint,
 )
 from ..task import Task, TaskRuntime
 
@@ -77,6 +78,13 @@ class LoadGTFS(Task):
                                     start_date=Date.SIGNALS_EXCEPTIONS,
                                     end_date=Date.SIGNALS_EXCEPTIONS,
                                 )
+                            )
+
+                        # shape_id is virtual in GTFS, but concrete in Impuls
+                        if typ is ShapePoint:
+                            r.db.raw_execute(
+                                "INSERT OR IGNORE INTO shapes (shape_id) VALUES (?)",
+                                (row["shape_id"],),
                             )
 
                         # Attribution has to have an id
