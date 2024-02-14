@@ -14,7 +14,7 @@ from .meta.utility_types import TimePoint
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class StopTime(Entity):
     class PassengerExchange(IntEnum):
         SCHEDULED_STOP = 0
@@ -22,24 +22,17 @@ class StopTime(Entity):
         MUST_PHONE = 2
         ON_REQUEST = 3
 
-    trip_id: str = field(compare=True)
-    stop_id: str = field(compare=False)
-    stop_sequence: int = field(compare=True, repr=False)
-    arrival_time: TimePoint = field(compare=False, repr=False)
-    departure_time: TimePoint = field(compare=False, repr=False)
-
-    pickup_type: PassengerExchange = field(
-        default=PassengerExchange.SCHEDULED_STOP, compare=False, repr=False
-    )
-
-    drop_off_type: PassengerExchange = field(
-        default=PassengerExchange.SCHEDULED_STOP, compare=False, repr=False
-    )
-
-    stop_headsign: str = field(default="", compare=False, repr=False)
-    shape_dist_traveled: Optional[float] = field(default=None, compare=False, repr=False)
-    original_stop_id: str = field(default="", compare=False, repr=False)
-    platform: str = field(default="", compare=False, repr=False)
+    trip_id: str
+    stop_id: str
+    stop_sequence: int = field(repr=False)
+    arrival_time: TimePoint = field(repr=False)
+    departure_time: TimePoint = field(repr=False)
+    pickup_type: PassengerExchange = field(default=PassengerExchange.SCHEDULED_STOP, repr=False)
+    drop_off_type: PassengerExchange = field(default=PassengerExchange.SCHEDULED_STOP, repr=False)
+    stop_headsign: str = field(default="", repr=False)
+    shape_dist_traveled: Optional[float] = field(default=None, repr=False)
+    original_stop_id: str = field(default="", repr=False)
+    platform: str = field(default="", repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:

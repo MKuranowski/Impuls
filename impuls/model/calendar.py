@@ -15,19 +15,19 @@ from .meta.utility_types import Date
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class Calendar(Entity):
-    id: str = field(compare=True)
-    monday: bool = field(compare=False, repr=False)
-    tuesday: bool = field(compare=False, repr=False)
-    wednesday: bool = field(compare=False, repr=False)
-    thursday: bool = field(compare=False, repr=False)
-    friday: bool = field(compare=False, repr=False)
-    saturday: bool = field(compare=False, repr=False)
-    sunday: bool = field(compare=False, repr=False)
-    start_date: Date = field(compare=False, repr=False)
-    end_date: Date = field(compare=False, repr=False)
-    desc: str = field(default="", compare=False, repr=False)
+    id: str
+    monday: bool = field(default=False, repr=False)
+    tuesday: bool = field(default=False, repr=False)
+    wednesday: bool = field(default=False, repr=False)
+    thursday: bool = field(default=False, repr=False)
+    friday: bool = field(default=False, repr=False)
+    saturday: bool = field(default=False, repr=False)
+    sunday: bool = field(default=False, repr=False)
+    start_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
+    end_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
+    desc: str = field(default="", repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
@@ -74,15 +74,15 @@ class Calendar(Entity):
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE calendars (
             calendar_id TEXT PRIMARY KEY,
-            monday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            tuesday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            wednesday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            thursday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            friday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            saturday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            sunday INTEGER NOT NULL CHECK (monday IN (0, 1)),
-            start_date TEXT NOT NULL CHECK (start_date LIKE '____-__-__'),
-            end_date TEXT NOT NULL CHECK (end_date LIKE '____-__-__'),
+            monday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            tuesday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            wednesday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            thursday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            friday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            saturday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            sunday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
+            start_date TEXT NOT NULL DEFAULT '1111-11-11' CHECK (start_date LIKE '____-__-__'),
+            end_date TEXT NOT NULL DEFAULT '1111-11-11' CHECK (end_date LIKE '____-__-__'),
             desc TEXT NOT NULL DEFAULT ''
         ) STRICT;"""
 

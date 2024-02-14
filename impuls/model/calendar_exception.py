@@ -14,15 +14,15 @@ from .meta.utility_types import Date
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class CalendarException(Entity):
     class Type(IntEnum):
         ADDED = 1
         REMOVED = 2
 
-    calendar_id: str = field(compare=True)
-    date: Date = field(compare=False)
-    exception_type: Type = field(compare=False, repr=False)
+    calendar_id: str
+    date: Date
+    exception_type: Type
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:

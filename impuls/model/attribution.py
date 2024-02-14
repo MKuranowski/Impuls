@@ -12,17 +12,17 @@ from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class Attribution(Entity):
-    id: str = field(compare=True)
-    organization_name: str = field(compare=False)
-    is_producer: bool = field(default=False, compare=False, repr=False)
-    is_operator: bool = field(default=False, compare=False, repr=False)
-    is_authority: bool = field(default=False, compare=False, repr=False)
-    is_data_source: bool = field(default=False, compare=False, repr=False)
-    url: str = field(default="", compare=False, repr=False)
-    email: str = field(default="", compare=False, repr=False)
-    phone: str = field(default="", compare=False, repr=False)
+    id: str
+    organization_name: str
+    is_producer: bool = field(default=False, repr=False)
+    is_operator: bool = field(default=False, repr=False)
+    is_authority: bool = field(default=False, repr=False)
+    is_data_source: bool = field(default=False, repr=False)
+    url: str = field(default="", repr=False)
+    email: str = field(default="", repr=False)
+    phone: str = field(default="", repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:

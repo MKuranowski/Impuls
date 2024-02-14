@@ -13,7 +13,7 @@ from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
-@dataclass(unsafe_hash=True)
+@dataclass
 class Route(Entity):
     class Type(IntEnum):
         TRAM = 0
@@ -27,14 +27,14 @@ class Route(Entity):
         TROLLEYBUS = 11
         MONORAIL = 12
 
-    id: str = field(compare=True)
-    agency_id: str = field(compare=False, repr=False)
-    short_name: str = field(compare=False)
-    long_name: str = field(compare=False)
-    type: Type = field(compare=False)
-    color: str = field(default="", compare=False, repr=False)
-    text_color: str = field(default="", compare=False, repr=False)
-    sort_order: Optional[int] = field(default=None, compare=False, repr=False)
+    id: str
+    agency_id: str = field(repr=False)
+    short_name: str
+    long_name: str
+    type: Type
+    color: str = field(default="", repr=False)
+    text_color: str = field(default="", repr=False)
+    sort_order: Optional[int] = field(default=None, repr=False)
 
     @staticmethod
     def gtfs_table_name() -> LiteralString:
