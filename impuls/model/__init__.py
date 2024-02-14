@@ -12,6 +12,7 @@ from .route import Route
 from .shape_point import ShapePoint
 from .stop import Stop
 from .stop_time import StopTime
+from .transfer import Transfer
 from .trip import Trip
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "Stop",
     "StopTime",
     "TimePoint",
+    "Transfer",
     "Trip",
 ]
 
@@ -47,4 +49,5 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     Trip,
     StopTime,
     Frequency,
+    Transfer,
 ]
