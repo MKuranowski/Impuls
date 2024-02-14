@@ -5,6 +5,7 @@ from .attribution import Attribution
 from .calendar import Calendar
 from .calendar_exception import CalendarException
 from .fare_attribute import FareAttribute
+from .fare_rule import FareRule
 from .feed_info import FeedInfo
 from .frequency import Frequency
 from .meta.entity import Entity, EntityT
@@ -24,6 +25,7 @@ __all__ = [
     "CalendarException",
     "Date",
     "FareAttribute",
+    "FareRule",
     "FeedInfo",
     "Frequency",
     "Entity",
@@ -48,6 +50,7 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     Route,
     Stop,
     FareAttribute,
+    FareRule,
     ShapePoint,
     Trip,
     StopTime,
