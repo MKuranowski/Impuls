@@ -91,8 +91,9 @@ class Merge(Task):
 
     - Agency and Attribution instances are always merged - attributes of the first encountered
         instance are kept.
-    - Calendar, CalendarException, Trip and StopTime instances are never merged -
-        incoming ids are always prefixed by the database_to_merge prefix.
+    - Calendar, CalendarException, FareAttribute, FareRule, ShapePoint, Trip, StopTime, Frequency
+        and Transfer instances are never merged - incoming ids are always prefixed by the
+        database_to_merge prefix.
     - Route instances are merged if they have the same agency_id, short_name, type and color.
         Other attributes of the first encountered instance are kept.
         If the comparison attributes do not match, the incoming id will have a numeric suffix
@@ -213,9 +214,12 @@ class Merge(Task):
         self.merge_stops(db)
         self.merge_calendars(db, incoming_prefix)
         self.merge_calendar_exceptions(db)
+        self.merge_fares(db, incoming_prefix)
         self.merge_shapes(db, incoming_prefix)
         self.merge_trips(db, incoming_prefix)
         self.merge_stop_times(db)
+        self.merge_frequencies(db)
+        self.merge_transfers(db)
         self.collect_incoming_feed_info(db)
 
     def merge_agencies(self, db: DBConnection) -> None:
@@ -337,6 +341,27 @@ class Merge(Task):
             "INSERT OR ABORT INTO calendar_exceptions SELECT * FROM incoming.calendar_exceptions",
         )
 
+    def merge_fares(self, db: DBConnection, incoming_prefix: str) -> None:
+        self.logger.debug("Joining Fare Attributes")
+
+        db.raw_execute(
+            "UPDATE incoming.fare_attributes SET fare_id = ? || ? || fare_id",
+            (incoming_prefix, self.separator),
+        )
+        db.raw_execute(
+            "INSERT OR ABORT INTO fare_attributes SELECT * FROM incoming.fare_attributes"
+        )
+
+        self.logger.debug("Joining Fare Rules")
+        # NOTE: merge_routes should have updated route_id
+        # NOTE: to avoid collisions, transfer_id must not be copied -
+        #       SQLite will automatically generate new ones (thanks to INTEGER PRIMARY KEY)
+        columns = "route_id, origin_id, destination_id, contains_id"
+        db.raw_execute(
+            f"INSERT OR ABORT INTO fare_rules ({columns}) "
+            f"SELECT {columns} FROM incoming.fare_rules"
+        )
+
     def merge_shapes(self, db: DBConnection, incoming_prefix: str) -> None:
         self.logger.debug("Joining Shapes")
 
@@ -371,6 +396,28 @@ class Merge(Task):
         # NOTE: merge_stops should have updated the stop_id
         # NOTE: merge_trips should have updated the trip_id
         db.raw_execute("INSERT OR ABORT INTO stop_times SELECT * FROM incoming.stop_times")
+
+    def merge_frequencies(self, db: DBConnection) -> None:
+        self.logger.debug("Joining Frequencies")
+
+        # NOTE: merge_trips should have updated the trip_id
+        db.raw_execute("INSERT OR ABORT INTO frequencies SELECT * FROM incoming.frequencies")
+
+    def merge_transfers(self, db: DBConnection) -> None:
+        self.logger.debug("Joining StopTimes")
+
+        # NOTE: merge_routes should have updated from_route_id & to_route_id
+        # NOTE: merge_stops should have updated from_stop_id & to_stop_id
+        # NOTE: merge_trips should have updated from_trip_id & to_trip_id
+        # NOTE: to avoid collisions, transfer_id must not be copied -
+        #       SQLite will automatically generate new ones (thanks to INTEGER PRIMARY KEY)
+        columns = (
+            "from_stop_id, to_stop_id, from_route_id, to_route_id, from_trip_id, "
+            "to_trip_id, transfer_type, min_transfer_time"
+        )
+        db.raw_execute(
+            f"INSERT OR ABORT INTO transfers ({columns}) SELECT {columns} FROM incoming.transfers"
+        )
 
     def collect_incoming_feed_info(self, db: DBConnection) -> None:
         self.logger.debug("Collecting FeedInfo")
