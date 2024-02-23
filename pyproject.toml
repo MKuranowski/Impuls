@@ -11,6 +11,9 @@ authors = [{name = "Mikołaj Kuranowski", email = "mkuranowski@gmail.com"}]
 
 dynamic = ["version"]
 
+[tool.setuptools]
+packages = ["impuls"]
+
 [tool.setuptools.dynamic]
 version = {attr = "impuls.__version__"}
 
