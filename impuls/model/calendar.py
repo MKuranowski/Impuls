@@ -87,6 +87,13 @@ class Calendar(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(calendar_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, "
+            "start_date, end_date, desc)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 

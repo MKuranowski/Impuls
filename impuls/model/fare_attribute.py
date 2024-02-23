@@ -79,6 +79,13 @@ class FareAttribute(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(fare_id, price, currency_type, payment_method, transfers, agency_id, "
+            "transfer_duration)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?)"
 

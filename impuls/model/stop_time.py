@@ -114,6 +114,13 @@ class StopTime(Entity):
         CREATE INDEX idx_stop_times_stop_id ON stop_times(stop_id);"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(trip_id, stop_id, stop_sequence, arrival_time, departure_time, pickup_type, "
+            "drop_off_type, stop_headsign, shape_dist_traveled, original_stop_id, platform)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 

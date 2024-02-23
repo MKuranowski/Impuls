@@ -88,6 +88,13 @@ class FeedInfo(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(feed_info_id, publisher_name, publisher_url, lang, version, contact_email, "
+            "contact_url, start_date, end_date)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?, ?)"
 

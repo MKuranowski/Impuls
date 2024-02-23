@@ -74,6 +74,10 @@ class FareRule(Entity):
         CREATE INDEX idx_fare_rules_contains_id ON fare_rules(contains_id);"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return "(fare_id, route_id, origin_id, destination_id, contains_id)"
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?)"
 

@@ -36,6 +36,13 @@ class AbstractTestEntity:
         def test_sql_table_name(self) -> None:
             self.assertRegex(self.get_type().sql_table_name(), TABLE_NAME_REGEX)
 
+        def test_sql_columns(self) -> None:
+            self.assertRegex(self.get_type().sql_columns(), r"^\((?:[a-z_]+, )*[a-z_]+\)")
+            self.assertEqual(
+                len(self.get_entity().sql_marshall()),
+                self.get_type().sql_columns().count(",") + 1,
+            )
+
         def test_sql_placeholder(self) -> None:
             self.assertRegex(self.get_type().sql_placeholder(), r"^\((?:\?, )*\?\)$")
             self.assertEqual(

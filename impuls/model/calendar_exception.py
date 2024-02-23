@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import Iterable, Mapping, Sequence
 from typing import Type as TypeOf
@@ -58,6 +58,10 @@ class CalendarException(Entity):
             exception_type INTEGER NOT NULL CHECK (exception_type IN (1, 2)),
             PRIMARY KEY (calendar_id, date)
         ) STRICT;"""
+
+    @staticmethod
+    def sql_columns() -> LiteralString:
+        return "(calendar_id, date, exception_type)"
 
     @staticmethod
     def sql_placeholder() -> LiteralString:

@@ -96,6 +96,13 @@ class Attribution(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(attribution_id, organization_name, is_producer, is_operator, is_authority, "
+            "is_data_source, url, email, phone)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?, ?)"
 

@@ -68,6 +68,10 @@ class Agency(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return "(agency_id, name, url, timezone, lang, phone, fare_url)"
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?)"
 

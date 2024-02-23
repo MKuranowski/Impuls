@@ -125,6 +125,13 @@ class Trip(Entity):
         CREATE INDEX idx_trips_shape_id ON trips(shape_id);"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(trip_id, route_id, calendar_id, headsign, short_name, direction, block_id, "
+            "shape_id, wheelchair_accessible, bikes_allowed, exceptional)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 

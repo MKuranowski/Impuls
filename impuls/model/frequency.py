@@ -62,6 +62,10 @@ class Frequency(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return "(trip_id, start_time, end_time, headway, exact_times)"
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?)"
 

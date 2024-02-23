@@ -68,6 +68,10 @@ class ShapePoint(Entity):
         ) STRICT;"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return "(shape_id, sequence, lat, lon, shape_dist_traveled)"
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?)"
 

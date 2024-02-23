@@ -115,6 +115,13 @@ class Stop(Entity):
         CREATE INDEX idx_stops_parent_station ON stops(parent_station);"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return (
+            "(stop_id, name, lat, lon, code, zone_id, location_type, parent_station, "
+            "wheelchair_boarding, platform_code, pkpplk_code, ibnr_code)"
+        )
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 

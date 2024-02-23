@@ -94,6 +94,10 @@ class Route(Entity):
         CREATE INDEX idx_routes_agency_id ON routes(agency_id);"""
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        return "(route_id, agency_id, short_name, long_name, type, color, text_color, sort_order)"
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         return "(?, ?, ?, ?, ?, ?, ?, ?)"
 

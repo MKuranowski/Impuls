@@ -152,6 +152,7 @@ class DBConnection:
 
     Typed queries work by substituting 3 keywords in the passed SQL:
     - `:table` - replaced with the table name
+    - `:cols` - replaced with comma-separated column names, in brackets
     - `:vals` - replaced with question marks (corresponding to table columns), in brackets
     - `:set` - replaced with "column_name=?, ...", without brackets
     - `:where` - replaces with "primary_key_column=? AND ...", without brackets.
@@ -313,6 +314,7 @@ class DBConnection:
     # Typed SQL handling:
     # Done by performing substitutions in the passed SQL statement:
     # ":table" → "table_name"
+    # ":cols" → "(col1, col2, col3)"
     # ":vals" → "(?, ?, ?, ?, ...)"
     # ":set" → "col1=?, col2=?, col3=?, ..."
     # ":where" → "pk_col1=? AND pk_col2=? AND ..."
@@ -321,6 +323,7 @@ class DBConnection:
     def _sql_substitute_typed(sql: str, typ: Type[Entity]) -> str:
         return (
             sql.replace(":table", typ.sql_table_name())
+            .replace(":cols", typ.sql_columns())
             .replace(":vals", typ.sql_placeholder())
             .replace(":set", typ.sql_set_clause())
             .replace(":where", typ.sql_where_clause())
@@ -407,7 +410,7 @@ class DBConnection:
 
     def create(self, entity: Entity) -> None:
         """Creates a new entity in the database"""
-        self.typed_in_execute("INSERT INTO :table VALUES :vals", entity)
+        self.typed_in_execute("INSERT INTO :table :cols VALUES :vals", entity)
 
     def create_many(self, typ: Type[EntityT], entities: Iterable[EntityT]) -> None:
         """Creates multiple entries in the database"""

@@ -38,10 +38,18 @@ class Entity(Protocol):
         ...
 
     @staticmethod
+    def sql_columns() -> LiteralString:
+        """sql_columns returns a "(col1, col2, col3)" string used in SQL queries
+        for this type. The number of question marks must match the number of elements
+        returned by sql_marshall.
+        """
+        ...
+
+    @staticmethod
     def sql_placeholder() -> LiteralString:
         """sql_placeholder returns a "(?, ?, ?, ?, ...)" string used in SQL queries
         for this type. The number of question marks must match the number of elements
-        expected by sql_unmarshall and returned by sql_marshall."""
+        returned by sql_marshall."""
         ...
 
     @staticmethod
