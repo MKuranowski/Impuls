@@ -8,3 +8,5 @@ _workspace_*
 *.egg-info
 .coverage
 htmlcov
+builddir
+dist
