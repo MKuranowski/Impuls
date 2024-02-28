@@ -19,6 +19,22 @@ A module for dealing with versioned, or _multi-file_ sources is also provided. I
 for easy and very flexible processing of schedules provided in discrete versions into
 a single coherent file.
 
+Installation and compilation
+----------------------------
+
+impuls uses a bundled library written in Zig.
+~~`pip install impuls` will most likely download a wheel with the library already compiled~~
+(todo: library is not yet published on PyPI). However, if you need to install from the source distribution,
+you need to have [zig](https://ziglang.org/learn/getting-started/) installed.
+
+For development, it's inconvenient to have to `pip install .` every time. [meson-python has
+good editable package support](https://meson-python.readthedocs.io/en/latest/how-to-guides/editable-installs.html),
+however I have not tested it - I recommend using meson directly to compile the extension:
+`meson setup builddir && cd builddir && meson compile` and setting up a symlink from
+`impuls/extern/libextern.so` → `builddir/libextern.so` (remember to adjust the dynamic library
+extension to your platform: .dll on Windows and .dylib on MaCOS).
+
+
 Tests
 -----
 
@@ -29,6 +45,7 @@ $ python -m venv .venv
 $ . .venv/bin/activate
 $ pip install -U pip
 $ pip install -Ur requirements.dev.txt
+$ pip install --no-build-isolation --editable .
 $ pytest
 ```
 
@@ -40,9 +57,10 @@ from four sources into a GTFS file. Before running the examples, run the followi
 
 ```terminal
 $ python -m venv .venv  # Unless already run
-$ . .venv/bin/activate
+$ . .venv/bin/activate  # Unless already run
 $ pip install -U pip    # Unless already run
 $ pip install -Ur requirements.examples.txt
+$ pip install --no-build-isolation --editable .  # Unless already run
 ```
 
 ### Kraków
@@ -52,13 +70,13 @@ The example pipeline removes unnecessary, confusing trip data and fixes
 several user-facing strings.
 
 Run with `python -m examples.krakow tram` or `python -m examples.krakow bus`.
-The result GTFS will be created in `_workspace_krakow/krakow.tram.out.zip` or 
+The result GTFS will be created in `_workspace_krakow/krakow.tram.out.zip` or
 `_workspace_krakow/krakow.bus.out.zip`, accordingly.
 
 ### PKP IC (PKP Intercity)
 
 PKP Intercity provides their schedules in a single CSV table at <ftp://ftps.intercity.pl>.
-Unfortunately, the source data is not openly available. One needs to email PKP Intercity 
+Unfortunately, the source data is not openly available. One needs to email PKP Intercity
 through the contact provided in the [Polish MMTIS NAP](https://dane.gov.pl/pl/dataset/1739,krajowy-punkt-dostepowy-kpd-multimodalne-usugi-informacji-o-podrozach)
 in order to get the credentials.
 
