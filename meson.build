@@ -71,26 +71,42 @@ else
 endif
 lib_name = 'libextern' + lib_suffix
 
-zig_extra_args = []
+zig_lib_args = ['-dynamic', '--name', 'extern']
 if meson.is_cross_build()
-    zig_extra_args += ['-target', meson.get_external_property('zig_target')]
+    zig_lib_args += ['-target', meson.get_external_property('zig_target')]
 endif
 
 if get_option('debug')
-    zig_extra_args += '-fno-strip'
+    zig_lib_args += '-fno-strip'
 else
-    zig_extra_args += '-fstrip'
+    zig_lib_args += '-fstrip'
 endif
 
 if get_option('optimization') == 's'
-    zig_extra_args += ['-O', 'ReleaseSmall']
+    zig_lib_args += ['-O', 'ReleaseSmall']
 elif get_option('optimization') == '3'
-    zig_extra_args += ['-O', 'ReleaseFast']
+    zig_lib_args += ['-O', 'ReleaseFast']
 elif get_option('optimization') == '2'
-    zig_extra_args += ['-O', 'ReleaseSafe']
+    zig_lib_args += ['-O', 'ReleaseSafe']
 else
-    zig_extra_args += ['-O', 'Debug']
+    zig_lib_args += ['-O', 'Debug']
 endif
+
+zig_compile_args = [
+    '-lc',
+    '-I',
+    meson.project_source_root() / 'impuls' / 'extern' / 'vendor',
+    # https://sqlite.org/compile.html#recommended_compile_time_options
+    '-DSQLITE_DQS=0',
+    '-DSQLITE_DEFAULT_MEMSTATUS=0',
+    '-DSQLITE_LIKE_DOESNT_MATCH_BLOBS',
+    '-DSQLITE_MAX_EXPR_DEPTH=0',
+    '-DSQLITE_OMIT_DECLTYPE',
+    '-DSQLITE_OMIT_DEPRECATED',
+    '-DSQLITE_OMIT_PROGRESS_CALLBACK',
+    '-DSQLITE_OMIT_SHARED_CACHE',
+    '-DSQLITE_USE_ALLOCA',
+]
 
 
 zig_wrapper = files('zig_build_lib_wrapper.py')
@@ -98,11 +114,13 @@ custom_target(
     'libextern',
     input: [
         # The following inputs are actually passed to zig build-lib
+        'impuls/extern/vendor/sqlite3.c',
         'impuls/extern/zig/lib.zig',
         # The rest only server as a trigger for meson to rebuild the library
         'impuls/extern/zig/busman.zig',
         'impuls/extern/zig/csv.zig',
         'impuls/extern/zig/gtfs.zig',
+        'impuls/extern/zig/sqlite3.zig',
     ],
     output: lib_name,
     command: [
@@ -111,14 +129,10 @@ custom_target(
         '-o',
         '@OUTPUT@',
         '--',
-        zig_extra_args,
-        '-dynamic',
-        '--name',
-        'extern',
-        '-lc',
-        # '-I',
-        # meson.project_source_root() / 'impuls' / 'extern' / 'c',
+        zig_lib_args,
+        zig_compile_args,
         '@INPUT0@',
+        '@INPUT1@',
     ],
     install: true,
     install_dir: py.get_install_dir() / 'impuls' / 'extern',
@@ -130,10 +144,11 @@ test(
     zig,
     args: [
         'test',
-        '-lc',
-        # '-I',
-        # meson.project_source_root() / 'impuls' / 'extern' / 'c',
-        files('impuls/extern/zig/lib.zig'),
+        zig_compile_args,
+        files(
+            'impuls/extern/vendor/sqlite3.c',
+            'impuls/extern/zig/lib.zig',
+        ),
     ],
     verbose: true,
 )

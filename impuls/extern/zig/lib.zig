@@ -8,6 +8,7 @@ const gtfs = @import("./gtfs.zig");
 //       They exists for zig to pick up their unit tests.
 comptime {
     std.mem.doNotOptimizeAway(@import("./csv.zig"));
+    std.mem.doNotOptimizeAway(@import("./sqlite3.zig"));
 }
 
 // XXX: Function declarations from this file must match ../__init__.py
