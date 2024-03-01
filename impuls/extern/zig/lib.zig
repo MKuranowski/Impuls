@@ -4,6 +4,12 @@ const print = std.debug.print;
 const busman = @import("./busman.zig");
 const gtfs = @import("./gtfs.zig");
 
+// TODO: Remove the following imports once they are used by other modules.
+//       They exists for zig to pick up their unit tests.
+comptime {
+    std.mem.doNotOptimizeAway(@import("./csv.zig"));
+}
+
 // XXX: Function declarations from this file must match ../__init__.py
 
 pub export fn load_busman(
