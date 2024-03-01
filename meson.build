@@ -101,6 +101,7 @@ custom_target(
         'impuls/extern/zig/lib.zig',
         # The rest only server as a trigger for meson to rebuild the library
         'impuls/extern/zig/busman.zig',
+        'impuls/extern/zig/csv.zig',
         'impuls/extern/zig/gtfs.zig',
     ],
     output: lib_name,
@@ -121,4 +122,18 @@ custom_target(
     ],
     install: true,
     install_dir: py.get_install_dir() / 'impuls' / 'extern',
+)
+
+zig = find_program('zig')
+test(
+    'libextern-test',
+    zig,
+    args: [
+        'test',
+        '-lc',
+        # '-I',
+        # meson.project_source_root() / 'impuls' / 'extern' / 'c',
+        files('impuls/extern/zig/lib.zig'),
+    ],
+    verbose: true,
 )
