@@ -366,7 +366,7 @@ const State = enum {
     after_unquoted_cr,
 };
 
-test "csv reading" {
+test "csv.reading.basic" {
     const data = "pi,3.1416\r\nsqrt2,1.4142\r\nphi,1.618\r\ne,2.7183\r\n";
     var stream = io.fixedBufferStream(data);
     var r = reader(stream.reader());
@@ -401,7 +401,7 @@ test "csv reading" {
     try std.testing.expect(!try r.next(&record));
 }
 
-test "csv reading with quoted fields" {
+test "csv.reading.with_quoted_fields" {
     const data =
         \\"hello","is it ""me""","you're
         \\looking for"
@@ -432,7 +432,7 @@ test "csv reading with quoted fields" {
     try std.testing.expect(!try r.next(&record));
 }
 
-test "csv reading with custom dialect" {
+test "csv.reading_with_custom_dialect" {
     const data = "foo|bar#\"no quote handling|\"so this is another field#";
     var stream = io.fixedBufferStream(data);
     var r = reader(stream.reader());
@@ -456,7 +456,7 @@ test "csv reading with custom dialect" {
     try std.testing.expectEqualStrings("\"so this is another field", record.get(1));
 }
 
-test "csv writing" {
+test "csv.writing" {
     var data = std.ArrayList(u8).init(std.testing.allocator);
     defer data.deinit();
 
