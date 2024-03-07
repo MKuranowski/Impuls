@@ -33,6 +33,8 @@ however I have not tested it - I recommend using meson directly to compile the e
 `meson setup builddir && cd builddir && meson compile` and setting up a symlink from
 `impuls/extern/libextern.so` → `builddir/libextern.so` (remember to adjust the dynamic library
 extension to your platform: .dll on Windows and .dylib on MaCOS).
+`pip install --no-build-isolation -Cbuild-dir=builddir --editable .` can be used to install in
+editable mode.
 
 
 Tests

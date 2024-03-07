@@ -77,7 +77,7 @@ if meson.is_cross_build()
 endif
 
 if get_option('debug')
-    zig_lib_args += '-fno-strip'
+    zig_lib_args += ['-fno-strip', '-fno-omit-frame-pointer']
 else
     zig_lib_args += '-fstrip'
 endif
