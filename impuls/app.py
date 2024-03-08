@@ -44,12 +44,6 @@ class App(ABC):
             help="never download external resources, only using cached versions",
         )
         parser.add_argument(
-            "-s",
-            "--save-db",
-            action="store_true",
-            help="work on a database saved in the workspace, instead of a in-memory one",
-        )
-        parser.add_argument(
             "-v",
             "--verbose",
             action="store_true",
@@ -66,7 +60,6 @@ class App(ABC):
             force_run=args.force_run,
             from_cache=args.from_cache,
             workspace_directory=self.workspace_directory,
-            save_db_in_workspace=args.save_db,
         )
         return args, options
 

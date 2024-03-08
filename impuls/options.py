@@ -26,7 +26,5 @@ class PipelineOptions:
     If the given directory doesn't exist, pipeline attempts to create it (and its parents).
     """
 
-    save_db_in_workspace: bool = False
-    """By default Impuls saves the sqlite DB in-memory.
-    Setting this flag to true causes the DB to be saved in the workspace directory instead.
-    """
+    save_db_in_workspace: bool = True
+    """Deprecated and ignored - databases are always saved in the workspace."""

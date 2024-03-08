@@ -9,6 +9,7 @@ from .options import PipelineOptions
 from .resource import ManagedResource, Resource, prepare_resources
 from .task import Task, TaskRuntime
 from .tools import machine_load
+from .tools.types import StrPath
 
 
 class Pipeline:
@@ -18,6 +19,7 @@ class Pipeline:
         resources: Mapping[str, Resource] | None = None,
         options: PipelineOptions = PipelineOptions(),
         name: str = "",
+        db_path: StrPath | None = None,
         run_on_existing_db: bool = False,
     ) -> None:
         # Set parameters
@@ -38,9 +40,11 @@ class Pipeline:
         self.options.workspace_directory.mkdir(parents=True, exist_ok=True)
 
         # Figure out the database path
-        self.db_path: Path | None = None
-        if self.options.save_db_in_workspace:
-            self.db_path = self.options.workspace_directory / "impuls.db"
+        if not self.options.save_db_in_workspace:
+            self.logger.warning("in-memory databases are deprecated, an on-disk one will be used")
+        self.db_path: Path = (
+            Path(db_path) if db_path else self.options.workspace_directory / "impuls.db"
+        )
 
     def prepare_resources(self) -> None:
         if self.managed_resources is not None:
@@ -58,9 +62,7 @@ class Pipeline:
         self.managed_resources = MappingProxyType(managed)
 
     def open_db(self) -> DBConnection:
-        if not self.db_path:
-            return DBConnection.create_with_schema(":memory:")
-        elif self.run_on_existing_db and self.db_path.exists():
+        if self.run_on_existing_db and self.db_path.exists():
             return DBConnection(self.db_path)
         else:
             if not self.run_on_existing_db:
