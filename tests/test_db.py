@@ -5,6 +5,7 @@ from typing import cast
 
 from impuls.db import DBConnection, EmptyQueryResult
 from impuls.model import Agency, Route
+from impuls.tools.testing_mocks import MockFile
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -104,6 +105,22 @@ class TestWithoutModel(unittest.TestCase):
                 db.raw_execute("SELECT unicode_title('zaŻółĆ gĘŚlą JAźń');").one_must(""),
                 ("Zażółć Gęślą Jaźń",),
             )
+
+    def test_released(self) -> None:
+        with MockFile() as f, DBConnection(f) as db:
+            with db:
+                db.raw_execute("CREATE TABLE numbers (number INTEGER PRIMARY KEY)")
+                db.raw_execute("INSERT INTO numbers VALUES (42)")
+                db.raw_execute("INSERT INTO numbers VALUES (2137)")
+
+            with db.released() as db_path:
+                self.assertEqual(db_path, str(f))
+
+                with DBConnection(db_path) as another_db_handle:
+                    self.assertSetEqual(
+                        set(another_db_handle.raw_execute("SELECT * FROM numbers")),
+                        {(42,), (2137,)},
+                    )
 
 
 class TestCreatesSchema(unittest.TestCase):

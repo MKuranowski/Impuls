@@ -1,10 +1,11 @@
+import os
 import re
 import sqlite3
 from contextlib import contextmanager
 from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type, cast
 
 from .model import ALL_MODEL_ENTITIES, Entity, EntityT
-from .tools.types import AnyPath, Self, SQLNativeType
+from .tools.types import Self, SQLNativeType, StrPath
 
 __all__ = ["EmptyQueryResult", "UntypedQueryResult", "TypedQueryResult", "DBConnection"]
 
@@ -194,7 +195,8 @@ class DBConnection:
     - `re_sub` - equivalent to Python's re.sub
     """
 
-    def __init__(self, path: AnyPath = ":memory:") -> None:
+    def __init__(self, path: StrPath) -> None:
+        self._path = path
         self._con: sqlite3.Connection = sqlite3.connect(path)
         self._con.isolation_level = None
 
@@ -207,7 +209,7 @@ class DBConnection:
         self._con.create_function("re_sub", 3, re.sub, deterministic=True)
 
     @classmethod
-    def create_with_schema(cls: Type[Self], path: AnyPath = ":memory:") -> Self:
+    def create_with_schema(cls: Type[Self], path: StrPath) -> Self:
         """Opens a new DB connection and executes DDL statements
         to prepare the database to hold Impuls model data."""
         statements: list[str] = [typ.sql_create_table() for typ in ALL_MODEL_ENTITIES]
@@ -218,7 +220,7 @@ class DBConnection:
         return conn
 
     @classmethod
-    def cloned(cls: Type[Self], from_: AnyPath, in_: AnyPath = ":memory:") -> Self:
+    def cloned(cls: Type[Self], from_: StrPath, in_: StrPath) -> Self:
         """Creates a new database inside `in_` with the contents of `from_`.
         Returns a DBConnection to the new database.
         """
@@ -439,3 +441,20 @@ class DBConnection:
                 self._sql_substitute_typed("SELECT COUNT(*) FROM :table", typ)
             ).one_must("SELECT COUNT(*) must return one row")[0],
         )
+
+    @contextmanager
+    def released(self) -> Generator[str, None, None]:
+        """Returns the path of the database, temporarily closing the connection.
+
+        Any operations on the database within the body of the contextmanager are not
+        permitted. This is intended for interfacing with other programs which expect
+        a path to a SQLite database.
+        """
+        assert self._path != "", "can't release a private database"
+        assert self._path != ":memory:", "can't release a in-memory database"
+
+        self._con.close()
+        try:
+            yield os.fsdecode(self._path)
+        finally:
+            self._con = sqlite3.Connection(self._path)
