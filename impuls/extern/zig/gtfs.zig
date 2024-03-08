@@ -7,6 +7,8 @@ const Allocator = std.mem.Allocator;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const bufferedReaderSize = std.io.bufferedReaderSize;
 const isDigit = std.ascii.isDigit;
+const assert = std.debug.assert;
+const panic = std.debug.panic;
 const print = std.debug.print;
 
 comptime {
@@ -57,7 +59,12 @@ pub fn load(db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8) !void {
     }
 }
 
-fn loadTable(db: sqlite3.Connection, gtfs_dir: fs.Dir, allocator: Allocator, comptime table: Table) !void {
+fn loadTable(
+    db: sqlite3.Connection,
+    gtfs_dir: fs.Dir,
+    allocator: Allocator,
+    comptime table: Table,
+) !void {
     var file = gtfs_dir.openFileZ(table.gtfs_name, .{}) catch |err| {
         if (err == error.FileNotFound) return {};
         return err;
@@ -180,6 +187,10 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             }
         }
 
+        /// loadHeader loads a record from the GTFS table and processes it as the header row.
+        /// Initializes `header_len`, `header` and `pi_gtfs_key_column`.
+        ///
+        /// Returns false is there is no header row.
         fn loadHeader(self: *Self) !bool {
             if (!try self.reader.next(&self.record)) return false;
 
@@ -262,10 +273,10 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             var arguments: [table.columns.len]ColumnValue = undefined;
             inline for (table.columns, 0..) |col, i| {
                 const raw_value: []const u8 = if (self.header[i]) |j| self.record.get(j) else "";
-                arguments[i] = col.convert_to_sql(raw_value, self.record.line_no) catch |err| {
+                arguments[i] = col.from_gtfs(raw_value, self.record.line_no) catch |err| {
                     print(
                         "{s}:{d}:{s}: {}\n",
-                        .{ table.gtfs_name, self.record.line_no, col.gtfs_name, err },
+                        .{ table.gtfs_name, self.record.line_no, col.gtfsName(), err },
                     );
                     return err;
                 };
@@ -317,7 +328,7 @@ const Table = struct {
         comptime var s: []const u8 = "(";
         comptime var sep: []const u8 = "";
         inline for (self.columns) |column| {
-            s = s ++ sep ++ column.sql_name;
+            s = s ++ sep ++ column.name;
             sep = ", ";
         }
         s = s ++ ")";
@@ -343,7 +354,7 @@ const Table = struct {
         const kv_type = struct { []const u8, usize };
         comptime var kvs: [self.columns.len]kv_type = undefined;
         inline for (self.columns, 0..) |col, i| {
-            kvs[i] = .{ col.gtfs_name, i };
+            kvs[i] = .{ col.gtfsName(), i };
         }
         return std.ComptimeStringMap(usize, kvs);
     }
@@ -368,67 +379,81 @@ const ParentImplication = struct {
 
 /// Column contains necessary information for mapping between GTFS and Impuls columns.
 const Column = struct {
-    /// gtfs_name contains the GTFS column name
-    gtfs_name: [:0]const u8,
+    /// name contains the Impuls (SQL) column name.
+    name: [:0]const u8,
 
-    /// sql_name contains the Impuls (SQL) column name
-    sql_name: [:0]const u8,
+    /// gtfs_name contains the GTFS column name, only if that is different than the `name`.
+    /// Use the `getName()` getter to a non-optional GTFS column name.
+    gtfs_name: ?[:0]const u8 = null,
 
     /// convert_to_sql takes the raw GTFS column value (or "" if the column is missing)
     /// and a line_number to produce an equivalent Impuls (SQL) value.
-    convert_to_sql: fn ([]const u8, u32) InvalidValueT!ColumnValue,
+    from_gtfs: fn ([]const u8, u32) InvalidValueT!ColumnValue = from_gtfs.asIs,
 
-    inline fn sameName(
-        comptime name: [:0]const u8,
-        comptime convert_to_sql: fn ([]const u8, u32) InvalidValueT!ColumnValue,
-    ) Column {
-        return Column{ .gtfs_name = name, .sql_name = name, .convert_to_sql = convert_to_sql };
-    }
+    /// convert_to_gtfs, if present, takes the raw SQL column value, and adjusts the value of
+    /// the column, so that ColumnValue.ensureString() will be a vaild GTFS value.
+    to_gtfs: ?fn (*ColumnValue) void = null,
 
-    inline fn sameNameAsIs(comptime name: [:0]const u8) Column {
-        return Column{ .gtfs_name = name, .sql_name = name, .convert_to_sql = from_gtfs.asIs };
-    }
-
-    inline fn asIs(comptime gtfs_name: [:0]const u8, comptime sql_name: [:0]const u8) Column {
-        return Column{ .gtfs_name = gtfs_name, .sql_name = sql_name, .convert_to_sql = from_gtfs.asIs };
-    }
-
-    inline fn init(
-        comptime gtfs_name: [:0]const u8,
-        comptime sql_name: [:0]const u8,
-        comptime convert_to_sql: fn ([]const u8, u32) InvalidValueT!ColumnValue,
-    ) Column {
-        return Column{ .gtfs_name = gtfs_name, .sql_name = sql_name, .convert_to_sql = convert_to_sql };
+    /// gtfsName returns the GTFS name of the column.
+    inline fn gtfsName(comptime self: Column) [:0]const u8 {
+        return if (self.gtfs_name) |gtfs_name| gtfs_name else self.name;
     }
 };
 
+/// ColumnValue represents a possible SQL column value.
 const ColumnValue = union(enum) {
+    /// Null represents a NULL SQL value.
     Null,
+
+    /// Int represents an INTEGER SQL value.
     Int: i64,
+
+    /// Float represents a REAL SQL value.
     Float: f64,
+
+    /// BorrowedString represents a TEXT SQL value, borrowed from another source.
     BorrowedString: []const u8,
+
+    /// OwnedString represents a TEXT SQL value, owned by this ColumnValue.
     OwnedString: BoundedString,
 
+    /// null_ creates a ColumnValue containing an SQL NULL.
     inline fn null_() ColumnValue {
         return ColumnValue{ .Null = {} };
     }
 
+    /// int creates a ColumnValue containing an SQL INTEGER.
     inline fn int(i: i64) ColumnValue {
         return ColumnValue{ .Int = i };
     }
 
+    /// float creates a ColumnValue containing an SQL REAL.
     inline fn float(f: f64) ColumnValue {
         return ColumnValue{ .Float = f };
     }
 
+    /// borrowed creates a ColumnValue contaning a borrowed SQL TEXT.
     inline fn borrowed(s: []const u8) ColumnValue {
         return ColumnValue{ .BorrowedString = s };
     }
 
+    /// owned creates a ColumnValue contaning an owned SQL TEXT.
     inline fn owned(s: BoundedString) ColumnValue {
         return ColumnValue{ .OwnedString = s };
     }
 
+    /// formatted creates a ColumnValue contaning an owned SQL TEXT from a format string
+    /// and its arguments. See std.fmt.format.
+    fn formatted(comptime fmt_: []const u8, args: anytype) !ColumnValue {
+        var s = BoundedString.init(0) catch unreachable;
+        var fbs = std.io.fixedBufferStream(&s.buffer);
+        try fmt.format(fbs.writer(), fmt_, args);
+        s.len = @intCast(fbs.pos);
+        return ColumnValue{ .BorrowedString = s };
+    }
+
+    /// format prints the ColumnValue into the provided writer. This function makes it possible
+    /// to format ColumnValues directly using `fmt.format("{}", .{column_value})`.
     pub fn format(self: ColumnValue, comptime _: []const u8, _: fmt.FormatOptions, writer: anytype) !void {
         try writer.writeAll("gtfs.ColumnValue{ ");
         switch (self) {
@@ -441,21 +466,85 @@ const ColumnValue = union(enum) {
         try writer.writeAll(" }");
     }
 
-    fn bind(self: *const ColumnValue, stmt: sqlite3.Statement, columnOneBasedIndex: c_int) !void {
+    /// bind binds the current ColumnValue to a given placeholder (by a one-based index) in
+    /// the given SQLite Statement.
+    ///
+    /// It is the callers responsibility to ensure that text values fulfill SQLite's lifetime
+    /// requirements. In order to ensure owned strings aren't reallocated, the ColumnValue must
+    /// be passed by reference.
+    fn bind(self: *const ColumnValue, stmt: sqlite3.Statement, placeholderOneIndex: c_int) !void {
         switch (self.*) {
-            .Null => try stmt.bind(columnOneBasedIndex, null),
-            .Int => |i| try stmt.bind(columnOneBasedIndex, i),
-            .Float => |f| try stmt.bind(columnOneBasedIndex, f),
-            .BorrowedString => |s| try stmt.bind(columnOneBasedIndex, s),
-            .OwnedString => |*s| try stmt.bind(columnOneBasedIndex, s.slice()),
+            .Null => try stmt.bind(placeholderOneIndex, null),
+            .Int => |i| try stmt.bind(placeholderOneIndex, i),
+            .Float => |f| try stmt.bind(placeholderOneIndex, f),
+            .BorrowedString => |s| try stmt.bind(placeholderOneIndex, s),
+            .OwnedString => |*s| try stmt.bind(placeholderOneIndex, s.slice()),
+        }
+    }
+
+    /// scan creates an appropriate ColumnValue for a given column of an executed SQLite statement.
+    /// The result is never an owned string. Borrowed strings live until the statement is reset,
+    /// advanced, or destroyed.
+    fn scan(stmt: sqlite3.Statement, columnZeroBasedIndex: c_int) ColumnValue {
+        return switch (stmt.columnType(columnZeroBasedIndex)) {
+            .Integer => {
+                var i: i64 = undefined;
+                stmt.column(columnZeroBasedIndex, &i);
+                ColumnValue.int(i);
+            },
+
+            .Float => {
+                var f: f64 = undefined;
+                stmt.column(columnZeroBasedIndex, &f);
+                ColumnValue.float(f);
+            },
+
+            .Text, .Blob => {
+                var s: []const u8 = undefined;
+                stmt.column(columnZeroBasedIndex, &s);
+                ColumnValue.borrowed(s);
+            },
+
+            .Null => ColumnValue.null_(),
+        };
+    }
+
+    /// ensureString attempts to convert the stored value into a string, and returns it.
+    ///
+    /// If the result is a borrowed or an owned string, that string is directly returned,
+    /// If the result is null, "" is returned. In both of those cases, the value remains unchanged.
+    /// Otherwise (Int/Float), the ColumnValue is converted to an OwnedString first.
+    fn ensureString(self: *ColumnValue) ![]const u8 {
+        switch (self.*) {
+            .Null => return "",
+
+            .Int => |i| {
+                self.* = try ColumnValue.formatted("{}", .{i});
+                return self.OwnedString.slice();
+            },
+
+            .Float => |f| {
+                self.* = try ColumnValue.formatted("{}", .{f});
+                return self.OwnedString.slice();
+            },
+
+            .BorrowedString => |s| return s,
+
+            .OwnedString => return self.OwnedString.slice(),
         }
     }
 };
 
+/// InvalidValue is the error returned by from_gtfs helpers to mark invalid values.
 const InvalidValue = error.InvalidValue;
-const InvalidValueT = @TypeOf(InvalidValue);
-const BoundedString = std.BoundedArray(u8, 16);
 
+/// InvalidValueT is the type of `InvalidValue`, for use in helper function return types.
+const InvalidValueT = @TypeOf(InvalidValue);
+
+/// BoundedString is the type of ColumnValue.OwnedString - a bounded u8 array.
+const BoundedString = std.BoundedArray(u8, 32);
+
+/// from_gtfs contains helper functions for converting GTFS columns to Impuls/SQL columns.
 const from_gtfs = struct {
     fn asIs(s: []const u8, _: u32) InvalidValueT!ColumnValue {
         return ColumnValue.borrowed(s);
@@ -475,7 +564,7 @@ const from_gtfs = struct {
     }
 
     fn intFallbackZero(s: []const u8, line_no: u32) InvalidValueT!ColumnValue {
-        return if (s.len == 0) ColumnValue.borrowed("0") else int(s, line_no);
+        return if (s.len == 0) ColumnValue.int(0) else int(s, line_no);
     }
 
     fn float(s: []const u8, _: u32) InvalidValueT!ColumnValue {
@@ -588,65 +677,113 @@ const from_gtfs = struct {
     }
 };
 
+/// to_gtfs contains helper functions for converting Impuls/SQL columns to GTFS columns.
 const to_gtfs = struct {
-    fn as_is(s: []const u8) []const u8 {
-        return s;
+    fn date(v: *ColumnValue) void {
+        switch (v.*) {
+            .BorrowedString => |old| {
+                // TODO: Verify the `old` string?
+                var new = BoundedString.init(8) catch unreachable;
+                new.buffer[0] = old[0];
+                new.buffer[1] = old[1];
+                new.buffer[2] = old[2];
+                new.buffer[3] = old[3];
+                new.buffer[4] = old[5];
+                new.buffer[5] = old[6];
+                new.buffer[6] = old[8];
+                new.buffer[7] = old[9];
+                v.* = ColumnValue.owned(new);
+            },
+
+            // TODO: What about OwnedString?
+
+            .Null => {}, // allow optional values
+
+            else => panic("invalid date value: {}", .{v.*}),
+        }
+    }
+
+    fn time(v: *ColumnValue) void {
+        switch (v.*) {
+            .Int => |total_seconds| {
+                assert(total_seconds > 0); // time can't be negative
+                const s = @rem(total_seconds, 60);
+                const total_minutes = @divTrunc(total_seconds, 60);
+                const m = @rem(total_minutes, 60);
+                const h = @divTrunc(total_minutes, 60);
+
+                v.* = ColumnValue.formatted("{d:0>2}:{d:0>2}:{d:0>2}", .{ h, m, s }) catch |err| {
+                    panic("failed to format time value {}: {}", .{ total_seconds, err });
+                };
+            },
+
+            else => panic("invalid time value: {}", .{v.*}),
+        }
+    }
+
+    fn maybeWithZeroUnknown(v: *ColumnValue) void {
+        switch (v.*) {
+            .Int => |i| v.* = ColumnValue.int(if (i != 0) 1 else 2),
+            .Null => v.* = ColumnValue.int(0),
+            else => {},
+        }
     }
 };
 
+/// tables lists all known Table mappings between GTFS and Impuls models.
 const tables = [_]Table{
     Table{
         .gtfs_name = "agency.txt",
         .sql_name = "agencies",
         .columns = &[_]Column{
-            Column.sameName("agency_id", from_gtfs.asIs),
-            Column.asIs("agency_name", "name"),
-            Column.asIs("agency_url", "url"),
-            Column.asIs("agency_timezone", "timezone"),
-            Column.asIs("agency_lang", "lang"),
-            Column.asIs("agency_phone", "phone"),
-            Column.asIs("agency_fare_url", "fare_url"),
+            Column{ .name = "agency_id", .from_gtfs = from_gtfs.agencyId },
+            Column{ .name = "name", .gtfs_name = "agency_name" },
+            Column{ .name = "url", .gtfs_name = "agency_url" },
+            Column{ .name = "timezone", .gtfs_name = "agency_timezone" },
+            Column{ .name = "lang", .gtfs_name = "agency_lang" },
+            Column{ .name = "phone", .gtfs_name = "agency_phone" },
+            Column{ .name = "fare_url", .gtfs_name = "agency_fare_url" },
         },
     },
     Table{
         .gtfs_name = "attributions.txt",
         .sql_name = "attributions",
         .columns = &[_]Column{
-            Column.sameName("attribution_id", from_gtfs.attributionId),
-            Column.sameNameAsIs("organization_name"),
-            Column.sameName("is_producer", from_gtfs.intFallbackZero),
-            Column.sameName("is_operator", from_gtfs.intFallbackZero),
-            Column.sameName("is_authority", from_gtfs.intFallbackZero),
-            Column.sameName("is_data_source", from_gtfs.intFallbackZero),
-            Column.asIs("attribution_url", "url"),
-            Column.asIs("attribution_email", "email"),
-            Column.asIs("attribution_phone", "phone"),
+            Column{ .name = "attribution_id", .from_gtfs = from_gtfs.attributionId },
+            Column{ .name = "organization_name" },
+            Column{ .name = "is_producer", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "is_operator", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "is_authority", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "is_data_source", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "url", .gtfs_name = "attribution_url" },
+            Column{ .name = "email", .gtfs_name = "attribution_email" },
+            Column{ .name = "phone", .gtfs_name = "attribution_phone" },
         },
     },
     Table{
         .gtfs_name = "calendar.txt",
         .sql_name = "calendars",
         .columns = &[_]Column{
-            Column.asIs("service_id", "calendar_id"),
-            Column.sameName("monday", from_gtfs.int),
-            Column.sameName("tuesday", from_gtfs.int),
-            Column.sameName("wednesday", from_gtfs.int),
-            Column.sameName("thursday", from_gtfs.int),
-            Column.sameName("friday", from_gtfs.int),
-            Column.sameName("saturday", from_gtfs.int),
-            Column.sameName("sunday", from_gtfs.int),
-            Column.sameName("start_date", from_gtfs.date),
-            Column.sameName("end_date", from_gtfs.date),
-            Column.asIs("service_desc", "desc"),
+            Column{ .name = "calendar_id", .gtfs_name = "service_id" },
+            Column{ .name = "monday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "tuesday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "wednesday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "thursday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "friday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "saturday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "sunday", .from_gtfs = from_gtfs.int },
+            Column{ .name = "start_date", .from_gtfs = from_gtfs.date, .to_gtfs = to_gtfs.date },
+            Column{ .name = "end_date", .from_gtfs = from_gtfs.date, .to_gtfs = to_gtfs.date },
+            Column{ .name = "desc", .gtfs_name = "service_desc" },
         },
     },
     Table{
         .gtfs_name = "calendar_dates.txt",
         .sql_name = "calendar_exceptions",
         .columns = &[_]Column{
-            Column.asIs("service_id", "calendar_id"),
-            Column.sameName("date", from_gtfs.date),
-            Column.sameName("exception_type", from_gtfs.int),
+            Column{ .name = "calendar_id", .gtfs_name = "service_id" },
+            Column{ .name = "date", .from_gtfs = from_gtfs.date, .to_gtfs = to_gtfs.date },
+            Column{ .name = "exception_type", .from_gtfs = from_gtfs.int },
         },
         .parent_implication = ParentImplication{
             .sql_table = "calendars",
@@ -658,60 +795,97 @@ const tables = [_]Table{
         .gtfs_name = "feed_info.txt",
         .sql_name = "feed_info",
         .columns = &[_]Column{
-            Column.init("", "feed_info_id", from_gtfs.feedInfoId),
-            Column.asIs("feed_publisher_name", "publisher_name"),
-            Column.asIs("feed_publisher_url", "publisher_url"),
-            Column.asIs("feed_lang", "lang"),
-            Column.asIs("feed_version", "version"),
-            Column.asIs("feed_contact_email", "contact_email"),
-            Column.asIs("feed_contact_url", "contact_url"),
-            Column.init("feed_start_date", "start_date", from_gtfs.optionalDate),
-            Column.init("feed_end_date", "end_date", from_gtfs.optionalDate),
+            Column{
+                .name = "feed_info_id",
+                .gtfs_name = "",
+                .from_gtfs = from_gtfs.feedInfoId,
+            },
+            Column{ .name = "publisher_name", .gtfs_name = "feed_publisher_name" },
+            Column{ .name = "publisher_url", .gtfs_name = "feed_publisher_url" },
+            Column{ .name = "lang", .gtfs_name = "feed_lang" },
+            Column{ .name = "version", .gtfs_name = "feed_version" },
+            Column{ .name = "contact_email", .gtfs_name = "feed_contact_email" },
+            Column{ .name = "contact_url", .gtfs_name = "feed_contact_url" },
+            Column{ .name = "start_date", .gtfs_name = "feed_start_date", .from_gtfs = from_gtfs.optionalDate, .to_gtfs = to_gtfs.date },
+            Column{
+                .name = "end_date",
+                .gtfs_name = "feed_end_date",
+                .from_gtfs = from_gtfs.optionalDate,
+                .to_gtfs = to_gtfs.date,
+            },
         },
     },
     Table{
         .gtfs_name = "routes.txt",
         .sql_name = "routes",
         .columns = &[_]Column{
-            Column.sameNameAsIs("route_id"),
-            Column.sameName("agency_id", from_gtfs.agencyId),
-            Column.asIs("route_short_name", "short_name"),
-            Column.asIs("route_long_name", "long_name"),
-            Column.init("route_type", "type", from_gtfs.routeType),
-            Column.asIs("route_color", "color"),
-            Column.asIs("route_text_color", "text_color"),
-            Column.init(
-                "route_sort_order",
-                "sort_order",
-                from_gtfs.optionalInt,
-            ),
+            Column{ .name = "route_id" },
+            Column{ .name = "agency_id", .from_gtfs = from_gtfs.agencyId },
+            Column{ .name = "short_name", .gtfs_name = "route_short_name" },
+            Column{ .name = "long_name", .gtfs_name = "route_long_name" },
+            Column{ .name = "type", .gtfs_name = "route_type", .from_gtfs = from_gtfs.routeType },
+            Column{ .name = "color", .gtfs_name = "route_color" },
+            Column{ .name = "text_color", .gtfs_name = "route_text_color" },
+            Column{ .name = "sort_order", .gtfs_name = "route_sort_order", .from_gtfs = from_gtfs.optionalInt },
         },
     },
     Table{
         .gtfs_name = "stops.txt",
         .sql_name = "stops",
         .columns = &[_]Column{
-            Column.sameNameAsIs("stop_id"),
-            Column.asIs("stop_name", "name"),
-            Column.init("stop_lat", "lat", from_gtfs.float),
-            Column.init("stop_lon", "lon", from_gtfs.float),
-            Column.asIs("stop_code", "code"),
-            Column.asIs("zone_id", "zone_id"),
-            Column.sameName("location_type", from_gtfs.intFallbackZero),
-            Column.sameName("parent_station", from_gtfs.optional),
-            Column.sameName("wheelchair_boarding", from_gtfs.maybeWithZeroUnknown),
-            Column.sameNameAsIs("platform_code"),
+            Column{ .name = "stop_id" },
+            Column{ .name = "name", .gtfs_name = "stop_name" },
+            Column{ .name = "lat", .gtfs_name = "stop_lat", .from_gtfs = from_gtfs.float },
+            Column{ .name = "lon", .gtfs_name = "stop_lon", .from_gtfs = from_gtfs.float },
+            Column{ .name = "code", .gtfs_name = "stop_code" },
+            Column{ .name = "zone_id", .gtfs_name = "zone_id" },
+            Column{ .name = "location_type", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "parent_station", .from_gtfs = from_gtfs.optional },
+            Column{
+                .name = "wheelchair_boarding",
+                .from_gtfs = from_gtfs.maybeWithZeroUnknown,
+                .to_gtfs = to_gtfs.maybeWithZeroUnknown,
+            },
+            Column{ .name = "platform_code" },
+        },
+    },
+    Table{
+        .gtfs_name = "fare_attributes.txt",
+        .sql_name = "fare_attributes",
+        .columns = &[_]Column{
+            Column{ .name = "fare_id" },
+            Column{ .name = "price", .from_gtfs = from_gtfs.float },
+            Column{ .name = "currency_type" },
+            Column{ .name = "payment_method", .from_gtfs = from_gtfs.int },
+            Column{ .name = "transfers", .from_gtfs = from_gtfs.optionalInt },
+            Column{ .name = "agency_id", .from_gtfs = from_gtfs.agencyId },
+            Column{ .name = "transfer_duration", .from_gtfs = from_gtfs.optionalInt },
+        },
+    },
+    Table{
+        .gtfs_name = "fare_rules.txt",
+        .sql_name = "fare_rules",
+        .columns = &[_]Column{
+            Column{ .name = "fare_id" },
+            Column{ .name = "route_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "origin_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "destination_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "contains_id", .from_gtfs = from_gtfs.optional },
         },
     },
     Table{
         .gtfs_name = "shapes.txt",
         .sql_name = "shape_points",
         .columns = &[_]Column{
-            Column.sameNameAsIs("shape_id"),
-            Column.init("shape_pt_sequence", "sequence", from_gtfs.int),
-            Column.init("shape_pt_lat", "lat", from_gtfs.float),
-            Column.init("shape_pt_lon", "lon", from_gtfs.float),
-            Column.sameName("shape_dist_traveled", from_gtfs.optionalFloat),
+            Column{ .name = "shape_id" },
+            Column{
+                .name = "sequence",
+                .gtfs_name = "shape_pt_sequence",
+                .from_gtfs = from_gtfs.int,
+            },
+            Column{ .name = "lat", .gtfs_name = "shape_pt_lat", .from_gtfs = from_gtfs.float },
+            Column{ .name = "lon", .gtfs_name = "shape_pt_lon", .from_gtfs = from_gtfs.float },
+            Column{ .name = "shape_dist_traveled", .from_gtfs = from_gtfs.optionalFloat },
         },
         .parent_implication = ParentImplication{
             .sql_table = "shapes",
@@ -723,76 +897,71 @@ const tables = [_]Table{
         .gtfs_name = "trips.txt",
         .sql_name = "trips",
         .columns = &[_]Column{
-            Column.sameNameAsIs("trip_id"),
-            Column.sameNameAsIs("route_id"),
-            Column.asIs("service_id", "calendar_id"),
-            Column.asIs("trip_headsign", "headsign"),
-            Column.asIs("trip_short_name", "short_name"),
-            Column.init(
-                "direction_id",
-                "direction",
-                from_gtfs.optionalInt,
-            ),
-            Column.sameNameAsIs("block_id"),
-            Column.sameName("shape_id", from_gtfs.optional),
-            Column.sameName("wheelchair_accessible", from_gtfs.maybeWithZeroUnknown),
-            Column.sameName("bikes_allowed", from_gtfs.maybeWithZeroUnknown),
-            Column.sameName("exceptional", from_gtfs.maybeWithZeroUnknown),
+            Column{ .name = "trip_id" },
+            Column{ .name = "route_id" },
+            Column{ .name = "calendar_id", .gtfs_name = "service_id" },
+            Column{ .name = "headsign", .gtfs_name = "trip_headsign" },
+            Column{ .name = "short_name", .gtfs_name = "trip_short_name" },
+            Column{ .name = "direction", .gtfs_name = "direction_id", .from_gtfs = from_gtfs.optionalInt },
+            Column{ .name = "block_id" },
+            Column{ .name = "shape_id", .from_gtfs = from_gtfs.optional },
+            Column{
+                .name = "wheelchair_accessible",
+                .from_gtfs = from_gtfs.maybeWithZeroUnknown,
+                .to_gtfs = to_gtfs.maybeWithZeroUnknown,
+            },
+            Column{
+                .name = "bikes_allowed",
+                .from_gtfs = from_gtfs.maybeWithZeroUnknown,
+                .to_gtfs = to_gtfs.maybeWithZeroUnknown,
+            },
+            Column{
+                .name = "exceptional",
+                .from_gtfs = from_gtfs.maybeWithZeroUnknown,
+                .to_gtfs = to_gtfs.maybeWithZeroUnknown,
+            },
         },
     },
     Table{
         .gtfs_name = "stop_times.txt",
         .sql_name = "stop_times",
         .columns = &[_]Column{
-            Column.sameNameAsIs("trip_id"),
-            Column.sameNameAsIs("stop_id"),
-            Column.sameName("stop_sequence", from_gtfs.int),
-            Column.sameName("arrival_time", from_gtfs.time),
-            Column.sameName("departure_time", from_gtfs.time),
-            Column.sameName("pickup_type", from_gtfs.intFallbackZero),
-            Column.sameName("drop_off_type", from_gtfs.intFallbackZero),
-            Column.sameNameAsIs("stop_headsign"),
-            Column.sameName("shape_dist_traveled", from_gtfs.optionalFloat),
-            Column.sameNameAsIs("original_stop_id"),
-            Column.sameNameAsIs("platform"),
+            Column{ .name = "trip_id" },
+            Column{ .name = "stop_id" },
+            Column{ .name = "stop_sequence", .from_gtfs = from_gtfs.int },
+            Column{ .name = "arrival_time", .from_gtfs = from_gtfs.time, .to_gtfs = to_gtfs.time },
+            Column{ .name = "departure_time", .from_gtfs = from_gtfs.time, .to_gtfs = to_gtfs.time },
+            Column{ .name = "pickup_type", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "drop_off_type", .from_gtfs = from_gtfs.intFallbackZero },
+            Column{ .name = "stop_headsign" },
+            Column{ .name = "shape_dist_traveled", .from_gtfs = from_gtfs.optionalFloat },
+            Column{ .name = "original_stop_id" },
+            Column{ .name = "platform" },
+        },
+    },
+    Table{
+        .gtfs_name = "frequencies.txt",
+        .sql_name = "frequencies",
+        .columns = &[_]Column{
+            Column{ .name = "trip_id", .gtfs_name = "trip_id" },
+            Column{ .name = "start_time", .from_gtfs = from_gtfs.time, .to_gtfs = to_gtfs.time },
+            Column{ .name = "end_time", .from_gtfs = from_gtfs.time, .to_gtfs = to_gtfs.time },
+            Column{ .name = "headway", .gtfs_name = "headway_secs", .from_gtfs = from_gtfs.int },
+            Column{ .name = "exact_times", .from_gtfs = from_gtfs.intFallbackZero },
         },
     },
     Table{
         .gtfs_name = "transfers.txt",
         .sql_name = "transfers",
         .columns = &[_]Column{
-            Column.sameName("from_stop_id", from_gtfs.optional),
-            Column.sameName("to_stop_id", from_gtfs.optional),
-            Column.sameName("from_route_id", from_gtfs.optional),
-            Column.sameName("to_route_id", from_gtfs.optional),
-            Column.sameName("from_trip_id", from_gtfs.optional),
-            Column.sameName("to_trip_id", from_gtfs.optional),
-            Column.sameName("transfer_type", from_gtfs.int),
-            Column.sameName("min_transfer_time", from_gtfs.optionalInt),
-        },
-    },
-    Table{
-        .gtfs_name = "fare_attributes.txt",
-        .sql_name = "fare_attributes",
-        .columns = &[_]Column{
-            Column.sameNameAsIs("fare_id"),
-            Column.sameName("price", from_gtfs.float),
-            Column.sameNameAsIs("currency_type"),
-            Column.sameName("payment_method", from_gtfs.int),
-            Column.sameName("transfers", from_gtfs.optionalInt),
-            Column.sameName("agency_id", from_gtfs.agencyId),
-            Column.sameName("transfer_duration", from_gtfs.optionalInt),
-        },
-    },
-    Table{
-        .gtfs_name = "fare_rules.txt",
-        .sql_name = "fare_rules",
-        .columns = &[_]Column{
-            Column.sameNameAsIs("fare_id"),
-            Column.sameName("route_id", from_gtfs.optional),
-            Column.sameName("origin_id", from_gtfs.optional),
-            Column.sameName("destination_id", from_gtfs.optional),
-            Column.sameName("contains_id", from_gtfs.optional),
+            Column{ .name = "from_stop_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "to_stop_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "from_route_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "to_route_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "from_trip_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "to_trip_id", .from_gtfs = from_gtfs.optional },
+            Column{ .name = "transfer_type", .from_gtfs = from_gtfs.int },
+            Column{ .name = "min_transfer_time", .from_gtfs = from_gtfs.optionalInt },
         },
     },
 };
