@@ -1,15 +1,14 @@
-import csv
-from io import TextIOWrapper
+import os
 from pathlib import Path
-from typing import IO, Mapping, Sequence, Type, final
+from tempfile import TemporaryDirectory
+from typing import Mapping, Sequence, final
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from ..model import ALL_MODEL_ENTITIES, Calendar, Entity
+from .. import extern
 from ..task import DBConnection, Task, TaskRuntime
+from ..tools.types import StrPath
 
 GTFSHeaders = Mapping[str, Sequence[str]]
-
-MODEL_TYPE_BY_GTFS_FILE_NAME = {t.gtfs_table_name(): t for t in ALL_MODEL_ENTITIES}
 
 
 @final
@@ -36,38 +35,19 @@ class SaveGTFS(Task):
         self.emit_empty_calendars = emit_empty_calendars
 
     def execute(self, r: TaskRuntime) -> None:
-        self.logger.info("Opening %s", self.target)
+        with TemporaryDirectory(prefix="impuls-save-gtfs-") as temp_dir:
+            self.dump_tables(temp_dir, r.db)
+            self.create_zip(temp_dir)
+
+    def dump_tables(self, gtfs_dir: StrPath, db: DBConnection) -> None:
+        self.logger.info("Dumping tables")
+        with db.released() as db_path:
+            extern.save_gtfs(db_path, gtfs_dir, self.headers, self.emit_empty_calendars)
+
+    def create_zip(self, dir: StrPath) -> None:
+        self.logger.info("Compressing to %s", self.target)
         with ZipFile(self.target, mode="w", compression=ZIP_DEFLATED) as archive:
-            for table_name, fields in self.headers.items():
-                self.logger.info("Writing %s", table_name)
-                typ = MODEL_TYPE_BY_GTFS_FILE_NAME[table_name]
-
-                with (
-                    archive.open(f"{table_name}.txt", mode="w") as file,
-                    TextIOWrapper(file, "utf-8", newline="") as buffer,
-                ):
-                    if typ is Calendar:
-                        self.dump_calendars(r.db, buffer, fields)
-                    else:
-                        self.dump_table(r.db, typ, buffer, fields)
-
-    @staticmethod
-    def dump_table(
-        db: DBConnection,
-        typ: Type[Entity],
-        to: IO[str],
-        fields: Sequence[str],
-    ) -> None:
-        w = csv.DictWriter(to, fields, extrasaction="ignore")
-        w.writeheader()
-        for obj in db.retrieve_all(typ):
-            w.writerow(obj.gtfs_marshall())
-
-    def dump_calendars(self, db: DBConnection, to: IO[str], fields: Sequence[str]) -> None:
-        w = csv.DictWriter(to, fields, extrasaction="ignore")
-        w.writeheader()
-        for obj in db.retrieve_all(Calendar):
-            if not self.emit_empty_calendars and not obj.compute_active_dates():
-                continue
-
-            w.writerow(obj.gtfs_marshall())
+            for table_name in self.headers:
+                file_name = table_name + ".txt"
+                self.logger.debug("Compressing %s", file_name)
+                archive.write(os.path.join(dir, file_name), file_name)

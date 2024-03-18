@@ -4,12 +4,17 @@ const sqlite3 = @import("./sqlite3.zig");
 const fmt = std.fmt;
 const fs = std.fs;
 const Allocator = std.mem.Allocator;
+const Atomic = std.atomic.Atomic;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
+const Thread = std.Thread;
 const bufferedReaderSize = std.io.bufferedReaderSize;
 const isDigit = std.ascii.isDigit;
 const assert = std.debug.assert;
 const panic = std.debug.panic;
 const print = std.debug.print;
+const span = std.mem.span;
+
+const io_buffer_size = 8192;
 
 comptime {
     // C guarantees that sizeof(char) is 1 byte, but doesn't guarante that one byte is exactly
@@ -69,7 +74,7 @@ fn loadTable(
         if (err == error.FileNotFound) return {};
         return err;
     };
-    var buffer = bufferedReaderSize(8192, file.reader());
+    var buffer = bufferedReaderSize(io_buffer_size, file.reader());
     print("Loading {s}\n", .{table.gtfs_name});
 
     const Loader = comptime TableLoader(table, @TypeOf(buffer).Reader);
@@ -88,12 +93,42 @@ pub fn save(
     headers: *Headers,
     emit_empty_calendars: bool,
 ) !void {
-    _ = db_path;
-    _ = gtfs_dir_path;
-    _ = headers;
-    _ = emit_empty_calendars;
+    var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{}, false);
+    defer gtfs_dir.close();
 
-    return error.NotImplemented;
+    var threads: [tables.len]?Thread = [_]?Thread{null} ** tables.len;
+    defer {
+        for (threads) |maybe_thread| {
+            if (maybe_thread) |thread| {
+                thread.join();
+            }
+        }
+    }
+
+    var wg = Thread.WaitGroup{};
+    var failed = Atomic(bool).init(false);
+
+    inline for (tables, 0..) |table, i| {
+        const maybe_header: ?c_char_p_p = @field(headers, table.gtfsNameWithoutExtension());
+        if (maybe_header) |header| {
+            wg.start();
+            threads[i] = try Thread.spawn(
+                .{},
+                TableSaver(table).saveInThread,
+                .{
+                    gtfs_dir,
+                    db_path,
+                    header,
+                    emit_empty_calendars,
+                    &wg,
+                    &failed,
+                },
+            );
+        }
+    }
+
+    wg.wait();
+    return if (failed.load(.Monotonic)) error.ThreadFailed else {};
 }
 
 /// TableLoader loads GTFS data from the provided reader into an SQL table.
@@ -136,7 +171,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             const table_column_names = comptime table.columnNames();
             const table_placeholders = comptime table.placeholders();
             var insert = db.prepare(
-                "INSERT INTO " ++ table.sql_name ++ " " ++ table_column_names ++ " VALUES " ++ table_placeholders,
+                "INSERT INTO " ++ table.sql_name ++ " (" ++ table_column_names ++ ") VALUES (" ++ table_placeholders ++ ")",
             ) catch |err| {
                 print("{s}: failed to compile INSERT INTO: {s}\n", .{ table.gtfs_name, db.errMsg() });
                 return err;
@@ -308,6 +343,148 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
     };
 }
 
+/// TableSaver saves GTFS data from a given SQL table to a writer.
+fn TableSaver(comptime table: Table) type {
+    const ColumnsBuffer = std.BoundedArray(?usize, 32);
+    const column_by_gtfs_name = comptime table.gtfsColumnNamesToIndices();
+    const is_calendars = comptime std.mem.eql(u8, table.sql_name, "calendars");
+
+    return struct {
+        const Self = @This();
+        const Writer = std.io.BufferedWriter(io_buffer_size, fs.File.Writer).Writer;
+
+        /// columns maps GTFS column indices into SQL column indices (into `table.columns`)
+        columns: ColumnsBuffer,
+
+        /// select is a compiled SQL "SELECT ... FROM table.sql_name" statement, retrieving
+        /// all SQL columns
+        select: sqlite3.Statement,
+
+        /// writer writes CSV data to a buffered fs.File
+        writer: csv.Writer(Writer),
+
+        /// init creates a TableServer writing GTFS data from a provided database
+        /// to a provided writer with the provided columns.
+        fn init(db: sqlite3.Connection, writer: Writer, header: []const c_char_p) !Self {
+            var columns = ColumnsBuffer.init(0) catch unreachable;
+            for (header) |gtfs_column_name| {
+                if (column_by_gtfs_name.get(span(gtfs_column_name))) |column_idx| {
+                    try columns.append(column_idx);
+                } else {
+                    try columns.append(null);
+                }
+            }
+
+            const column_names = comptime table.columnNames();
+            const select_sql = comptime "SELECT " ++ column_names ++ " FROM " ++ table.sql_name;
+            var select = try db.prepare(select_sql);
+            errdefer select.deinit();
+
+            return .{ .columns = columns, .select = select, .writer = csv.writer(writer) };
+        }
+
+        /// deinit deallocates any resources allocated by the TableServer.
+        fn deinit(self: Self) void {
+            self.select.deinit();
+        }
+
+        /// writeHeader rewrites the provided header to the underlying file.
+        fn writeHeader(self: *Self, header: []const c_char_p) !void {
+            for (header) |gtfs_column_name| {
+                try self.writer.writeField(std.mem.span(gtfs_column_name));
+            }
+            try self.writer.terminateRecord();
+        }
+
+        /// writeRows rewrites all rows from SQL to GTFS. If emit_empty_calendars is true,
+        /// entities from calendar.txt with all weekdays set to zero will be omitted.
+        fn writeRows(self: *Self, emit_empty_calendars: bool) !void {
+            while (try self.select.step()) {
+                try self.writeRow(emit_empty_calendars);
+            }
+        }
+
+        /// writeRows rewrites a row from SQL to GTFS - should be called only after
+        /// select.step() returns true. If emit_empty_calendars is true,
+        /// entities from calendar.txt with all weekdays set to zero will be omitted.
+        fn writeRow(self: *Self, emit_empty_calendars: bool) !void {
+            if (is_calendars and !emit_empty_calendars and isCalendarEmpty(self.select))
+                return;
+
+            for (self.columns.slice()) |maybe_column_idx| {
+                if (maybe_column_idx) |column_idx| {
+                    var value = ColumnValue.scan(self.select, @intCast(column_idx));
+                    if (table.columns[column_idx].to_gtfs) |converter| converter(&value);
+                    try self.writer.writeField(try value.ensureString());
+                } else {
+                    try self.writer.writeField("");
+                }
+            }
+            try self.writer.terminateRecord();
+        }
+
+        /// save rewrites data from an Impuls table from a database file to the corresponding
+        /// GTFS file in the provided directory, using the provided header. If emit_empty_calendars
+        /// is true, entities from calendar.txt with all weekdays set to zero will be omitted.
+        fn save(
+            gtfs_dir: fs.Dir,
+            db_path: [*:0]const u8,
+            c_header: c_char_p_p,
+            emit_empty_calendars: bool,
+        ) !void {
+            var db = try sqlite3.Connection.init(
+                db_path,
+                .{ .mode = .read_only, .threading_mode = .no_mutex },
+            );
+            defer db.deinit();
+
+            var file = try gtfs_dir.createFileZ(table.gtfs_name, .{});
+            defer file.close();
+
+            var buffer = bufferedWriterSize(io_buffer_size, file.writer());
+
+            var header = sliceOverCStrings(c_header);
+            var saver = try Self.init(db, buffer.writer(), header);
+            defer saver.deinit();
+
+            try saver.writeHeader(header);
+            try saver.writeRows(emit_empty_calendars);
+
+            try buffer.flush();
+        }
+
+        /// saveInThread rewrites data from an Impuls table from a database file to the
+        /// corresponding GTFS file in the provided directory, using the provided header.
+        /// If emit_empty_calendars is true, entities from calendar.txt with all weekdays set to
+        /// zero will be omitted.
+        ///
+        /// This method simply calls save, and if that fails - prints error details to the stderr,
+        /// and sets the failure flag. If save succeedes, failure is left as-is. wg.finish() is
+        /// always called on exit.
+        fn saveInThread(
+            gtfs_dir: fs.Dir,
+            db_path: [*:0]const u8,
+            header: c_char_p_p,
+            emit_empty_calendars: bool,
+            wg: *Thread.WaitGroup,
+            failure: *Atomic(bool),
+        ) void {
+            defer wg.finish();
+            Self.save(gtfs_dir, db_path, header, emit_empty_calendars) catch |err| {
+                failure.store(true, .Release);
+
+                var m = std.debug.getStderrMutex();
+                m.lock();
+                defer m.unlock();
+
+                const stderr = std.io.getStdErr().writer();
+                nosuspend stderr.print("Error in {s}: {}\n", .{ table.gtfs_name, err }) catch {};
+                if (@errorReturnTrace()) |trace| std.debug.dumpStackTrace(trace.*);
+            };
+        }
+    };
+}
+
 /// Table contains data necessary for mapping between GTFS and Impuls (SQL) tables.
 const Table = struct {
     /// gtfs_name constains the GTFS table name, with the .txt extension
@@ -325,38 +502,44 @@ const Table = struct {
     /// columnNames returns a "(column_a, column_b, column_c)" string with the SQL column names
     /// of the table.
     fn columnNames(comptime self: Table) []const u8 {
-        comptime var s: []const u8 = "(";
+        comptime var s: []const u8 = "";
         comptime var sep: []const u8 = "";
         inline for (self.columns) |column| {
             s = s ++ sep ++ column.name;
             sep = ", ";
         }
-        s = s ++ ")";
         return s;
     }
 
     /// placeholders returns a "(?, ?, ?)" string with SQL placeholders, as many as there
     /// are SQL columns.
     fn placeholders(comptime self: Table) []const u8 {
-        comptime var s: []const u8 = "(";
+        comptime var s: []const u8 = "";
         comptime var chunk: []const u8 = "?";
         inline for (self.columns) |_| {
             s = s ++ chunk;
             chunk = ", ?";
         }
-        s = s ++ ")";
         return s;
     }
 
     /// gtfsColumnNamesToIndices creates a std.ComptimeStringMap mapping GTFS column names
     /// to indices into Table.columns.
     fn gtfsColumnNamesToIndices(comptime self: Table) type {
+        @setEvalBranchQuota(1600);
         const kv_type = struct { []const u8, usize };
         comptime var kvs: [self.columns.len]kv_type = undefined;
         inline for (self.columns, 0..) |col, i| {
             kvs[i] = .{ col.gtfsName(), i };
         }
         return std.ComptimeStringMap(usize, kvs);
+    }
+
+    /// gtfsNameWithoutExtension returns the GTFS name of the table without the ".txt" extension
+    fn gtfsNameWithoutExtension(comptime self: Table) []const u8 {
+        if (!std.mem.endsWith(u8, self.gtfs_name, ".txt"))
+            @compileError("gtfs_name of a Table doesn't end with .txt: " ++ self.gtfs_name);
+        return self.gtfs_name[0 .. self.gtfs_name.len - 4];
     }
 };
 
@@ -388,14 +571,14 @@ const Column = struct {
 
     /// convert_to_sql takes the raw GTFS column value (or "" if the column is missing)
     /// and a line_number to produce an equivalent Impuls (SQL) value.
-    from_gtfs: fn ([]const u8, u32) InvalidValueT!ColumnValue = from_gtfs.asIs,
+    from_gtfs: *const fn ([]const u8, u32) InvalidValueT!ColumnValue = from_gtfs.asIs,
 
     /// convert_to_gtfs, if present, takes the raw SQL column value, and adjusts the value of
     /// the column, so that ColumnValue.ensureString() will be a vaild GTFS value.
-    to_gtfs: ?fn (*ColumnValue) void = null,
+    to_gtfs: ?*const fn (*ColumnValue) void = null,
 
     /// gtfsName returns the GTFS name of the column.
-    inline fn gtfsName(comptime self: Column) [:0]const u8 {
+    inline fn gtfsName(self: Column) [:0]const u8 {
         return if (self.gtfs_name) |gtfs_name| gtfs_name else self.name;
     }
 };
@@ -449,7 +632,7 @@ const ColumnValue = union(enum) {
         var fbs = std.io.fixedBufferStream(&s.buffer);
         try fmt.format(fbs.writer(), fmt_, args);
         s.len = @intCast(fbs.pos);
-        return ColumnValue{ .BorrowedString = s };
+        return ColumnValue.owned(s);
     }
 
     /// format prints the ColumnValue into the provided writer. This function makes it possible
@@ -486,27 +669,27 @@ const ColumnValue = union(enum) {
     /// The result is never an owned string. Borrowed strings live until the statement is reset,
     /// advanced, or destroyed.
     fn scan(stmt: sqlite3.Statement, columnZeroBasedIndex: c_int) ColumnValue {
-        return switch (stmt.columnType(columnZeroBasedIndex)) {
+        switch (stmt.columnType(columnZeroBasedIndex)) {
             .Integer => {
                 var i: i64 = undefined;
                 stmt.column(columnZeroBasedIndex, &i);
-                ColumnValue.int(i);
+                return ColumnValue.int(i);
             },
 
             .Float => {
                 var f: f64 = undefined;
                 stmt.column(columnZeroBasedIndex, &f);
-                ColumnValue.float(f);
+                return ColumnValue.float(f);
             },
 
             .Text, .Blob => {
                 var s: []const u8 = undefined;
                 stmt.column(columnZeroBasedIndex, &s);
-                ColumnValue.borrowed(s);
+                return ColumnValue.borrowed(s);
             },
 
-            .Null => ColumnValue.null_(),
-        };
+            .Null => return ColumnValue.null_(),
+        }
     }
 
     /// ensureString attempts to convert the stored value into a string, and returns it.
@@ -519,12 +702,12 @@ const ColumnValue = union(enum) {
             .Null => return "",
 
             .Int => |i| {
-                self.* = try ColumnValue.formatted("{}", .{i});
+                self.* = try ColumnValue.formatted("{d}", .{i});
                 return self.OwnedString.slice();
             },
 
             .Float => |f| {
-                self.* = try ColumnValue.formatted("{}", .{f});
+                self.* = try ColumnValue.formatted("{d}", .{f});
                 return self.OwnedString.slice();
             },
 
@@ -705,12 +888,16 @@ const to_gtfs = struct {
 
     fn time(v: *ColumnValue) void {
         switch (v.*) {
-            .Int => |total_seconds| {
-                assert(total_seconds > 0); // time can't be negative
-                const s = @rem(total_seconds, 60);
-                const total_minutes = @divTrunc(total_seconds, 60);
-                const m = @rem(total_minutes, 60);
-                const h = @divTrunc(total_minutes, 60);
+            .Int => |total_seconds_signed| {
+                assert(total_seconds_signed >= 0); // time can't be negative
+
+                // we need to operate on unsigned numbers, otherwise plus signs are written,
+                // giving values like "+5:+5:+0"
+                const total_seconds: u64 = @intCast(total_seconds_signed);
+                const s = total_seconds % 60;
+                const total_minutes = total_seconds / 60;
+                const m = total_minutes % 60;
+                const h = total_minutes / 60;
 
                 v.* = ColumnValue.formatted("{d:0>2}:{d:0>2}:{d:0>2}", .{ h, m, s }) catch |err| {
                     panic("failed to format time value {}: {}", .{ total_seconds, err });
@@ -764,6 +951,7 @@ const tables = [_]Table{
         .gtfs_name = "calendar.txt",
         .sql_name = "calendars",
         .columns = &[_]Column{
+            // XXX: The order of columns must be kept in sync with isCalendarEmpty
             Column{ .name = "calendar_id", .gtfs_name = "service_id" },
             Column{ .name = "monday", .from_gtfs = from_gtfs.int },
             Column{ .name = "tuesday", .from_gtfs = from_gtfs.int },
@@ -965,3 +1153,34 @@ const tables = [_]Table{
         },
     },
 };
+
+/// bufferedWriterSize creates a std.io.BufferedWriter over the provided stream with a given
+/// size buffer.
+fn bufferedWriterSize(
+    comptime size: usize,
+    underlying_stream: anytype,
+) std.io.BufferedWriter(size, @TypeOf(underlying_stream)) {
+    return .{ .unbuffered_writer = underlying_stream };
+}
+
+/// sliceOverCStrings converts a c_char_p_p to a slice of *non-optional* c_char_p.
+///
+/// This is in contrast to `std.mem.span`, which would return a slice of *optional* c_char_p.
+fn sliceOverCStrings(ptr: c_char_p_p) []const c_char_p {
+    return @as([*]const c_char_p, @ptrCast(ptr))[0..std.mem.len(ptr)];
+}
+
+/// isCalendarEmpty returns true if none of the weekdays of a calendar are set to zero.
+///
+/// select must be a "SELECT xxx FROM calendars" statement pointing to a valid row,
+/// with the 2nd column representing Monday, 3rd - Tuesday, etc. up tu 8th - Sunday.
+fn isCalendarEmpty(select: sqlite3.Statement) bool {
+    // XXX: The columns must be in the following order:
+    // (ignored),monday,tuesday,wednesday,thursday,friday,saturday,sunday
+    for (1..8) |idx| {
+        var active: bool = undefined;
+        select.column(@intCast(idx), &active);
+        if (active) return false;
+    }
+    return true;
+}
