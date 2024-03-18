@@ -87,6 +87,8 @@ def save_gtfs(
 ) -> None:
     extern_headers = _GTFSHeaders()
     for file, header in headers.items():
+        if not header:
+            continue
         extern_header = (c_char_p * (len(header) + 1))()
         for i, field in enumerate(header):
             extern_header[i] = field.encode("utf-8")
