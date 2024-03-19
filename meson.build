@@ -116,8 +116,6 @@ custom_target(
         'impuls/extern/vendor/sqlite3.c',
         'impuls/extern/zig/lib.zig',
         # The rest only server as a trigger for meson to rebuild the library
-        'impuls/extern/zig/busman.zig',
-        'impuls/extern/zig/csv.zig',
         'impuls/extern/zig/gtfs/conversion.zig',
         'impuls/extern/zig/gtfs/conversion_from_gtfs.zig',
         'impuls/extern/zig/gtfs/conversion_to_gtfs.zig',
@@ -125,6 +123,7 @@ custom_target(
         'impuls/extern/zig/gtfs/load.zig',
         'impuls/extern/zig/gtfs/save.zig',
         'impuls/extern/zig/gtfs/table.zig',
+        'impuls/extern/zig/csv.zig',
         'impuls/extern/zig/sqlite3.zig',
     ],
     output: lib_name,

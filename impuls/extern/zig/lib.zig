@@ -1,32 +1,9 @@
 const std = @import("std");
 const print = std.debug.print;
 
-const busman = @import("./busman.zig");
 const gtfs = @import("./gtfs/lib.zig");
 
-// TODO: Remove the following imports once they are used by other modules.
-//       They exists for zig to pick up their unit tests.
-comptime {
-    std.mem.doNotOptimizeAway(@import("./csv.zig"));
-    std.mem.doNotOptimizeAway(@import("./sqlite3.zig"));
-}
-
 // XXX: Function declarations from this file must match ../__init__.py
-
-pub export fn load_busman(
-    db_path: [*:0]const u8,
-    mdb_path: [*:0]const u8,
-    agency_id: [*:0]const u8,
-    ignore_route_id: bool,
-    ignore_stop_id: bool,
-) c_int {
-    busman.load(db_path, mdb_path, agency_id, ignore_route_id, ignore_stop_id) catch |err| {
-        if (@errorReturnTrace()) |trace| std.debug.dumpStackTrace(trace.*);
-        std.debug.print("{}\n", .{err});
-        return 1;
-    };
-    return 0;
-}
 
 pub export fn load_gtfs(
     db_path: [*:0]const u8,
