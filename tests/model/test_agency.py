@@ -21,41 +21,6 @@ class TestAgency(AbstractTestEntity.Template[Agency]):
     def get_type(self) -> Type[Agency]:
         return Agency
 
-    def test_gtfs_marshall(self) -> None:
-        self.assertDictEqual(
-            self.get_entity().gtfs_marshall(),
-            {
-                "agency_id": "0",
-                "agency_name": "Foo",
-                "agency_url": "https://example.com/",
-                "agency_timezone": "Europe/Brussels",
-                "agency_lang": "en",
-                "agency_phone": "",
-                "agency_fare_url": "",
-            },
-        )
-
-    def test_gtfs_unmarshall(self) -> None:
-        a = Agency.gtfs_unmarshall(
-            {
-                "agency_id": "0",
-                "agency_name": "Foo",
-                "agency_url": "https://example.com/",
-                "agency_timezone": "Europe/Brussels",
-                "agency_lang": "en",
-                "agency_phone": "",
-                "agency_fare_url": "",
-            }
-        )
-
-        self.assertEqual(a.id, "0")
-        self.assertEqual(a.name, "Foo")
-        self.assertEqual(a.url, "https://example.com/")
-        self.assertEqual(a.timezone, "Europe/Brussels")
-        self.assertEqual(a.lang, "en")
-        self.assertEqual(a.phone, "")
-        self.assertEqual(a.fare_url, "")
-
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),

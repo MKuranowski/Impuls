@@ -22,17 +22,6 @@ class AbstractTestEntity:
         def get_type(self) -> Type[EntityT]:
             raise NotImplementedError
 
-        def test_gtfs_table_name(self) -> None:
-            self.assertRegex(self.get_type().gtfs_table_name(), TABLE_NAME_REGEX)
-
-        @abstractmethod
-        def test_gtfs_marshall(self) -> None:
-            raise NotImplementedError
-
-        @abstractmethod
-        def test_gtfs_unmarshall(self) -> None:
-            raise NotImplementedError
-
         def test_sql_table_name(self) -> None:
             self.assertRegex(self.get_type().sql_table_name(), TABLE_NAME_REGEX)
 

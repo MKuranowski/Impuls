@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+from typing import Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -7,7 +7,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -21,35 +20,6 @@ class Agency(Entity):
     lang: str = field(default="", repr=False)
     phone: str = field(default="", repr=False)
     fare_url: str = field(default="", repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "agency"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "agency_id": self.id,
-            "agency_name": self.name,
-            "agency_url": self.url,
-            "agency_timezone": self.timezone,
-            "agency_lang": self.lang,
-            "agency_phone": self.phone,
-            "agency_fare_url": self.fare_url,
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("id", "agency_id")
-            .field("name", "agency_name")
-            .field("url", "agency_url")
-            .field("timezone", "agency_timezone")
-            .field("lang", "agency_lang", fallback_value="")
-            .field("phone", "agency_phone", fallback_value="")
-            .field("fare_url", "agency_fare_url", fallback_value="")
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

@@ -1,4 +1,4 @@
-from typing import Mapping, Protocol, Sequence, Type, TypeVar
+from typing import Protocol, Sequence, Type, TypeVar
 
 from typing_extensions import LiteralString
 
@@ -11,21 +11,6 @@ class Entity(Protocol):
     """Entity is a protocol for marshalling data between model entities and SQL and GTFS.
     Every entity defined in the model implements this protocol.
     """
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        """gtfs_table_name returns the table name (without .txt suffix) in GTFS,
-        which holds entities of this type."""
-        ...
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        """gtfs_marshall converts an entity into its GTFS representation."""
-        ...
-
-    @classmethod
-    def gtfs_unmarshall(cls: Type[Self], row: Mapping[str, str]) -> Self:
-        """gtfs_unmarshall creates an entity from its GTFS representation."""
-        ...
 
     @staticmethod
     def sql_table_name() -> LiteralString:

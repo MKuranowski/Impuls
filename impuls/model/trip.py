@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -8,13 +8,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import (
-    DataclassGTFSBuilder,
-    from_optional_bool_empty_none,
-    from_optional_bool_zero_none,
-    to_optional_bool_empty_none,
-    to_optional_bool_zero_none,
-)
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -45,58 +38,6 @@ class Trip(Entity):
     wheelchair_accessible: Optional[bool] = field(default=None, repr=False)
     bikes_allowed: Optional[bool] = field(default=None, repr=False)
     exceptional: Optional[bool] = field(default=None, repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "trips"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "trip_id": self.id,
-            "route_id": self.route_id,
-            "service_id": self.calendar_id,
-            "trip_headsign": self.headsign,
-            "trip_short_name": self.short_name,
-            "direction_id": str(self.direction.value) if self.direction is not None else "",
-            "block_id": self.block_id,
-            "shape_id": self.shape_id,
-            "wheelchair_accessible": from_optional_bool_zero_none(self.wheelchair_accessible),
-            "bikes_allowed": from_optional_bool_zero_none(self.bikes_allowed),
-            "exceptional": from_optional_bool_empty_none(self.exceptional),
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("id", "trip_id")
-            .field("route_id", "route_id")
-            .field("calendar_id", "service_id")
-            .field("headsign", "trip_headsign", fallback_value="")
-            .field("short_name", "trip_short_name", fallback_value="")
-            .field(
-                "direction",
-                "direction_id",
-                lambda x: cls.Direction(int(x)) if x else None,
-                fallback_value=None,
-            )
-            .field("block_id", "block_id", fallback_value="")
-            .field("shape_id", "shape_id", fallback_value="")
-            .field(
-                "wheelchair_accessible",
-                "wheelchair_accessible",
-                to_optional_bool_zero_none,
-                fallback_value=None,
-            )
-            .field(
-                "bikes_allowed",
-                "bikes_allowed",
-                to_optional_bool_zero_none,
-                fallback_value=None,
-            )
-            .field("exceptional", "exceptional", to_optional_bool_empty_none, fallback_value=None)
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

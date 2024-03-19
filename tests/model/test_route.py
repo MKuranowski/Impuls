@@ -22,44 +22,6 @@ class TestRoute(AbstractTestEntity.Template[Route]):
     def get_type(self) -> Type[Route]:
         return Route
 
-    def test_gtfs_marshall(self) -> None:
-        self.assertDictEqual(
-            self.get_entity().gtfs_marshall(),
-            {
-                "route_id": "A",
-                "agency_id": "0",
-                "route_short_name": "A",
-                "route_long_name": "Foo - Bar",
-                "route_type": "3",
-                "route_color": "BB0000",
-                "route_text_color": "FFFFFF",
-                "route_sort_order": "",
-            },
-        )
-
-    def test_gtfs_unmarshall(self) -> None:
-        r = Route.gtfs_unmarshall(
-            {
-                "route_id": "A",
-                "agency_id": "0",
-                "route_short_name": "A",
-                "route_long_name": "Foo - Bar",
-                "route_type": "3",
-                "route_color": "BB0000",
-                "route_text_color": "FFFFFF",
-                "route_sort_order": "",
-            }
-        )
-
-        self.assertEqual(r.id, "A")
-        self.assertEqual(r.agency_id, "0")
-        self.assertEqual(r.short_name, "A")
-        self.assertEqual(r.long_name, "Foo - Bar")
-        self.assertEqual(r.type, Route.Type.BUS)
-        self.assertEqual(r.color, "BB0000")
-        self.assertEqual(r.text_color, "FFFFFF")
-        self.assertEqual(r.sort_order, None)
-
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -8,7 +8,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import TimePoint
 
@@ -33,63 +32,6 @@ class StopTime(Entity):
     shape_dist_traveled: Optional[float] = field(default=None, repr=False)
     original_stop_id: str = field(default="", repr=False)
     platform: str = field(default="", repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "stop_times"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "trip_id": self.trip_id,
-            "stop_id": self.stop_id,
-            "stop_sequence": str(self.stop_sequence),
-            "arrival_time": str(self.arrival_time),
-            "departure_time": str(self.departure_time),
-            "pickup_type": str(self.pickup_type.value),
-            "drop_off_type": str(self.drop_off_type.value),
-            "stop_headsign": self.stop_headsign,
-            "shape_dist_traveled": (
-                str(self.shape_dist_traveled) if self.shape_dist_traveled is not None else ""
-            ),
-            "original_stop_id": self.original_stop_id,
-            "platform": self.platform,
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("trip_id", "trip_id")
-            .field("stop_id", "stop_id")
-            .field("stop_sequence", "stop_sequence", int)
-            .field("arrival_time", "arrival_time", TimePoint.from_str)
-            .field("departure_time", "departure_time", TimePoint.from_str)
-            .field(
-                "pickup_type",
-                "pickup_type",
-                lambda x: (
-                    cls.PassengerExchange(int(x)) if x else cls.PassengerExchange.SCHEDULED_STOP
-                ),
-                fallback_value=cls.PassengerExchange.SCHEDULED_STOP,
-            )
-            .field(
-                "drop_off_type",
-                "drop_off_type",
-                lambda x: (
-                    cls.PassengerExchange(int(x)) if x else cls.PassengerExchange.SCHEDULED_STOP
-                ),
-                fallback_value=cls.PassengerExchange.SCHEDULED_STOP,
-            )
-            .field("stop_headsign", "stop_headsign", fallback_value="")
-            .field(
-                "shape_dist_traveled",
-                "shape_dist_traveled",
-                lambda x: float(x) if x else None,
-                fallback_value=None,
-            )
-            .field("platform", "platform", fallback_value="")
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

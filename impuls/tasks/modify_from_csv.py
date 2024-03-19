@@ -5,7 +5,6 @@ from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type,
 from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
 from ..model import Entity, Route, Stop
-from ..model.meta.gtfs_builder import to_optional_bool_zero_none
 from ..resource import ManagedResource
 from ..task import Task, TaskRuntime
 
@@ -203,7 +202,7 @@ class ModifyStopsFromCSV(ModifyFromCSV):
             "zone_id": CSVFieldData("zone_id"),
             "wheelchair_boarding": CSVFieldData(
                 "wheelchair_boarding",
-                to_optional_bool_zero_none,
+                _parse_optional_bool,
             ),
             "platform_code": CSVFieldData("platform_code"),
         }
@@ -258,3 +257,14 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
     @staticmethod
     def query_for_all_ids() -> str:
         return "SELECT route_id FROM routes"
+
+
+def _parse_optional_bool(s: str) -> Optional[bool]:
+    if s == "" or s == "0":
+        return None
+    elif s == "1":
+        return True
+    elif s == "2":
+        return False
+    else:
+        raise ValueError(f"invalid optional bool value: {s!r}")

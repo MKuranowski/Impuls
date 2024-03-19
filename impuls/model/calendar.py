@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Mapping, Sequence
+from typing import Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -9,7 +9,6 @@ from typing_extensions import LiteralString
 from ..tools.temporal import date_range
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder, from_bool, to_bool
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import Date
 
@@ -28,43 +27,6 @@ class Calendar(Entity):
     start_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
     end_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
     desc: str = field(default="", repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "calendar"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "service_id": self.id,
-            "monday": from_bool(self.monday),
-            "tuesday": from_bool(self.tuesday),
-            "wednesday": from_bool(self.wednesday),
-            "thursday": from_bool(self.thursday),
-            "friday": from_bool(self.friday),
-            "saturday": from_bool(self.saturday),
-            "sunday": from_bool(self.sunday),
-            "start_date": self.start_date.strftime("%Y%m%d"),
-            "end_date": self.end_date.strftime("%Y%m%d"),
-            "service_desc": self.desc,
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("id", "service_id")
-            .field("monday", "monday", to_bool)
-            .field("tuesday", "tuesday", to_bool)
-            .field("wednesday", "wednesday", to_bool)
-            .field("thursday", "thursday", to_bool)
-            .field("friday", "friday", to_bool)
-            .field("saturday", "saturday", to_bool)
-            .field("sunday", "sunday", to_bool)
-            .field("start_date", "start_date", Date.from_ymd_str)
-            .field("end_date", "end_date", Date.from_ymd_str)
-            .field("desc", "service_desc", fallback_value="")
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:
