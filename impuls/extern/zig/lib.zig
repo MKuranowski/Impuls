@@ -2,7 +2,7 @@ const std = @import("std");
 const print = std.debug.print;
 
 const busman = @import("./busman.zig");
-const gtfs = @import("./gtfs.zig");
+const gtfs = @import("./gtfs/lib.zig");
 
 // TODO: Remove the following imports once they are used by other modules.
 //       They exists for zig to pick up their unit tests.
