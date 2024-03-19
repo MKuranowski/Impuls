@@ -42,32 +42,11 @@ class _GTFSHeaders(ctypes.Structure):
     ]
 
 
-lib.load_busman.argtypes = [c_char_p, c_char_p, c_char_p, c_bool, c_bool]
-lib.load_busman.restype = c_int
-
 lib.load_gtfs.argtypes = [c_char_p, c_char_p]
 lib.load_gtfs.restype = c_int
 
 lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
 lib.save_gtfs.restype = c_int
-
-
-def load_busman(
-    db_path: StrPath,
-    mdb_path: StrPath,
-    agency_id: str,
-    ignore_route_id: bool = False,
-    ignore_stop_id: bool = False,
-) -> None:
-    status: int = lib.load_busman(
-        os.fspath(db_path).encode("utf-8"),
-        os.fspath(mdb_path).encode("utf-8"),
-        agency_id.encode("utf-8"),
-        ignore_route_id,
-        ignore_stop_id,
-    )
-    if status:
-        raise RuntimeError(f"extern load_busman failed with {status}")
 
 
 def load_gtfs(db_path: StrPath, gtfs_dir_path: StrPath) -> None:
