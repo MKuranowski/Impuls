@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -7,7 +7,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -26,31 +25,6 @@ class FareRule(Entity):
     The GTFS primary key clause is incompatible with SQL, as it contains optional columns
     (in SQL PRIMARY KEY implies NOT NULL) - hence the need for a separate ID.
     """
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "fare_rules"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "fare_id": self.fare_id,
-            "route_id": self.route_id,
-            "origin_id": self.origin_id,
-            "destination_id": self.destination_id,
-            "contains_id": self.contains_id,
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("fare_id")
-            .field("route_id", fallback_value="")
-            .field("origin_id", fallback_value="")
-            .field("destination_id", fallback_value="")
-            .field("contains_id", fallback_value="")
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

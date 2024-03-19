@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -8,7 +8,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import Date
 
@@ -23,27 +22,6 @@ class CalendarException(Entity):
     calendar_id: str
     date: Date
     exception_type: Type
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "calendar_dates"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "service_id": self.calendar_id,
-            "date": self.date.strftime("%Y%m%d"),
-            "exception_type": str(self.exception_type.value),
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("calendar_id", "service_id")
-            .field("date", "date", Date.from_ymd_str)
-            .field("exception_type", "exception_type", lambda x: cls.Type(int(x)))
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

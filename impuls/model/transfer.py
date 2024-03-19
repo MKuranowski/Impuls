@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -8,7 +8,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -36,48 +35,6 @@ class Transfer(Entity):
     The GTFS primary key clause is incompatible with SQL, as it contains optional columns
     (in SQL PRIMARY KEY implies NOT NULL) - hence the need for a separate ID.
     """
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "transfers"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "from_stop_id": self.from_stop_id,
-            "to_stop_id": self.to_stop_id,
-            "from_route_id": self.from_route_id,
-            "to_route_id": self.to_route_id,
-            "from_trip_id": self.from_trip_id,
-            "to_trip_id": self.to_trip_id,
-            "transfer_type": str(self.type.value),
-            "min_transfer_time": (
-                str(self.min_transfer_time) if self.min_transfer_time is not None else ""
-            ),
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("from_stop_id")
-            .field("to_stop_id")
-            .field("from_route_id")
-            .field("to_route_id")
-            .field("from_trip_id")
-            .field("to_trip_id")
-            .field(
-                "type",
-                "transfer_type",
-                converter=lambda x: cls.Type(int(x)) if x else cls.Type.RECOMMENDED,
-                fallback_value=cls.Type.RECOMMENDED,
-            )
-            .field(
-                "min_transfer_time",
-                converter=lambda x: None if x == "" else int(x),
-                fallback_value=None,
-            )
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

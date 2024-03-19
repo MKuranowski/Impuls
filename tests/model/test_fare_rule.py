@@ -18,36 +18,6 @@ class TestFareRule(AbstractTestEntity.Template[FareRule]):
     def get_type(self) -> Type[FareRule]:
         return FareRule
 
-    def test_gtfs_marshall(self) -> None:
-        self.assertDictEqual(
-            self.get_entity().gtfs_marshall(),
-            {
-                "fare_id": "F0",
-                "route_id": "R0",
-                "origin_id": "",
-                "destination_id": "",
-                "contains_id": "Z3",
-            },
-        )
-
-    def test_gtfs_unmarshall(self) -> None:
-        t = FareRule.gtfs_unmarshall(
-            {
-                "fare_id": "F0",
-                "route_id": "R0",
-                "origin_id": "",
-                "destination_id": "",
-                "contains_id": "Z3",
-            },
-        )
-
-        self.assertEqual(t.fare_id, "F0")
-        self.assertEqual(t.route_id, "R0")
-        self.assertEqual(t.origin_id, "")
-        self.assertEqual(t.destination_id, "")
-        self.assertEqual(t.contains_id, "Z3")
-        self.assertEqual(t.id, 0)
-
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),

@@ -19,35 +19,6 @@ class TestFrequency(AbstractTestEntity.Template[Frequency]):
     def get_type(self) -> Type[Frequency]:
         return Frequency
 
-    def test_gtfs_marshall(self) -> None:
-        self.assertDictEqual(
-            self.get_entity().gtfs_marshall(),
-            {
-                "trip_id": "T0",
-                "start_time": "05:00:00",
-                "end_time": "08:00:00",
-                "headway_secs": "300",
-                "exact_times": "1",
-            },
-        )
-
-    def test_gtfs_unmarshall(self) -> None:
-        f = Frequency.gtfs_unmarshall(
-            {
-                "trip_id": "T0",
-                "start_time": "05:00:00",
-                "end_time": "08:00:00",
-                "headway_secs": "300",
-                "exact_times": "1",
-            }
-        )
-
-        self.assertEqual(f.trip_id, "T0")
-        self.assertEqual(f.start_time, TimePoint(hours=5))
-        self.assertEqual(f.end_time, TimePoint(hours=8))
-        self.assertEqual(f.headway, 300)
-        self.assertTrue(f.exact_times)
-
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),

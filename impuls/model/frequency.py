@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+from typing import Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -7,7 +7,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder, to_bool_allow_empty
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import TimePoint
 
@@ -20,31 +19,6 @@ class Frequency(Entity):
     end_time: TimePoint = field(repr=False)
     headway: int
     exact_times: bool = field(default=False, repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "frequencies"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "trip_id": self.trip_id,
-            "start_time": str(self.start_time),
-            "end_time": str(self.end_time),
-            "headway_secs": str(self.headway),
-            "exact_times": "1" if self.exact_times else "0",
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("trip_id")
-            .field("start_time", converter=TimePoint.from_str)
-            .field("end_time", converter=TimePoint.from_str)
-            .field("headway", "headway_secs", int)
-            .field("exact_times", converter=to_bool_allow_empty)
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

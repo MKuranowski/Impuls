@@ -21,44 +21,6 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
     def get_type(self) -> Type[FeedInfo]:
         return FeedInfo
 
-    def test_gtfs_marshall(self) -> None:
-        self.assertDictEqual(
-            self.get_entity().gtfs_marshall(),
-            {
-                "feed_publisher_name": "Foo",
-                "feed_publisher_url": "https://example.com/",
-                "feed_lang": "en",
-                "feed_version": "2020-02-29b",
-                "feed_contact_email": "",
-                "feed_contact_url": "",
-                "feed_start_date": "20200229",
-                "feed_end_date": "",
-            },
-        )
-
-    def test_gtfs_unmarshall(self) -> None:
-        fi = FeedInfo.gtfs_unmarshall(
-            {
-                "feed_publisher_name": "Foo",
-                "feed_publisher_url": "https://example.com/",
-                "feed_lang": "en",
-                "feed_version": "2020-02-29b",
-                "feed_contact_email": "",
-                "feed_contact_url": "",
-                "feed_start_date": "20200229",
-                "feed_end_date": "",
-            },
-        )
-
-        self.assertEqual(fi.publisher_name, "Foo")
-        self.assertEqual(fi.publisher_url, "https://example.com/")
-        self.assertEqual(fi.lang, "en")
-        self.assertEqual(fi.version, "2020-02-29b")
-        self.assertEqual(fi.contact_email, "")
-        self.assertEqual(fi.contact_url, "")
-        self.assertEqual(fi.start_date, Date(2020, 2, 29))
-        self.assertIsNone(fi.end_date)
-
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),

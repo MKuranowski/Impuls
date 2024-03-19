@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -8,11 +8,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import (
-    DataclassGTFSBuilder,
-    from_optional_bool_zero_none,
-    to_optional_bool_zero_none,
-)
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -41,55 +36,6 @@ class Stop(Entity):
     platform_code: str = field(default="", repr=False)
     pkpplk_code: str = field(default="", repr=False)
     ibnr_code: str = field(default="", repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "stops"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "stop_id": self.id,
-            "stop_name": self.name,
-            "stop_lat": str(self.lat),
-            "stop_lon": str(self.lon),
-            "stop_code": self.code,
-            "zone_id": self.zone_id,
-            "location_type": str(self.location_type.value),
-            "parent_station": self.parent_station,
-            "wheelchair_boarding": from_optional_bool_zero_none(self.wheelchair_boarding),
-            "platform_code": self.platform_code,
-            "stop_pkpplk": self.pkpplk_code,
-            "stop_IBNR": self.ibnr_code,
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("id", "stop_id")
-            .field("name", "stop_name")
-            .field("lat", "stop_lat", float)
-            .field("lon", "stop_lon", float)
-            .field("code", "stop_code", fallback_value="")
-            .field("zone_id", "zone_id", fallback_value="")
-            .field(
-                "location_type",
-                "location_type",
-                lambda x: cls.LocationType(int(x)) if x else cls.LocationType.STOP,
-                fallback_value=cls.LocationType.STOP,
-            )
-            .field("parent_station", "parent_station", fallback_value="")
-            .field(
-                "wheelchair_boarding",
-                "wheelchair_boarding",
-                to_optional_bool_zero_none,
-                fallback_value=None,
-            )
-            .field("platform_code", "platform_code", fallback_value="")
-            .field("pkpplk_code", "stop_pkpplk", fallback_value="")
-            .field("ibnr_code", "stop_IBNR", fallback_value="")
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

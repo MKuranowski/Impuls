@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+from typing import Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -7,7 +7,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder, from_bool, to_bool_allow_empty
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -23,59 +22,6 @@ class Attribution(Entity):
     url: str = field(default="", repr=False)
     email: str = field(default="", repr=False)
     phone: str = field(default="", repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "attributions"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "attribution_id": self.id,
-            "organization_name": self.organization_name,
-            "is_producer": from_bool(self.is_producer),
-            "is_operator": from_bool(self.is_operator),
-            "is_authority": from_bool(self.is_authority),
-            "is_data_source": from_bool(self.is_data_source),
-            "attribution_url": self.url,
-            "attribution_email": self.email,
-            "attribution_phone": self.phone,
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("id", "attribution_id")
-            .field("organization_name", "organization_name")
-            .field(
-                "is_producer",
-                "is_producer",
-                to_bool_allow_empty,
-                fallback_value=False,
-            )
-            .field(
-                "is_operator",
-                "is_operator",
-                to_bool_allow_empty,
-                fallback_value=False,
-            )
-            .field(
-                "is_authority",
-                "is_authority",
-                to_bool_allow_empty,
-                fallback_value=False,
-            )
-            .field(
-                "is_data_source",
-                "is_data_source",
-                to_bool_allow_empty,
-                fallback_value=False,
-            )
-            .field("url", "attribution_url", fallback_value="")
-            .field("email", "attribution_email", fallback_value="")
-            .field("phone", "attribution_phone", fallback_value="")
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:

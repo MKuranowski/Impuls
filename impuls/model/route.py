@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -8,7 +8,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder, to_optional
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -35,42 +34,6 @@ class Route(Entity):
     color: str = field(default="", repr=False)
     text_color: str = field(default="", repr=False)
     sort_order: Optional[int] = field(default=None, repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "routes"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "route_id": self.id,
-            "agency_id": self.agency_id,
-            "route_short_name": self.short_name,
-            "route_long_name": self.long_name,
-            "route_type": str(self.type.value),
-            "route_color": self.color,
-            "route_text_color": self.text_color,
-            "route_sort_order": to_optional(self.sort_order),
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("id", "route_id")
-            .field("agency_id", "agency_id")
-            .field("short_name", "route_short_name")
-            .field("long_name", "route_long_name")
-            .field("type", "route_type", _parse_gtfs_route_type)
-            .field("color", "route_color", fallback_value="")
-            .field("text_color", "route_text_color", fallback_value="")
-            .field(
-                "sort_order",
-                "route_sort_order",
-                lambda x: None if x == "" else int(x),
-                fallback_value=None,
-            )
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -141,53 +104,3 @@ class Route(Entity):
             .field("sort_order", int, nullable=True)
             .kwargs()
         )
-
-
-def _parse_gtfs_route_type(raw_value: str) -> Route.Type:
-    v = int(raw_value)
-    if v == 0:
-        return Route.Type.TRAM
-    elif v == 1:
-        return Route.Type.METRO
-    elif v == 2:
-        return Route.Type.RAIL
-    elif v == 3:
-        return Route.Type.BUS
-    elif v == 4:
-        return Route.Type.FERRY
-    elif v == 5:
-        return Route.Type.CABLE_TRAM
-    elif v == 6:
-        return Route.Type.GONDOLA
-    elif v == 7:
-        return Route.Type.FUNICULAR
-    elif v == 11:
-        return Route.Type.TROLLEYBUS
-    elif v == 12:
-        return Route.Type.MONORAIL
-    elif 100 <= v < 200:
-        return Route.Type.RAIL
-    elif 200 <= v < 300:
-        return Route.Type.BUS
-    elif v == 405:
-        return Route.Type.MONORAIL
-    elif 400 <= v < 500:
-        return Route.Type.METRO
-    elif 700 <= v < 800:
-        return Route.Type.BUS
-    elif 800 <= v < 900:
-        return Route.Type.TROLLEYBUS
-    elif 900 <= v < 1000:
-        return Route.Type.TRAM
-    elif 1000 <= v < 1100:
-        return Route.Type.FERRY
-    # elif 1100 <= v < 1200:
-    #     No corresponding type for air transportation
-    elif 1200 <= v < 1300:
-        return Route.Type.FERRY
-    elif 1300 <= v < 1400:
-        return Route.Type.GONDOLA
-    elif 1400 <= v < 1500:
-        return Route.Type.FUNICULAR
-    else:
-        raise ValueError(f"Unknown GTFS route_type: {v}")

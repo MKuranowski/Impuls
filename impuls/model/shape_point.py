@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Mapping, Optional, Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -7,7 +7,6 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
-from .meta.gtfs_builder import DataclassGTFSBuilder
 from .meta.sql_builder import DataclassSQLBuilder
 
 
@@ -19,37 +18,6 @@ class ShapePoint(Entity):
     lat: float = field(repr=False)
     lon: float = field(repr=False)
     shape_dist_traveled: Optional[float] = field(default=None, repr=False)
-
-    @staticmethod
-    def gtfs_table_name() -> LiteralString:
-        return "shapes"
-
-    def gtfs_marshall(self) -> dict[str, str]:
-        return {
-            "shape_id": self.shape_id,
-            "shape_pt_sequence": str(self.sequence),
-            "shape_pt_lat": str(self.lat),
-            "shape_pt_lon": str(self.lon),
-            "shape_dist_traveled": (
-                str(self.shape_dist_traveled) if self.shape_dist_traveled is not None else ""
-            ),
-        }
-
-    @classmethod
-    def gtfs_unmarshall(cls: TypeOf[Self], row: Mapping[str, str]) -> Self:
-        return cls(
-            **DataclassGTFSBuilder(row)
-            .field("shape_id")
-            .field("sequence", "shape_pt_sequence", int)
-            .field("lat", "shape_pt_lat", float)
-            .field("lon", "shape_pt_lon", float)
-            .field(
-                "shape_dist_traveled",
-                converter=lambda x: float(x) if x else None,
-                fallback_value=None,
-            )
-            .kwargs()
-        )
 
     @staticmethod
     def sql_table_name() -> LiteralString:
