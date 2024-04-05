@@ -6,6 +6,7 @@ const BoundedString = c.BoundedString;
 const ColumnValue = c.ColumnValue;
 const panic = std.debug.panic;
 
+/// date ensures v holds an owned "YYYYMMDD" (GTFS-compliant) string.
 pub fn date(v: *ColumnValue) void {
     switch (v.*) {
         .BorrowedString => |old| {
@@ -28,6 +29,17 @@ pub fn date(v: *ColumnValue) void {
     }
 }
 
+test "gtfs.conversion_to_gtfs.date" {
+    var v = ColumnValue.borrowed("2024-03-15");
+    date(&v);
+    try std.testing.expectEqualStrings("20240315", try v.ensureString());
+
+    v = ColumnValue.null_();
+    try std.testing.expectEqualStrings("", try v.ensureString());
+}
+
+/// time converts an integer value (representing seconds-since-midnight) into a
+/// "HH:MM:SS" borrowed string.
 pub fn time(v: *ColumnValue) void {
     switch (v.*) {
         .Int => |total_seconds_signed| {
@@ -50,10 +62,35 @@ pub fn time(v: *ColumnValue) void {
     }
 }
 
+test "gtfs.conversion_to_gtfs.time" {
+    var v = ColumnValue.int(12 * 3600 + 15 * 60 + 30);
+    time(&v);
+    try std.testing.expectEqualStrings("12:15:30", try v.ensureString());
+
+    v = ColumnValue.null_();
+    try std.testing.expectEqualStrings("", try v.ensureString());
+}
+
+/// maybeWithZeroUnknown converts an Impuls tri-state (NULL, 0/false, 1/true) into
+/// a GTFS tri-state enum (0, 1, 2).
 pub fn maybeWithZeroUnknown(v: *ColumnValue) void {
     switch (v.*) {
         .Int => |i| v.* = ColumnValue.int(if (i != 0) 1 else 2),
         .Null => v.* = ColumnValue.int(0),
         else => {},
     }
+}
+
+test "gtfs.conversion_to_gtfs.maybeWithZeroUnknown" {
+    var v = ColumnValue.null_();
+    maybeWithZeroUnknown(&v);
+    try std.testing.expectEqual(@as(i64, 0), v.Int);
+
+    v = ColumnValue.int(0);
+    maybeWithZeroUnknown(&v);
+    try std.testing.expectEqual(@as(i64, 2), v.Int);
+
+    v = ColumnValue.int(1);
+    maybeWithZeroUnknown(&v);
+    try std.testing.expectEqual(@as(i64, 1), v.Int);
 }
