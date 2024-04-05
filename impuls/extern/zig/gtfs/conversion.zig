@@ -46,7 +46,7 @@ pub const ColumnValue = union(enum) {
     /// formatted creates a ColumnValue contaning an owned SQL TEXT from a format string
     /// and its arguments. See std.fmt.format.
     pub fn formatted(comptime fmt_: []const u8, args: anytype) !ColumnValue {
-        var s = BoundedString.init(0) catch unreachable;
+        var s = BoundedString{};
         var fbs = std.io.fixedBufferStream(&s.buffer);
         try std.fmt.format(fbs.writer(), fmt_, args);
         s.len = @intCast(fbs.pos);
@@ -151,3 +151,141 @@ pub const FnFromGtfs = *const fn ([]const u8, u32) InvalidValueT!ColumnValue;
 
 /// FnToGtfs is a tyle aliast for a function adjusting data coming from Impuls to GTFS.
 pub const FnToGtfs = *const fn (*ColumnValue) void;
+
+test "gtfs.conversion.ColumnValue.bind" {
+    var db = try sqlite3.Connection.init(":memory:", .{});
+    defer db.deinit();
+
+    {
+        var s = try db.prepare("SELECT ?");
+        defer s.deinit();
+
+        const v = ColumnValue.null_();
+        try v.bind(s, 1);
+
+        try std.testing.expect(try s.step());
+        try std.testing.expectEqual(sqlite3.Datatype.Null, s.columnType(0));
+    }
+
+    {
+        var s = try db.prepare("SELECT ?");
+        defer s.deinit();
+
+        const v = ColumnValue.int(42);
+        try v.bind(s, 1);
+
+        try std.testing.expect(try s.step());
+        try std.testing.expectEqual(sqlite3.Datatype.Integer, s.columnType(0));
+
+        var i: i64 = undefined;
+        s.column(0, &i);
+        try std.testing.expectEqual(@as(i64, 42), i);
+    }
+
+    {
+        var s = try db.prepare("SELECT ?");
+        defer s.deinit();
+
+        const v = ColumnValue.float(-3.1415);
+        try v.bind(s, 1);
+
+        try std.testing.expect(try s.step());
+        try std.testing.expectEqual(sqlite3.Datatype.Float, s.columnType(0));
+
+        var f: f64 = undefined;
+        s.column(0, &f);
+        try std.testing.expectEqual(@as(f64, -3.1415), f);
+    }
+
+    {
+        var s = try db.prepare("SELECT ?");
+        defer s.deinit();
+
+        const v = ColumnValue.borrowed("Foo Bar Baz");
+        try v.bind(s, 1);
+
+        try std.testing.expect(try s.step());
+        try std.testing.expectEqual(sqlite3.Datatype.Text, s.columnType(0));
+
+        var t: []const u8 = undefined;
+        s.column(0, &t);
+        try std.testing.expectEqualStrings("Foo Bar Baz", t);
+    }
+
+    {
+        var s = try db.prepare("SELECT ?");
+        defer s.deinit();
+
+        var bs = BoundedString{};
+        try bs.appendSlice("Foo Bar Baz");
+        const v = ColumnValue.owned(bs);
+        try v.bind(s, 1);
+
+        try std.testing.expect(try s.step());
+        try std.testing.expectEqual(sqlite3.Datatype.Text, s.columnType(0));
+
+        var t: []const u8 = undefined;
+        s.column(0, &t);
+        try std.testing.expectEqualStrings("Foo Bar Baz", t);
+    }
+}
+
+test "gtfs.conversion.ColumnValue.scan" {
+    var db = try sqlite3.Connection.init(":memory:", .{});
+    defer db.deinit();
+
+    {
+        var s = try db.prepare("SELECT 42");
+        defer s.deinit();
+
+        try std.testing.expectEqual(true, try s.step());
+        var v = ColumnValue.scan(s, 0);
+        try std.testing.expectEqual(@as(i64, 42), v.Int);
+    }
+
+    {
+        var s = try db.prepare("SELECT -3.1415");
+        defer s.deinit();
+
+        try std.testing.expectEqual(true, try s.step());
+        var v = ColumnValue.scan(s, 0);
+        try std.testing.expectEqual(@as(f64, -3.1415), v.Float);
+    }
+
+    {
+        var s = try db.prepare("SELECT 'Foo Bar Baz'");
+        defer s.deinit();
+
+        try std.testing.expectEqual(true, try s.step());
+        var v = ColumnValue.scan(s, 0);
+        try std.testing.expectEqualStrings("Foo Bar Baz", v.BorrowedString);
+    }
+
+    {
+        var s = try db.prepare("SELECT NULL");
+        defer s.deinit();
+
+        try std.testing.expectEqual(true, try s.step());
+        var v = ColumnValue.scan(s, 0);
+        try std.testing.expectEqualStrings("Null", @tagName(v));
+    }
+}
+
+test "gtfs.conversion.ColumnValue.ensureString" {
+    var v = ColumnValue.null_();
+    try std.testing.expectEqualStrings("", try v.ensureString());
+
+    v = ColumnValue.int(42);
+    try std.testing.expectEqualStrings("42", try v.ensureString());
+
+    v = ColumnValue.float(-3.1415);
+    try std.testing.expectEqualStrings("-3.1415", try v.ensureString());
+
+    v = ColumnValue.borrowed("Foo Bar Baz");
+    try std.testing.expectEqualStrings("Foo Bar Baz", try v.ensureString());
+
+    var owned_str = BoundedString{};
+    try owned_str.appendSlice("Foo Bar Baz");
+    v = ColumnValue.owned(owned_str);
+    try std.testing.expectEqualStrings("Foo Bar Baz", try v.ensureString());
+}
