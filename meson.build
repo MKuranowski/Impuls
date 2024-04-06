@@ -155,4 +155,5 @@ test(
         ),
     ],
     verbose: true,
+    workdir: meson.project_source_root(),
 )

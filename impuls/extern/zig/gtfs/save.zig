@@ -260,3 +260,31 @@ fn isCalendarEmpty(select: sqlite3.Statement) bool {
     }
     return true;
 }
+
+test "gtfs.save.simple" {
+    var out_dir = std.testing.tmpDir(.{});
+    defer out_dir.cleanup();
+
+    const header_slice = &[_]?c_char_p{ "agency_id", "route_id", "route_short_name", "route_long_name", "route_type", null };
+    const header: c_char_p_p = header_slice[0 .. header_slice.len - 1 :null];
+
+    try TableSaver(t.tables[5]).save(
+        out_dir.dir,
+        "tests/tasks/fixtures/wkd.db",
+        header,
+        false,
+    );
+
+    var content = try out_dir.dir.readFileAlloc(std.testing.allocator, "routes.txt", 16384);
+    defer std.testing.allocator.free(content);
+
+    try std.testing.expectEqualStrings(
+        // zig fmt: off
+        "agency_id,route_id,route_short_name,route_long_name,route_type\r\n"
+        ++ "0,A1,A1,Warszawa Śródmieście WKD — Grodzisk Mazowiecki Radońska,2\r\n"
+        ++ "0,ZA1,ZA1,Podkowa Leśna Główna — Grodzisk Mazowiecki Radońska (ZKA),3\r\n"
+        ++ "0,ZA12,ZA12,Podkowa Leśna Główna — Milanówek Grudów (ZKA),3\r\n",
+        // zig fmt: on
+        content,
+    );
+}
