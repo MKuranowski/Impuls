@@ -262,3 +262,162 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         }
     };
 }
+
+test "gtfs.load.simple" {
+    const from_gtfs = @import("./conversion_from_gtfs.zig");
+
+    var db = try sqlite3.Connection.init(":memory:", .{});
+    defer db.deinit();
+
+    try db.exec("CREATE TABLE spam (foo TEXT PRIMARY KEY, bar INTEGER NOT NULL, baz TEXT NOT NULL DEFAULT '') STRICT");
+
+    const data = "foo,baz,bar\r\n1,Hello,42\r\n2,World,\r\n";
+    var fbs = std.io.fixedBufferStream(data);
+    var reader = fbs.reader();
+
+    const table = comptime Table{
+        .gtfs_name = "spam.txt",
+        .sql_name = "spam",
+        .columns = &[_]t.Column{
+            t.Column{ .name = "foo" },
+            t.Column{ .name = "bar", .from_gtfs = from_gtfs.intFallbackZero },
+            t.Column{ .name = "baz" },
+        },
+    };
+
+    const Loader = TableLoader(table, @TypeOf(reader));
+    var loader = try Loader.init(db, reader, std.testing.allocator);
+    defer loader.deinit();
+
+    try db.exec("BEGIN");
+    try loader.load();
+    try db.exec("COMMIT");
+
+    var select = try db.prepare("SELECT * FROM spam ORDER BY foo ASC");
+    defer select.deinit();
+
+    var s: []const u8 = undefined;
+    var i: i64 = undefined;
+
+    try std.testing.expect(try select.step());
+    try std.testing.expectEqual(@as(c_int, 3), select.columnCount());
+    select.column(0, &s);
+    try std.testing.expectEqualStrings("1", s);
+    select.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 42), i);
+    select.column(2, &s);
+    try std.testing.expectEqualStrings("Hello", s);
+
+    try std.testing.expect(try select.step());
+    try std.testing.expectEqual(@as(c_int, 3), select.columnCount());
+    select.column(0, &s);
+    try std.testing.expectEqualStrings("2", s);
+    select.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 0), i);
+    select.column(2, &s);
+    try std.testing.expectEqualStrings("World", s);
+
+    try std.testing.expect(!try select.step());
+}
+
+test "gtfs.load.with_parent_implication" {
+    const from_gtfs = @import("./conversion_from_gtfs.zig");
+
+    var db = try sqlite3.Connection.init(":memory:", .{});
+    defer db.deinit();
+
+    try db.exec("PRAGMA foreign_keys=1");
+    try db.exec("CREATE TABLE parents (p_id TEXT PRIMARY KEY, attr INTEGER NOT NULL DEFAULT 0) STRICT");
+    try db.exec(
+        \\ CREATE TABLE children (
+        \\  p_id TEXT NOT NULL REFERENCES parents(p_id),
+        \\  seq INTEGER NOT NULL CHECK (seq >= 0),
+        \\  PRIMARY KEY (p_id, seq)
+        \\ ) STRICT
+    );
+
+    const data = "parent_id,seq\r\nA,0\r\nA,1\r\nB,1\r\nB,2\r\n";
+    var fbs = std.io.fixedBufferStream(data);
+    var reader = fbs.reader();
+
+    const table = comptime Table{
+        .gtfs_name = "children.txt",
+        .sql_name = "children",
+        .parent_implication = t.ParentImplication{
+            .sql_table = "parents",
+            .sql_key = "p_id",
+            .gtfs_key = "parent_id",
+        },
+        .columns = &[_]t.Column{
+            t.Column{ .name = "p_id", .gtfs_name = "parent_id" },
+            t.Column{ .name = "seq", .from_gtfs = from_gtfs.int },
+        },
+    };
+
+    const Loader = TableLoader(table, @TypeOf(reader));
+    var loader = try Loader.init(db, reader, std.testing.allocator);
+    defer loader.deinit();
+
+    try db.exec("BEGIN");
+    try loader.load();
+    try db.exec("COMMIT");
+
+    var s: []const u8 = undefined;
+    var i: i64 = undefined;
+
+    // Ensure that parents were created
+
+    var select_p = try db.prepare("SELECT * FROM parents ORDER BY p_id ASC");
+    defer select_p.deinit();
+
+    try std.testing.expect(try select_p.step());
+    try std.testing.expectEqual(@as(c_int, 2), select_p.columnCount());
+    select_p.column(0, &s);
+    try std.testing.expectEqualStrings("A", s);
+    select_p.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 0), i);
+
+    try std.testing.expect(try select_p.step());
+    try std.testing.expectEqual(@as(c_int, 2), select_p.columnCount());
+    select_p.column(0, &s);
+    try std.testing.expectEqualStrings("B", s);
+    select_p.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 0), i);
+
+    try std.testing.expect(!try select_p.step());
+
+    // Ensure that children were created
+
+    var select_c = try db.prepare("SELECT * FROM children ORDER BY p_id, seq ASC");
+    defer select_c.deinit();
+
+    try std.testing.expect(try select_c.step());
+    try std.testing.expectEqual(@as(c_int, 2), select_c.columnCount());
+    select_c.column(0, &s);
+    try std.testing.expectEqualStrings("A", s);
+    select_c.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 0), i);
+
+    try std.testing.expect(try select_c.step());
+    try std.testing.expectEqual(@as(c_int, 2), select_c.columnCount());
+    select_c.column(0, &s);
+    try std.testing.expectEqualStrings("A", s);
+    select_c.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 1), i);
+
+    try std.testing.expect(try select_c.step());
+    try std.testing.expectEqual(@as(c_int, 2), select_c.columnCount());
+    select_c.column(0, &s);
+    try std.testing.expectEqualStrings("B", s);
+    select_c.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 1), i);
+
+    try std.testing.expect(try select_c.step());
+    try std.testing.expectEqual(@as(c_int, 2), select_c.columnCount());
+    select_c.column(0, &s);
+    try std.testing.expectEqualStrings("B", s);
+    select_c.column(1, &i);
+    try std.testing.expectEqual(@as(i64, 2), i);
+
+    try std.testing.expect(!try select_c.step());
+}
