@@ -22,7 +22,7 @@ pub const Table = struct {
     /// parent_implication, if present, describes the existance of parent objects in GTFS
     parent_implication: ?ParentImplication = null,
 
-    /// columnNames returns a "(column_a, column_b, column_c)" string with the SQL column names
+    /// columnNames returns a "column_a, column_b, column_c" string with the SQL column names
     /// of the table.
     pub fn columnNames(comptime self: Table) []const u8 {
         comptime var s: []const u8 = "";
@@ -34,7 +34,7 @@ pub const Table = struct {
         return s;
     }
 
-    /// placeholders returns a "(?, ?, ?)" string with SQL placeholders, as many as there
+    /// placeholders returns a "?, ?, ?" string with SQL placeholders, as many as there
     /// are SQL columns.
     pub fn placeholders(comptime self: Table) []const u8 {
         comptime var s: []const u8 = "";
@@ -60,8 +60,11 @@ pub const Table = struct {
 
     /// gtfsNameWithoutExtension returns the GTFS name of the table without the ".txt" extension
     pub fn gtfsNameWithoutExtension(comptime self: Table) []const u8 {
-        if (!mem.endsWith(u8, self.gtfs_name, ".txt"))
-            @compileError("gtfs_name of a Table doesn't end with .txt: " ++ self.gtfs_name);
+        comptime {
+            if (!mem.endsWith(u8, self.gtfs_name, ".txt")) {
+                @compileError("gtfs_name of a Table doesn't end with .txt: " ++ self.gtfs_name);
+            }
+        }
         return self.gtfs_name[0 .. self.gtfs_name.len - 4];
     }
 };
@@ -347,3 +350,46 @@ pub const tables = [_]Table{
         },
     },
 };
+
+test "gtfs.table.Table.columnNames" {
+    try std.testing.expectEqualStrings(
+        "agency_id, name, url, timezone, lang, phone, fare_url",
+        comptime tables[0].columnNames(),
+    );
+}
+
+test "gtfs.table.Table.placeholders" {
+    try std.testing.expectEqualStrings(
+        "?, ?, ?, ?, ?, ?, ?",
+        comptime tables[0].placeholders(),
+    );
+}
+
+test "gtfs.table.Column.gtfsName" {
+    try std.testing.expectEqualStrings(
+        "agency_id",
+        comptime tables[0].columns[0].gtfsName(),
+    );
+    try std.testing.expectEqualStrings(
+        "agency_name",
+        comptime tables[0].columns[1].gtfsName(),
+    );
+}
+
+test "gtfs.table.Table.gtfsColumnNamesToIndices" {
+    const column_by_gtfs_name = comptime tables[0].gtfsColumnNamesToIndices();
+
+    try std.testing.expectEqual(@as(?usize, 0), column_by_gtfs_name.get("agency_id"));
+    try std.testing.expectEqual(@as(?usize, 1), column_by_gtfs_name.get("agency_name"));
+    try std.testing.expectEqual(@as(?usize, 2), column_by_gtfs_name.get("agency_url"));
+    try std.testing.expectEqual(@as(?usize, 3), column_by_gtfs_name.get("agency_timezone"));
+    try std.testing.expectEqual(@as(?usize, 4), column_by_gtfs_name.get("agency_lang"));
+    try std.testing.expectEqual(@as(?usize, 5), column_by_gtfs_name.get("agency_phone"));
+    try std.testing.expectEqual(@as(?usize, 6), column_by_gtfs_name.get("agency_fare_url"));
+    try std.testing.expectEqual(@as(?usize, null), column_by_gtfs_name.get("foo"));
+    try std.testing.expectEqual(@as(?usize, null), column_by_gtfs_name.get(""));
+}
+
+test "gtfs.table.Table.gtfsNameWithoutExtension" {
+    try std.testing.expectEqualStrings("agency", tables[0].gtfsNameWithoutExtension());
+}
