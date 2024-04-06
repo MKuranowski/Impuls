@@ -7,7 +7,6 @@ from typing import IO, ContextManager, Generator, Iterator, TextIO, cast, final
 from py7zr import SevenZipFile
 
 import impuls
-from impuls.extern import load_ztm_waw
 from impuls.model import (
     Agency,
     Calendar,
@@ -500,16 +499,6 @@ class OriginDestinationCollector:
         self.dest = area_id
 
 
-class ImportZTMWithExtern(impuls.Task):
-    def __init__(self, resource_name: str) -> None:
-        self.resource_name = resource_name
-
-    def execute(self, r: impuls.TaskRuntime) -> None:
-        resource_path = r.resources[self.resource_name].stored_at
-        with r.db.released() as db_path:
-            load_ztm_waw(db_path, resource_path)
-
-
 @contextmanager
 def decompress_7z_file(path: Path) -> Generator[TextIO, None, None]:
     """Assuming a 7z file at the provided path only has a single, windows-1250 encoded file -
@@ -524,44 +513,3 @@ def decompress_7z_file(path: Path) -> Generator[TextIO, None, None]:
         assert handles is not None
         for _, handle in handles.items():
             yield TextIOWrapper(cast(IO[bytes], handle), encoding="windows-1250")
-
-
-if __name__ == "__main__":
-    import time
-    from argparse import ArgumentParser
-    from cProfile import Profile
-
-    from impuls import DBConnection, PipelineOptions, TaskRuntime
-    from impuls.resource import ManagedResource
-    from impuls.tools import logs
-
-    logs.initialize(verbose=False)
-
-    arg_parser = ArgumentParser()
-    arg_parser.add_argument("ztm_file_path", help="path to the ztm file", type=Path)
-    arg_parser.add_argument(
-        "-p",
-        "--profile",
-        help="enable profiling and output stats at this path",
-        type=Path,
-    )
-    args = arg_parser.parse_args()
-
-    Path("impuls.db").unlink(missing_ok=True)
-    with DBConnection.create_with_schema("impuls.db") as db:
-        runtime = TaskRuntime(
-            db,
-            {"RA231029.txt": ManagedResource(args.ztm_file_path)},
-            PipelineOptions(),
-        )
-
-        profile = Profile()
-        if args.profile:
-            profile.enable()
-        elapsed = time.perf_counter()
-        ImportZTMWithExtern("RA231029.txt").execute(runtime)
-        elapsed = time.perf_counter() - elapsed
-        if args.profile:
-            profile.disable()
-            profile.dump_stats(args.profile)
-        print(f"=== TOTAL: {elapsed:.1f} s ===")
