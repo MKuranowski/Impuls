@@ -111,7 +111,7 @@ fn TableSaver(comptime table: Table) type {
         /// init creates a TableServer writing GTFS data from a provided database
         /// to a provided writer with the provided columns.
         fn init(db: sqlite3.Connection, writer: Writer, header: []const c_char_p) !Self {
-            var columns = ColumnsBuffer.init(0) catch unreachable;
+            var columns = ColumnsBuffer{};
             for (header) |gtfs_column_name| {
                 if (column_by_gtfs_name.get(span(gtfs_column_name))) |column_idx| {
                     try columns.append(column_idx);
