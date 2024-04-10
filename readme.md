@@ -19,6 +19,17 @@ A module for dealing with versioned, or _multi-file_ sources is also provided. I
 for easy and very flexible processing of schedules provided in discrete versions into
 a single coherent file.
 
+TODO Before 1.0.0 release
+-------------------------
+
+- [ ] Integrate Python's logging into the extern library
+- [ ] Fix the skipped load_gtfs test
+- [ ] Update readme to include detailed instructions to build from source
+    and setup development
+- [ ] Generate documentation with Sphinx
+- [ ] Setup Read the Docs
+- [ ] Setup automatic wheel (cross-)compilation
+
 Installation and compilation
 ----------------------------
 
