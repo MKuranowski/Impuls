@@ -124,6 +124,7 @@ custom_target(
         'impuls/extern/zig/gtfs/save.zig',
         'impuls/extern/zig/gtfs/table.zig',
         'impuls/extern/zig/csv.zig',
+        'impuls/extern/zig/logging.zig',
         'impuls/extern/zig/sqlite3.zig',
     ],
     output: lib_name,

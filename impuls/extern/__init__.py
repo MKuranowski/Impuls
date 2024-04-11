@@ -1,11 +1,14 @@
 import ctypes
+import logging
 import os
 import sys
-from ctypes import POINTER, c_bool, c_char_p, c_int
+from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_int
 from pathlib import Path
 from typing import Mapping, Sequence
 
 from ..tools.types import StrPath
+
+logger = logging.getLogger(__name__)
 
 c_char_p_p = POINTER(c_char_p)
 
@@ -42,15 +45,20 @@ class _GTFSHeaders(ctypes.Structure):
     ]
 
 
-lib.load_gtfs.argtypes = [c_char_p, c_char_p]
+_LogHandler = CFUNCTYPE(None, c_int, c_char_p)
+
+
+lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p]
 lib.load_gtfs.restype = c_int
 
-lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
+lib.save_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
 lib.save_gtfs.restype = c_int
 
 
 def load_gtfs(db_path: StrPath, gtfs_dir_path: StrPath) -> None:
+    log_handler = _LogHandler(logger.log)
     status: int = lib.load_gtfs(
+        log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
     )
@@ -73,7 +81,9 @@ def save_gtfs(
             extern_header[i] = field.encode("utf-8")
         setattr(extern_headers, file, extern_header)
 
+    log_handler = _LogHandler(logger.log)
     status: int = lib.save_gtfs(
+        log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
         ctypes.byref(extern_headers),
