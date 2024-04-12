@@ -22,7 +22,6 @@ a single coherent file.
 TODO Before 1.0.0 release
 -------------------------
 
-- [ ] Fix the skipped load_gtfs test
 - [ ] Update readme to include detailed instructions to build from source
     and setup development
 - [ ] Generate documentation with Sphinx

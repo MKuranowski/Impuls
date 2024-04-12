@@ -16,6 +16,9 @@ pub const Table = struct {
     /// sql_name contains the Impuls (SQL) table name
     sql_name: [:0]const u8,
 
+    /// required denotes if this table must be present in order to consider a GTFS file valid.
+    required: bool = false,
+
     /// columns constains specifics on column mapping between the schemas
     columns: []const Column,
 
@@ -112,6 +115,7 @@ pub const tables = [_]Table{
     Table{
         .gtfs_name = "agency.txt",
         .sql_name = "agencies",
+        .required = true,
         .columns = &[_]Column{
             Column{ .name = "agency_id", .from_gtfs = from_gtfs.agencyId },
             Column{ .name = "name", .gtfs_name = "agency_name" },
@@ -201,6 +205,7 @@ pub const tables = [_]Table{
     Table{
         .gtfs_name = "routes.txt",
         .sql_name = "routes",
+        .required = true,
         .columns = &[_]Column{
             Column{ .name = "route_id" },
             Column{ .name = "agency_id", .from_gtfs = from_gtfs.agencyId },
@@ -215,6 +220,7 @@ pub const tables = [_]Table{
     Table{
         .gtfs_name = "stops.txt",
         .sql_name = "stops",
+        .required = true,
         .columns = &[_]Column{
             Column{ .name = "stop_id" },
             Column{ .name = "name", .gtfs_name = "stop_name" },
@@ -279,6 +285,7 @@ pub const tables = [_]Table{
     Table{
         .gtfs_name = "trips.txt",
         .sql_name = "trips",
+        .required = true,
         .columns = &[_]Column{
             Column{ .name = "trip_id" },
             Column{ .name = "route_id" },
@@ -308,6 +315,7 @@ pub const tables = [_]Table{
     Table{
         .gtfs_name = "stop_times.txt",
         .sql_name = "stop_times",
+        .required = true,
         .columns = &[_]Column{
             Column{ .name = "trip_id" },
             Column{ .name = "stop_id" },

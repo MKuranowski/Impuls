@@ -37,7 +37,14 @@ fn loadTable(
     comptime table: Table,
 ) !void {
     var file = gtfs_dir.openFileZ(table.gtfs_name, .{}) catch |err| {
-        if (err == error.FileNotFound) return {};
+        if (err == error.FileNotFound) {
+            if (table.required) {
+                logger.err("Missing required table " ++ table.gtfs_name, .{});
+                return err;
+            } else {
+                return {};
+            }
+        }
         return err;
     };
     var buffer = std.io.bufferedReaderSize(8192, file.reader());
