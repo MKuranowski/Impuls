@@ -198,8 +198,10 @@ class DBConnection:
     def __init__(self, path: StrPath) -> None:
         self._path = path
         self._con: sqlite3.Connection = sqlite3.connect(path)
-        self._con.isolation_level = None
+        self._after_open()
 
+    def _after_open(self) -> None:
+        self._con.isolation_level = None
         self._con.execute("PRAGMA foreign_keys=1")
         self._con.execute("PRAGMA locking_mode=EXCLUSIVE")
         self._con.create_function("unicode_lower", 1, str.lower, deterministic=True)
@@ -458,3 +460,4 @@ class DBConnection:
             yield os.fsdecode(self._path)
         finally:
             self._con = sqlite3.Connection(self._path)
+            self._after_open()
