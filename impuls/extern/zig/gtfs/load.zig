@@ -1,5 +1,6 @@
 const c = @import("./conversion.zig");
 const csv = @import("../csv.zig");
+const logging = @import("../logging.zig");
 const std = @import("std");
 const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
@@ -8,11 +9,11 @@ const Allocator = std.mem.Allocator;
 const ColumnValue = @import("./conversion.zig").ColumnValue;
 const fs = std.fs;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
-const print = std.debug.print;
+const Logger = logging.Logger;
 const Table = t.Table;
 const tables = t.tables;
 
-pub fn load(db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8) !void {
+pub fn load(logger: Logger, db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8) !void {
     var db = try sqlite3.Connection.init(db_path, .{});
     defer db.deinit();
 
@@ -24,11 +25,12 @@ pub fn load(db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8) !void {
     var allocator = gpa.allocator();
 
     inline for (tables) |table| {
-        try loadTable(db, gtfs_dir, allocator, table);
+        try loadTable(logger, db, gtfs_dir, allocator, table);
     }
 }
 
 fn loadTable(
+    logger: Logger,
     db: sqlite3.Connection,
     gtfs_dir: fs.Dir,
     allocator: Allocator,
@@ -39,10 +41,10 @@ fn loadTable(
         return err;
     };
     var buffer = std.io.bufferedReaderSize(8192, file.reader());
-    print("Loading {s}\n", .{table.gtfs_name});
+    logger.debug("Loading " ++ table.gtfs_name, .{});
 
     const Loader = comptime TableLoader(table, @TypeOf(buffer).Reader);
-    var loader = try Loader.init(db, buffer.reader(), allocator);
+    var loader = try Loader.init(logger, db, buffer.reader(), allocator);
     defer loader.deinit();
 
     try db.exec("BEGIN");
@@ -59,7 +61,10 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
     return struct {
         const Self = @This();
 
-        /// reader reads data from the provided GTFS file.
+        /// logger is used to report on any issues and progress on table loading.
+        logger: Logger,
+
+        /// reader reads data from the provided GTFargs: ...S file.
         reader: csv.Reader(ReaderType),
 
         /// record stores the recently-read row from the GTFS file.
@@ -83,7 +88,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
 
         /// init creates a TableLoader for a given DB connection and CSV file.
         /// Necessary INSERT statements are compiled.
-        fn init(db: sqlite3.Connection, reader: ReaderType, allocator: Allocator) !Self {
+        fn init(logger: Logger, db: sqlite3.Connection, reader: ReaderType, allocator: Allocator) !Self {
             var csv_reader = csv.reader(reader);
             var csv_record = csv.Record.init(allocator);
             errdefer csv_record.deinit();
@@ -93,7 +98,10 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             var insert = db.prepare(
                 "INSERT INTO " ++ table.sql_name ++ " (" ++ table_column_names ++ ") VALUES (" ++ table_placeholders ++ ")",
             ) catch |err| {
-                print("{s}: failed to compile INSERT INTO: {s}\n", .{ table.gtfs_name, db.errMsg() });
+                logger.err(
+                    "{s}: failed to compile INSERT INTO: {s}",
+                    .{ table.gtfs_name, db.errMsg() },
+                );
                 return err;
             };
             errdefer insert.deinit();
@@ -102,11 +110,15 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 var parent_insert = db.prepare(
                     "INSERT OR IGNORE INTO " ++ table.parent_implication.?.sql_table ++ " (" ++ table.parent_implication.?.sql_key ++ ") VALUES (?)",
                 ) catch |err| {
-                    print("{s}: failed to compile INSERT OR IGNORE INTO: {s}\n", .{ table.gtfs_name, db.errMsg() });
+                    logger.err(
+                        "{s}: failed to compile INSERT OR IGNORE INTO: {s}",
+                        .{ table.gtfs_name, db.errMsg() },
+                    );
                     return err;
                 };
 
                 return Self{
+                    .logger = logger,
                     .reader = csv_reader,
                     .record = csv_record,
                     .insert = insert,
@@ -115,6 +127,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 };
             } else {
                 return Self{
+                    .logger = logger,
                     .reader = csv_reader,
                     .record = csv_record,
                     .insert = insert,
@@ -164,8 +177,8 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             }
 
             if (has_pi and !has_pi_gtfs_column) {
-                print(
-                    "{s}:{d}: missing required column: {s}\n",
+                self.logger.err(
+                    "{s}:{d}: missing required column: {s}",
                     .{ table.gtfs_name, self.record.line_no, table.parent_implication.?.gtfs_key },
                 );
                 return error.MissingRequiredColumn;
@@ -189,8 +202,8 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// current record is different than the number of fields inside of the header.
         fn ensureRecordHasEnoughColumns(self: Self) !void {
             if (self.record.len() != self.header_len) {
-                print(
-                    "{s}:{d}: expected {d} columns, got {d}\n",
+                self.logger.err(
+                    "{s}:{d}: expected {d} columns, got {d}",
                     .{ table.gtfs_name, self.record.line_no, self.header_len, self.record.len() },
                 );
                 return error.MisalignedCSV;
@@ -205,8 +218,8 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             try self.parent_insert.reset();
             try self.parent_insert.bind(1, key);
             self.parent_insert.stepUntilDone() catch |err| {
-                print(
-                    "{s}:{d}: {}: {s}\n",
+                self.logger.err(
+                    "{s}:{d}: {}: {s}",
                     .{ table.gtfs_name, self.record.line_no, err, self.parent_insert.errMsg() },
                 );
                 return err;
@@ -219,7 +232,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// a list of SQL column values.
         ///
         /// Apart from raising an error on invalid GTFS data, a more human-readable, detailed
-        /// message is printed to stderr.
+        /// message is logged.
         ///
         /// Not that, due to lifetime constraints, once the arguments are binded,
         /// they must live until a call to clearBindings. Therefore, it's not possible
@@ -229,8 +242,8 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             inline for (table.columns, 0..) |col, i| {
                 const raw_value: []const u8 = if (self.header[i]) |j| self.record.get(j) else "";
                 arguments[i] = col.from_gtfs(raw_value, self.record.line_no) catch |err| {
-                    print(
-                        "{s}:{d}:{s}: {}\n",
+                    self.logger.err(
+                        "{s}:{d}:{s}: {}",
                         .{ table.gtfs_name, self.record.line_no, col.gtfsName(), err },
                     );
                     return err;
@@ -250,10 +263,10 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         }
 
         /// executeInsert tries to execute the SQL INSERT statement. Apart from raising an error
-        /// on any issues, a more human-readable, detailed message is printed to stderr.
+        /// on any issues, a more human-readable, detailed message is logged.
         fn executeInsert(self: Self) !void {
             self.insert.stepUntilDone() catch |err| {
-                print(
+                self.logger.err(
                     "{s}:{d}: {}: {s}\n",
                     .{ table.gtfs_name, self.record.line_no, err, self.insert.errMsg() },
                 );
@@ -286,7 +299,7 @@ test "gtfs.load.simple" {
     };
 
     const Loader = TableLoader(table, @TypeOf(reader));
-    var loader = try Loader.init(db, reader, std.testing.allocator);
+    var loader = try Loader.init(logging.StderrLogger, db, reader, std.testing.allocator);
     defer loader.deinit();
 
     try db.exec("BEGIN");
@@ -355,7 +368,7 @@ test "gtfs.load.with_parent_implication" {
     };
 
     const Loader = TableLoader(table, @TypeOf(reader));
-    var loader = try Loader.init(db, reader, std.testing.allocator);
+    var loader = try Loader.init(logging.StderrLogger, db, reader, std.testing.allocator);
     defer loader.deinit();
 
     try db.exec("BEGIN");
