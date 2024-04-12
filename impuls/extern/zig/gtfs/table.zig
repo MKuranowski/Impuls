@@ -49,9 +49,7 @@ pub const Table = struct {
     /// gtfsColumnNamesToIndices creates a std.ComptimeStringMap mapping GTFS column names
     /// to indices into Table.columns.
     pub fn gtfsColumnNamesToIndices(comptime self: Table) type {
-        @setEvalBranchQuota(1600);
-        const kv_type = struct { []const u8, usize };
-        comptime var kvs: [self.columns.len]kv_type = undefined;
+        comptime var kvs: [self.columns.len]struct { []const u8, usize } = undefined;
         inline for (self.columns, 0..) |col, i| {
             kvs[i] = .{ col.gtfsName(), i };
         }

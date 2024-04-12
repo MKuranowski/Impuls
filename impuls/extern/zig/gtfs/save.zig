@@ -1,5 +1,6 @@
 const c = @import("./conversion.zig");
 const csv = @import("../csv.zig");
+const logging = @import("../logging.zig");
 const std = @import("std");
 const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
@@ -7,6 +8,7 @@ const t = @import("./table.zig");
 const Atomic = std.atomic.Atomic;
 const ColumnValue = c.ColumnValue;
 const fs = std.fs;
+const Logger = logging.Logger;
 const span = std.mem.span;
 const Table = t.Table;
 const tables = t.tables;
@@ -45,6 +47,7 @@ pub const Headers = extern struct {
 };
 
 pub fn save(
+    logger: Logger,
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
     headers: *Headers,
@@ -73,6 +76,7 @@ pub fn save(
                 .{},
                 TableSaver(table).saveInThread,
                 .{
+                    logger,
                     gtfs_dir,
                     db_path,
                     header,
@@ -207,6 +211,7 @@ fn TableSaver(comptime table: Table) type {
         /// and sets the failure flag. If save succeedes, failure is left as-is. wg.finish() is
         /// always called on exit.
         fn saveInThread(
+            logger: Logger,
             gtfs_dir: fs.Dir,
             db_path: [*:0]const u8,
             header: c_char_p_p,
@@ -218,14 +223,17 @@ fn TableSaver(comptime table: Table) type {
             Self.save(gtfs_dir, db_path, header, emit_empty_calendars) catch |err| {
                 failure.store(true, .Release);
 
-                var m = std.debug.getStderrMutex();
-                m.lock();
-                defer m.unlock();
-
-                const stderr = std.io.getStdErr().writer();
-                nosuspend stderr.print("Error in {s}: {}\n", .{ table.gtfs_name, err }) catch {};
-                if (@errorReturnTrace()) |trace| std.debug.dumpStackTrace(trace.*);
+                if (@errorReturnTrace()) |trace| {
+                    logger.err(
+                        "gtfs.save: {s}: {}\nStack trace: {}",
+                        .{ table.gtfs_name, err, trace },
+                    );
+                } else {
+                    logger.err("gtfs.save: {s}: {}", .{ table.gtfs_name, err });
+                }
+                return;
             };
+            logger.debug("Saving " ++ table.gtfs_name ++ " completed", .{});
         }
     };
 }

@@ -48,6 +48,11 @@ class _GTFSHeaders(ctypes.Structure):
 _LogHandler = CFUNCTYPE(None, c_int, c_char_p)
 
 
+@_LogHandler
+def _log_handler(level: int, msg: bytes) -> None:
+    logger.log(level, msg.decode("utf-8"))
+
+
 lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p]
 lib.load_gtfs.restype = c_int
 
@@ -56,9 +61,8 @@ lib.save_gtfs.restype = c_int
 
 
 def load_gtfs(db_path: StrPath, gtfs_dir_path: StrPath) -> None:
-    log_handler = _LogHandler(logger.log)
     status: int = lib.load_gtfs(
-        log_handler,
+        _log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
     )
@@ -81,9 +85,8 @@ def save_gtfs(
             extern_header[i] = field.encode("utf-8")
         setattr(extern_headers, file, extern_header)
 
-    log_handler = _LogHandler(logger.log)
     status: int = lib.save_gtfs(
-        log_handler,
+        _log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
         ctypes.byref(extern_headers),
