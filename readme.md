@@ -22,6 +22,7 @@ a single coherent file.
 TODO Before 1.0.0 release
 -------------------------
 
+- [ ] Setup a CI pipeline
 - [ ] Generate documentation with Sphinx
 - [ ] Setup Read the Docs
 - [ ] Setup automatic wheel (cross-)compilation
