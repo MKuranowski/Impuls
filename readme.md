@@ -22,8 +22,6 @@ a single coherent file.
 TODO Before 1.0.0 release
 -------------------------
 
-- [ ] Update readme to include detailed instructions to build from source
-    and setup development
 - [ ] Generate documentation with Sphinx
 - [ ] Setup Read the Docs
 - [ ] Setup automatic wheel (cross-)compilation
@@ -31,48 +29,24 @@ TODO Before 1.0.0 release
 Installation and compilation
 ----------------------------
 
-impuls uses a bundled library written in Zig.
-~~`pip install impuls` will most likely download a wheel with the library already compiled~~
-(todo: library is not yet published on PyPI). However, if you need to install from the source distribution,
-you need to have [zig](https://ziglang.org/learn/getting-started/) installed.
+Impuls is mainly written in python, however a performance-critical part of this library is written
+in zig and bundled alongside the shared library. To install the library run the following,
+preferably inside of a [virtual environment](https://docs.python.org/3/library/venv.html):
 
-For development, it's inconvenient to have to `pip install .` every time. [meson-python has
-good editable package support](https://meson-python.readthedocs.io/en/latest/how-to-guides/editable-installs.html),
-however I have not tested it - I recommend using meson directly to compile the extension:
-`meson setup builddir && cd builddir && meson compile` and setting up a symlink from
-`impuls/extern/libextern.so` → `builddir/libextern.so` (remember to adjust the dynamic library
-extension to your platform: .dll on Windows and .dylib on MaCOS).
-`pip install --no-build-isolation -Cbuild-dir=builddir --editable .` can be used to install in
-editable mode.
-
-
-Tests
------
-
-Currently, tests cover around 87% of the codebase. Run with:
-
-```terminal
-$ python -m venv .venv
-$ . .venv/bin/activate
-$ pip install -U pip
-$ pip install -Ur requirements.dev.txt
-$ pip install --no-build-isolation --editable .
-$ pytest
 ```
+pip install impuls
+```
+
+Pre-built binaries are available for most platforms, to build from source
+[zig](https://ziglang.org/learn/getting-started/) needs to be installed.
+
 
 Examples
 --------
 
 The `examples` directory contains 4 example configurations, processing data
-from four sources into a GTFS file. Before running the examples, run the following commands:
-
-```terminal
-$ python -m venv .venv  # Unless already run
-$ . .venv/bin/activate  # Unless already run
-$ pip install -U pip    # Unless already run
-$ pip install -Ur requirements.examples.txt
-$ pip install --no-build-isolation --editable .  # Unless already run
-```
+from four sources into a GTFS file. If you wish to run them, consult with the
+[Development](#development) section of the readme to set up the environment correctly.
 
 ### Kraków
 
@@ -155,3 +129,44 @@ comes from <https://github.com/MKuranowski/WarsawGTFS/blob/master/data_curated/s
 
 Run with `python -m examples.warsaw`, the result GTFS will
 be created at `_workspace_warsaw/warsaw.zip`.
+
+Development
+-----------
+
+Impuls uses [meson-python](https://meson-python.readthedocs.io/en/latest/index.html). The
+project layout is quite unorthodox, as Impuls in neither a pure-python module, nor a project
+with a bog-standard C/C++ extension. Instead the zig code is compiled into a shared library
+which is bundled alongside the python module.
+
+Zig allows super easy cross-compilation, while using a shared library allows a single wheel
+to be used across multiple python versions and implementations.
+
+Development requires python and zig to be installed. To set up the environment on Linux, run:
+
+```terminal
+$ python -m venv --upgrade-deps .venv
+$ . .venv/bin/activate
+$ pip install -Ur requirements.dev.txt
+$ pip install --no-build-isolation -Cbuild-dir=builddir --editable .
+$ ln -s ../../builddir/libextern.so impuls/extern
+```
+
+On MacOS, change the shared library file extension to `.dylib`. On Windows, change the extension
+of the shared library to `.dll`.
+
+To run python tests, simply execute `pytest`. To run zig tests, run `meson test -C builddir`.
+
+To run the examples, install their dependencies first (`pip install -Ur requirements.examples.txt`),
+then execute the example module, e.g. `python -m examples.krakow`.
+
+meson-python will automatically recompile the zig library whenever an editable impuls install is
+imported; set the `MESONPY_EDITABLE_VERBOSE` environment variable to `1` to see meson logs for build
+details.
+
+By default, the extern zig library will be built in debug mode. To change that, run
+`meson configure --buildtype=debugoptimized builddir` (buildtype can also be set to `debug` or
+`release`). To recompile the library, run `meson compile -C builddir`.
+
+Unfortunately, meson-python requires all python and zig source files in meson.build. Python
+files need to be listed for packaging to work, while zig source files need to be listed for
+the build backend to properly detect whether libextern needs to be recompiled.
