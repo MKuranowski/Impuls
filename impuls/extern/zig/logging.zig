@@ -34,7 +34,7 @@ pub const Logger = struct {
             self.handler(level, fmt);
         } else {
             var buf: [8192]u8 = undefined;
-            var msg = std.fmt.bufPrintZ(&buf, fmt, args) catch |e| blk: {
+            const msg = std.fmt.bufPrintZ(&buf, fmt, args) catch |e| blk: {
                 switch (e) {
                     error.NoSpaceLeft => {
                         buf[buf.len - 1] = 0;

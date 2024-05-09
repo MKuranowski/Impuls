@@ -239,7 +239,7 @@ test "gtfs.conversion.ColumnValue.scan" {
         defer s.deinit();
 
         try std.testing.expectEqual(true, try s.step());
-        var v = ColumnValue.scan(s, 0);
+        const v = ColumnValue.scan(s, 0);
         try std.testing.expectEqual(@as(i64, 42), v.Int);
     }
 
@@ -248,7 +248,7 @@ test "gtfs.conversion.ColumnValue.scan" {
         defer s.deinit();
 
         try std.testing.expectEqual(true, try s.step());
-        var v = ColumnValue.scan(s, 0);
+        const v = ColumnValue.scan(s, 0);
         try std.testing.expectEqual(@as(f64, -3.1415), v.Float);
     }
 
@@ -257,7 +257,7 @@ test "gtfs.conversion.ColumnValue.scan" {
         defer s.deinit();
 
         try std.testing.expectEqual(true, try s.step());
-        var v = ColumnValue.scan(s, 0);
+        const v = ColumnValue.scan(s, 0);
         try std.testing.expectEqualStrings("Foo Bar Baz", v.BorrowedString);
     }
 
@@ -266,7 +266,7 @@ test "gtfs.conversion.ColumnValue.scan" {
         defer s.deinit();
 
         try std.testing.expectEqual(true, try s.step());
-        var v = ColumnValue.scan(s, 0);
+        const v = ColumnValue.scan(s, 0);
         try std.testing.expectEqualStrings("Null", @tagName(v));
     }
 }

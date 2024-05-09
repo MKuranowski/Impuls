@@ -13,7 +13,7 @@ pub fn asIs(s: []const u8, _: u32) InvalidValueT!ColumnValue {
 }
 
 test "gtfs.conversion_from_gtfs.asIs" {
-    var v = try asIs("foo", 1);
+    const v = try asIs("foo", 1);
     try std.testing.expectEqualStrings("foo", v.BorrowedString);
 }
 
@@ -38,7 +38,7 @@ pub fn int(s: []const u8, _: u32) InvalidValueT!ColumnValue {
 }
 
 test "gtfs.conversion_from_gtfs.int" {
-    var v = try int("42", 1);
+    const v = try int("42", 1);
     try std.testing.expectEqual(@as(i64, 42), v.Int);
 
     try std.testing.expectError(InvalidValue, int("", 1));
@@ -85,7 +85,7 @@ pub fn float(s: []const u8, _: u32) InvalidValueT!ColumnValue {
 }
 
 test "gtfs.conversion_from_gtfs.float" {
-    var v = try float("-3.1415", 1);
+    const v = try float("-3.1415", 1);
     try std.testing.expectEqual(@as(f64, -3.1415), v.Float);
 
     try std.testing.expectError(InvalidValue, float("", 1));
@@ -229,7 +229,7 @@ pub fn time(str: []const u8, _: u32) InvalidValueT!ColumnValue {
 }
 
 test "gtfs.conversion_from_gtfs.time" {
-    var v = try time("12:15:30", 1);
+    const v = try time("12:15:30", 1);
     try std.testing.expectEqual(@as(i64, 12 * 3600 + 15 * 60 + 30), v.Int);
 
     try std.testing.expectError(InvalidValue, time("", 1));

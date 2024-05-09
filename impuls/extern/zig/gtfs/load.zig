@@ -17,12 +17,12 @@ pub fn load(logger: Logger, db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8
     var db = try sqlite3.Connection.init(db_path, .{});
     defer db.deinit();
 
-    var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{}, false);
+    var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
     var gpa = GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
-    var allocator = gpa.allocator();
+    const allocator = gpa.allocator();
 
     inline for (tables) |table| {
         try loadTable(logger, db, gtfs_dir, allocator, table);
@@ -96,7 +96,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// init creates a TableLoader for a given DB connection and CSV file.
         /// Necessary INSERT statements are compiled.
         fn init(logger: Logger, db: sqlite3.Connection, reader: ReaderType, allocator: Allocator) !Self {
-            var csv_reader = csv.reader(reader);
+            const csv_reader = csv.reader(reader);
             var csv_record = csv.Record.init(allocator);
             errdefer csv_record.deinit();
 
@@ -114,7 +114,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             errdefer insert.deinit();
 
             if (has_pi) {
-                var parent_insert = db.prepare(
+                const parent_insert = db.prepare(
                     "INSERT OR IGNORE INTO " ++ table.parent_implication.?.sql_table ++ " (" ++ table.parent_implication.?.sql_key ++ ") VALUES (?)",
                 ) catch |err| {
                     logger.err(
@@ -293,7 +293,7 @@ test "gtfs.load.simple" {
 
     const data = "foo,baz,bar\r\n1,Hello,42\r\n2,World,\r\n";
     var fbs = std.io.fixedBufferStream(data);
-    var reader = fbs.reader();
+    const reader = fbs.reader();
 
     const table = comptime Table{
         .gtfs_name = "spam.txt",
@@ -358,7 +358,7 @@ test "gtfs.load.with_parent_implication" {
 
     const data = "parent_id,seq\r\nA,0\r\nA,1\r\nB,1\r\nB,2\r\n";
     var fbs = std.io.fixedBufferStream(data);
-    var reader = fbs.reader();
+    const reader = fbs.reader();
 
     const table = comptime Table{
         .gtfs_name = "children.txt",

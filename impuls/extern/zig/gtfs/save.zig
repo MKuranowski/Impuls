@@ -5,7 +5,7 @@ const std = @import("std");
 const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
 
-const Atomic = std.atomic.Atomic;
+const Atomic = std.atomic.Value;
 const ColumnValue = c.ColumnValue;
 const fs = std.fs;
 const Logger = logging.Logger;
@@ -53,7 +53,7 @@ pub fn save(
     headers: *Headers,
     emit_empty_calendars: bool,
 ) !void {
-    var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{}, false);
+    var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
     var threads: [tables.len]?Thread = [_]?Thread{null} ** tables.len;
@@ -89,7 +89,7 @@ pub fn save(
     }
 
     wg.wait();
-    return if (failed.load(.Monotonic)) error.ThreadFailed else {};
+    return if (failed.load(.monotonic)) error.ThreadFailed else {};
 }
 
 /// TableSaver saves GTFS data from a given SQL table to a writer.
@@ -192,7 +192,7 @@ fn TableSaver(comptime table: Table) type {
 
             var buffer = bufferedWriterSize(8192, file.writer());
 
-            var header = sliceOverCStrings(c_header);
+            const header = sliceOverCStrings(c_header);
             var saver = try Self.init(db, buffer.writer(), header);
             defer saver.deinit();
 
@@ -221,7 +221,7 @@ fn TableSaver(comptime table: Table) type {
         ) void {
             defer wg.finish();
             Self.save(gtfs_dir, db_path, header, emit_empty_calendars) catch |err| {
-                failure.store(true, .Release);
+                failure.store(true, .release);
 
                 if (@errorReturnTrace()) |trace| {
                     logger.err(
@@ -283,7 +283,7 @@ test "gtfs.save.simple" {
         false,
     );
 
-    var content = try out_dir.dir.readFileAlloc(std.testing.allocator, "routes.txt", 16384);
+    const content = try out_dir.dir.readFileAlloc(std.testing.allocator, "routes.txt", 16384);
     defer std.testing.allocator.free(content);
 
     try std.testing.expectEqualStrings(
