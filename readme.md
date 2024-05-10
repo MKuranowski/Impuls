@@ -56,6 +56,9 @@ Pre-built binaries are available for most platforms, to build from source
 
 </details>
 
+The `LoadBusManMDB` task additionally requires [mdbtools](https://github.com/mdbtools/mdbtools)
+to be installed. This package is available in most package managers.
+
 Examples
 --------
 
@@ -156,7 +159,9 @@ which is bundled alongside the python module.
 Zig allows super easy cross-compilation, while using a shared library allows a single wheel
 to be used across multiple python versions and implementations.
 
-Development requires python and zig to be installed. To set up the environment on Linux, run:
+Development requires [python](https://python.org/), [zig](https://ziglang.org/learn/getting-started/)
+and [mdbtools](https://github.com/mdbtools/mdbtools/) (usually all 3 will be available in your
+package manager repositories) to be installed. To set up the environment on Linux, run:
 
 ```terminal
 $ python -m venv --upgrade-deps .venv
