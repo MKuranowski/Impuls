@@ -1,6 +1,6 @@
-from typing import final
-from pathlib import Path
 import sqlite3
+from pathlib import Path
+from typing import final
 
 from ..task import Task, TaskRuntime
 

@@ -17,8 +17,7 @@ from .types import Self
 
 
 class DatetimeNowLike(Protocol):
-    def __call__(self, tz: Optional[tzinfo] = ...) -> datetime:
-        ...
+    def __call__(self, tz: Optional[tzinfo] = ...) -> datetime: ...
 
 
 class MockDatetimeNow:

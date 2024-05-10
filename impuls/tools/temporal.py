@@ -50,12 +50,10 @@ class _DateRangeABC(ABC):
         ...
 
     @abstractmethod
-    def __hash__(self) -> int:
-        ...
+    def __hash__(self) -> int: ...
 
     @abstractmethod
-    def __eq__(self, o: Any) -> bool:
-        ...
+    def __eq__(self, o: Any) -> bool: ...
 
     @abstractmethod
     def isdisjoint(self, o: "DateRange") -> bool:
@@ -554,18 +552,15 @@ class BoundedDateRange(_DateRangeABC):
 
 
 @overload
-def date_range(start: Date, end: Date) -> BoundedDateRange:
-    ...
+def date_range(start: Date, end: Date) -> BoundedDateRange: ...
 
 
 @overload
-def date_range(start: Date, end: None = None) -> RightUnboundedDateRange:
-    ...
+def date_range(start: Date, end: None = None) -> RightUnboundedDateRange: ...
 
 
 @overload
-def date_range(start: None, end: Date) -> LeftUnboundedDateRange:
-    ...
+def date_range(start: None, end: Date) -> LeftUnboundedDateRange: ...
 
 
 def date_range(start: Date | None, end: Date | None = None) -> DateRange:

@@ -131,9 +131,10 @@ class TestHTTPResource(AbstractTestResource.Template):
         return mock_do_response
 
     def test(self) -> None:
-        with patch(
-            "impuls.resource.HTTPResource._do_request", self.prepare_mock_do_request()
-        ), self.mocked_dt.patch("impuls.resource.datetime"):
+        with (
+            patch("impuls.resource.HTTPResource._do_request", self.prepare_mock_do_request()),
+            self.mocked_dt.patch("impuls.resource.datetime"),
+        ):
             super().test()
 
 
