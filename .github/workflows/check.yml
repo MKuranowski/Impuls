@@ -25,6 +25,8 @@ jobs:
           version: 0.12.0
       - name: Set up Ninja
         uses: seanmiddleditch/gha-setup-ninja@v4
+      - name: Set up mdbtools
+        run: sudo apt-get install -qy --no-install-recommends mdbtools
       - name: Install dependencies
         run: pip install -Ur requirements.dev.txt
       - name: Build and install Impuls
