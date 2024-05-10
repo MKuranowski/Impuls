@@ -1,0 +1,45 @@
+name: Impuls automatic checks
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Set up Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.12.0
+      - name: Set up Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
+      - name: Install dependencies
+        run: pip install -Ur requirements.dev.txt
+      - name: Build and install Impuls
+        run: |
+          pip install --no-build-isolation -Cbuild-dir=builddir --editable .
+          ln -s ../../builddir/libextern.so impuls/extern
+      - name: Check Python formatting
+        run: black --check examples/ impuls/ tests/
+      - name: Check Python import ordering
+        run: isort --check examples/ impuls/ tests/
+      - name: Lint Python
+        run: flake8 examples/ impuls/ tests/
+      - name: Run Python tests
+        run: pytest
+      - name: Check zig formatting
+        run: zig fmt --check impuls/extern/zig/
+      - name: Run Zig tests
+        run: meson test -C builddir
