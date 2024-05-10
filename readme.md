@@ -31,6 +31,19 @@ Installation and compilation
 ----------------------------
 
 Impuls is mainly written in python, however a performance-critical part of this library is written
+in zig and bundled alongside the shared library. To compile and install the library,
+first ensure that [zig](https://ziglang.org/learn/getting-started/) is installed, then
+run the following, preferably inside of a
+[virtual environment](https://docs.python.org/3/library/venv.html):
+
+```
+pip install git+ssh://git@github.com/MKuranowski/Impuls
+```
+
+<details>
+<summary>Instructions once the library is published on PyPI:</summary>
+
+Impuls is mainly written in python, however a performance-critical part of this library is written
 in zig and bundled alongside the shared library. To install the library run the following,
 preferably inside of a [virtual environment](https://docs.python.org/3/library/venv.html):
 
@@ -41,6 +54,7 @@ pip install impuls
 Pre-built binaries are available for most platforms, to build from source
 [zig](https://ziglang.org/learn/getting-started/) needs to be installed.
 
+</details>
 
 Examples
 --------
