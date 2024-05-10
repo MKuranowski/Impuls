@@ -143,17 +143,17 @@ class TestTimeLimitedResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.mocked_dt = MockDatetimeNow(
             [
-                datetime.fromisoformat("2023-04-01T10:00:00Z"),  # 1st call to refresh
-                datetime.fromisoformat("2023-04-01T10:00:00Z"),  # 1st call to fetch (initial)
-                datetime.fromisoformat("2023-04-01T10:00:00Z"),  # 1st fetchTime set
-                datetime.fromisoformat("2023-04-01T10:00:15Z"),  # 2nd call to refresh
-                datetime.fromisoformat("2023-04-01T10:00:30Z"),  # 2nd fetch (limited; changed)
-                datetime.fromisoformat("2023-04-01T10:01:30Z"),  # 3rd fetch (not limited; changed)
-                datetime.fromisoformat("2023-04-01T10:01:30Z"),  # 2nd fetchTime set
-                datetime.fromisoformat("2023-04-01T10:02:00Z"),  # 4th fetch (limited; unchanged)
-                datetime.fromisoformat("2023-04-01T10:05:00Z"),  # 5th f. (not limited; unchanged)
-                datetime.fromisoformat("2023-04-01T10:06:00Z"),  # 6th fetch (unconditional)
-                datetime.fromisoformat("2023-04-01T10:06:00Z"),  # 3rd fetchTime set
+                datetime.fromisoformat("2023-04-01T10:00:00+00:00"),  # 1st call to refresh
+                datetime.fromisoformat("2023-04-01T10:00:00+00:00"),  # 1st call to fetch (initial)
+                datetime.fromisoformat("2023-04-01T10:00:00+00:00"),  # 1st fetchTime set
+                datetime.fromisoformat("2023-04-01T10:00:15+00:00"),  # 2nd call to refresh
+                datetime.fromisoformat("2023-04-01T10:00:30+00:00"),  # 2nd fetch (ltd.; changed)
+                datetime.fromisoformat("2023-04-01T10:01:30+00:00"),  # 3rd fetch (n/ltd.; changed)
+                datetime.fromisoformat("2023-04-01T10:01:30+00:00"),  # 2nd fetchTime set
+                datetime.fromisoformat("2023-04-01T10:02:00+00:00"),  # 4th fetch (ltd.; unchanged)
+                datetime.fromisoformat("2023-04-01T10:05:00+00:00"),  # 5th f. (n/ltd.; unchanged)
+                datetime.fromisoformat("2023-04-01T10:06:00+00:00"),  # 6th fetch (unconditional)
+                datetime.fromisoformat("2023-04-01T10:06:00+00:00"),  # 3rd fetchTime set
             ]
         )
 
@@ -264,8 +264,8 @@ class TestResourceCaching(unittest.TestCase):
     def test_read_metadata(self) -> None:
         r = MockResource()
         impuls.resource._read_metadata(r, FIXTURES_DIR / "resource_metadata.json")
-        self.assertEqual(r.last_modified, datetime.fromisoformat("2023-04-01T10:00:00Z"))
-        self.assertEqual(r.fetch_time, datetime.fromisoformat("2023-04-01T10:08:12Z"))
+        self.assertEqual(r.last_modified, datetime.fromisoformat("2023-04-01T10:00:00+00:00"))
+        self.assertEqual(r.fetch_time, datetime.fromisoformat("2023-04-01T10:08:12+00:00"))
 
     def test_read_metadata_missing(self) -> None:
         r = MockResource()
@@ -276,8 +276,8 @@ class TestResourceCaching(unittest.TestCase):
     def test_write_metadata(self) -> None:
         with MockFile() as f:
             r = MockResource(
-                last_modified=datetime.fromisoformat("2023-04-01T10:00:00Z"),
-                fetch_time=datetime.fromisoformat("2023-04-01T10:08:12Z"),
+                last_modified=datetime.fromisoformat("2023-04-01T10:00:00+00:00"),
+                fetch_time=datetime.fromisoformat("2023-04-01T10:08:12+00:00"),
             )
             impuls.resource._write_metadata(r, f)
 
@@ -314,9 +314,11 @@ class TestResourceCaching(unittest.TestCase):
                 json.dump(
                     {
                         "last_modified": datetime.fromisoformat(
-                            "2023-04-01T11:30:00Z"
+                            "2023-04-01T11:30:00+00:00"
                         ).timestamp(),
-                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                        "fetch_time": datetime.fromisoformat(
+                            "2023-04-01T12:00:00+00:00"
+                        ).timestamp(),
                     },
                     f,
                 )
@@ -331,10 +333,12 @@ class TestResourceCaching(unittest.TestCase):
                         #       Will be set in the outdated_resource by read_metadata call
                         #       within cache_resources.
                         "last_modified": datetime.fromisoformat(
-                            "2023-04-01T13:30:00Z"
+                            "2023-04-01T13:30:00+00:00"
                         ).timestamp(),
                         # NOTE: This is a mocked "old" fetch_time
-                        "fetch_time": datetime.fromisoformat("2023-04-01T08:00:00Z").timestamp(),
+                        "fetch_time": datetime.fromisoformat(
+                            "2023-04-01T08:00:00+00:00"
+                        ).timestamp(),
                     },
                     f,
                 )
@@ -345,7 +349,9 @@ class TestResourceCaching(unittest.TestCase):
 
             # 4. Local Resource
             local_resource_file.write_bytes(b"We the peoples of the United Nations\n")
-            local_res_mod_timestamp = datetime.fromisoformat("2023-04-01T22:00:00Z").timestamp()
+            local_res_mod_timestamp = datetime.fromisoformat(
+                "2023-04-01T22:00:00+00:00"
+            ).timestamp()
             os.utime(local_resource_file, (local_res_mod_timestamp, local_res_mod_timestamp))
             local_resource = LocalResource(local_resource_file)
 
@@ -369,11 +375,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")
             self.assertEqual(
                 r["cached.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T11:30:00Z"),
+                datetime.fromisoformat("2023-04-01T11:30:00+00:00"),
             )
             self.assertEqual(
                 r["cached.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T12:00:00Z"),
+                datetime.fromisoformat("2023-04-01T12:00:00+00:00"),
             )
 
             # 2. Outdated resource
@@ -381,11 +387,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["outdated.txt"].bytes(), b"Hello, new world!\n")
             self.assertEqual(
                 r["outdated.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T13:30:00Z"),
+                datetime.fromisoformat("2023-04-01T13:30:00+00:00"),
             )
             self.assertGreater(
                 r["outdated.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-02T00:00:00Z"),
+                datetime.fromisoformat("2023-04-02T00:00:00+00:00"),
             )
 
             # 3. Missing resource
@@ -394,11 +400,11 @@ class TestResourceCaching(unittest.TestCase):
             # NOTE: read_metadata breaks MockResource.last_modified
             # self.assertEqual(
             #     r["missing.txt"].last_modified,
-            #     datetime.fromisoformat("2023-04-01T08:00:00Z"),
+            #     datetime.fromisoformat("2023-04-01T08:00:00+00:00"),
             # )
             self.assertGreater(
                 r["missing.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-02T00:00:00Z"),
+                datetime.fromisoformat("2023-04-02T00:00:00+00:00"),
             )
 
             # 4. Local Resource
@@ -406,11 +412,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["local.txt"].bytes(), b"We the peoples of the United Nations\n")
             self.assertEqual(
                 r["local.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+                datetime.fromisoformat("2023-04-01T22:00:00+00:00"),
             )
             self.assertEqual(
                 r["local.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+                datetime.fromisoformat("2023-04-01T22:00:00+00:00"),
             )
 
     def test_cache_resources_not_modified(self) -> None:
@@ -423,9 +429,11 @@ class TestResourceCaching(unittest.TestCase):
                 json.dump(
                     {
                         "last_modified": datetime.fromisoformat(
-                            "2023-04-01T11:30:00Z"
+                            "2023-04-01T11:30:00+00:00"
                         ).timestamp(),
-                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                        "fetch_time": datetime.fromisoformat(
+                            "2023-04-01T12:00:00+00:00"
+                        ).timestamp(),
                     },
                     f,
                 )
@@ -433,7 +441,9 @@ class TestResourceCaching(unittest.TestCase):
 
             # 2. Local Resource
             local_resource_file.write_bytes(b"We the peoples of the United Nations\n")
-            local_res_mod_timestamp = datetime.fromisoformat("2023-04-01T22:00:00Z").timestamp()
+            local_res_mod_timestamp = datetime.fromisoformat(
+                "2023-04-01T22:00:00+00:00"
+            ).timestamp()
             os.utime(local_resource_file, (local_res_mod_timestamp, local_res_mod_timestamp))
             with (workspace / "local.txt.metadata").open(mode="w") as f:
                 json.dump(
@@ -464,9 +474,11 @@ class TestResourceCaching(unittest.TestCase):
                 json.dump(
                     {
                         "last_modified": datetime.fromisoformat(
-                            "2023-04-01T11:30:00Z"
+                            "2023-04-01T11:30:00+00:00"
                         ).timestamp(),
-                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                        "fetch_time": datetime.fromisoformat(
+                            "2023-04-01T12:00:00+00:00"
+                        ).timestamp(),
                     },
                     f,
                 )
@@ -474,7 +486,9 @@ class TestResourceCaching(unittest.TestCase):
 
             # 2. Local resource
             local_resource_file.write_bytes(b"We the peoples of the United Nations\n")
-            local_res_mod_timestamp = datetime.fromisoformat("2023-04-01T22:00:00Z").timestamp()
+            local_res_mod_timestamp = datetime.fromisoformat(
+                "2023-04-01T22:00:00+00:00"
+            ).timestamp()
             os.utime(local_resource_file, (local_res_mod_timestamp, local_res_mod_timestamp))
 
             # Check if resources are cached
@@ -494,11 +508,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")
             self.assertEqual(
                 r["cached.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T11:30:00Z"),
+                datetime.fromisoformat("2023-04-01T11:30:00+00:00"),
             )
             self.assertEqual(
                 r["cached.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T12:00:00Z"),
+                datetime.fromisoformat("2023-04-01T12:00:00+00:00"),
             )
 
             # 2. Local Resource
@@ -506,11 +520,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["local.txt"].bytes(), b"We the peoples of the United Nations\n")
             self.assertEqual(
                 r["local.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+                datetime.fromisoformat("2023-04-01T22:00:00+00:00"),
             )
             self.assertEqual(
                 r["local.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+                datetime.fromisoformat("2023-04-01T22:00:00+00:00"),
             )
 
     def test_ensure_resources_cached_missing(self) -> None:
@@ -557,9 +571,11 @@ class TestResourceCaching(unittest.TestCase):
                 json.dump(
                     {
                         "last_modified": datetime.fromisoformat(
-                            "2023-04-01T11:30:00Z"
+                            "2023-04-01T11:30:00+00:00"
                         ).timestamp(),
-                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                        "fetch_time": datetime.fromisoformat(
+                            "2023-04-01T12:00:00+00:00"
+                        ).timestamp(),
                     },
                     f,
                 )
@@ -567,7 +583,9 @@ class TestResourceCaching(unittest.TestCase):
 
             # 2. Local resource
             local_resource_file.write_bytes(b"We the peoples of the United Nations\n")
-            local_res_mod_timestamp = datetime.fromisoformat("2023-04-01T22:00:00Z").timestamp()
+            local_res_mod_timestamp = datetime.fromisoformat(
+                "2023-04-01T22:00:00+00:00"
+            ).timestamp()
             os.utime(local_resource_file, (local_res_mod_timestamp, local_res_mod_timestamp))
 
             # Check if resources are cached
@@ -589,11 +607,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["cached.txt"].bytes(), b"Hello, world!\n")
             self.assertEqual(
                 r["cached.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T11:30:00Z"),
+                datetime.fromisoformat("2023-04-01T11:30:00+00:00"),
             )
             self.assertEqual(
                 r["cached.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T12:00:00Z"),
+                datetime.fromisoformat("2023-04-01T12:00:00+00:00"),
             )
 
             # 2. Local Resource
@@ -601,11 +619,11 @@ class TestResourceCaching(unittest.TestCase):
             self.assertEqual(r["local.txt"].bytes(), b"We the peoples of the United Nations\n")
             self.assertEqual(
                 r["local.txt"].last_modified,
-                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+                datetime.fromisoformat("2023-04-01T22:00:00+00:00"),
             )
             self.assertEqual(
                 r["local.txt"].fetch_time,
-                datetime.fromisoformat("2023-04-01T22:00:00Z"),
+                datetime.fromisoformat("2023-04-01T22:00:00+00:00"),
             )
 
     def test_prepare_resources_from_cache_missing(self) -> None:
@@ -644,9 +662,11 @@ class TestResourceCaching(unittest.TestCase):
                 json.dump(
                     {
                         "last_modified": datetime.fromisoformat(
-                            "2023-04-01T11:30:00Z"
+                            "2023-04-01T11:30:00+00:00"
                         ).timestamp(),
-                        "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                        "fetch_time": datetime.fromisoformat(
+                            "2023-04-01T12:00:00+00:00"
+                        ).timestamp(),
                     },
                     f,
                 )

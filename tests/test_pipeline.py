@@ -77,8 +77,10 @@ class TestPipeline(TestCase):
         with self.workspace_dir.path.joinpath("hello.txt.metadata").open(mode="w") as f:
             json.dump(
                 {
-                    "last_modified": datetime.fromisoformat("2023-04-01T11:30:00Z").timestamp(),
-                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    "last_modified": datetime.fromisoformat(
+                        "2023-04-01T11:30:00+00:00"
+                    ).timestamp(),
+                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00+00:00").timestamp(),
                 },
                 f,
             )
@@ -133,8 +135,10 @@ class TestPipeline(TestCase):
         with self.workspace_dir.path.joinpath("hello.txt.metadata").open(mode="w") as f:
             json.dump(
                 {
-                    "last_modified": datetime.fromisoformat("2023-04-01T11:30:00Z").timestamp(),
-                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    "last_modified": datetime.fromisoformat(
+                        "2023-04-01T11:30:00+00:00"
+                    ).timestamp(),
+                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00+00:00").timestamp(),
                 },
                 f,
             )
@@ -171,11 +175,11 @@ class TestPipeline(TestCase):
                 self.test.assertEqual(res.text(), "Hello, world!\n")
                 self.test.assertEqual(
                     res.last_modified,
-                    datetime.fromisoformat("2023-04-01T11:30:00Z"),
+                    datetime.fromisoformat("2023-04-01T11:30:00+00:00"),
                 )
                 self.test.assertEqual(
                     res.fetch_time,
-                    datetime.fromisoformat("2023-04-01T12:00:00Z"),
+                    datetime.fromisoformat("2023-04-01T12:00:00+00:00"),
                 )
 
         # Pretend the resource is cached
@@ -183,8 +187,10 @@ class TestPipeline(TestCase):
         with self.workspace_dir.path.joinpath("hello.txt.metadata").open(mode="w") as f:
             json.dump(
                 {
-                    "last_modified": datetime.fromisoformat("2023-04-01T11:30:00Z").timestamp(),
-                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00Z").timestamp(),
+                    "last_modified": datetime.fromisoformat(
+                        "2023-04-01T11:30:00+00:00"
+                    ).timestamp(),
+                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00+00:00").timestamp(),
                 },
                 f,
             )
@@ -192,7 +198,7 @@ class TestPipeline(TestCase):
         # Pretend a newer version is available
         r = MockResource(
             b"Hello, new world!\n",
-            last_modified=datetime.fromisoformat("2023-05-01T11:00:00Z"),
+            last_modified=datetime.fromisoformat("2023-05-01T11:00:00+00:00"),
             persist_last_modified=True,
         )
 

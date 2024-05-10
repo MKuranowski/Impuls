@@ -53,8 +53,8 @@ class TestIntermediateFeed(TestCase):
         f = IntermediateFeed(
             MockResource(
                 b"",
-                datetime.fromisoformat("2023-04-02T12:57:00Z"),
-                datetime.fromisoformat("2023-04-01T11:10:00Z"),
+                datetime.fromisoformat("2023-04-02T12:57:00+00:00"),
+                datetime.fromisoformat("2023-04-01T11:10:00+00:00"),
             ),
             "foo_v1.txt",
             "v1",
@@ -66,11 +66,11 @@ class TestIntermediateFeed(TestCase):
         self.assertEqual(local_f.resource.path, p)
         self.assertEqual(
             local_f.resource.fetch_time,
-            datetime.fromisoformat("2023-04-02T12:57:00Z"),
+            datetime.fromisoformat("2023-04-02T12:57:00+00:00"),
         )
         self.assertEqual(
             local_f.resource.last_modified,
-            datetime.fromisoformat("2023-04-01T11:10:00Z"),
+            datetime.fromisoformat("2023-04-01T11:10:00+00:00"),
         )
         self.assertEqual(local_f.resource_name, "foo_v1.txt")
         self.assertEqual(local_f.version, "v1")
@@ -80,8 +80,8 @@ class TestIntermediateFeed(TestCase):
         f = IntermediateFeed(
             MockResource(
                 b"",
-                datetime.fromisoformat("2023-04-02T12:57:00Z"),
-                datetime.fromisoformat("2023-04-01T11:10:00Z"),
+                datetime.fromisoformat("2023-04-02T12:57:00+00:00"),
+                datetime.fromisoformat("2023-04-01T11:10:00+00:00"),
             ),
             "foo_v1.txt",
             "v1",
@@ -114,11 +114,11 @@ class TestIntermediateFeed(TestCase):
         self.assertEqual(f.resource.path, p)
         self.assertEqual(
             f.resource.fetch_time,
-            datetime.fromisoformat("2023-04-02T12:57:00Z"),
+            datetime.fromisoformat("2023-04-02T12:57:00+00:00"),
         )
         self.assertEqual(
             f.resource.last_modified,
-            datetime.fromisoformat("2023-04-01T11:10:00Z"),
+            datetime.fromisoformat("2023-04-01T11:10:00+00:00"),
         )
         self.assertEqual(f.resource_name, "foo_v1.txt")
         self.assertEqual(f.version, "v1")
