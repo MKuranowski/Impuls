@@ -10,7 +10,6 @@ requires-python = ">=3.10"
 dependencies = ["requests", "pyyaml", "typing_extensions"]
 authors = [{name = "Mikołaj Kuranowski", email = "mkuranowski@gmail.com"}]
 
-
 [tool.black]
 line-length = 99
 
@@ -19,7 +18,7 @@ profile = "black"
 line_length = 99
 
 [tool.pytest.ini_options]
-addopts = "--doctest-modules"
+addopts = "--doctest-modules --ignore=examples"
 
 [tool.pyright]
 typeCheckingMode = "strict"
