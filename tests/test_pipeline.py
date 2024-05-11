@@ -215,14 +215,14 @@ class TestPipeline(TestCase):
 
         self.assertTrue(t.called)
 
-    def test_option_save_db_in_workspace(self) -> None:
-        o = PipelineOptions(save_db_in_workspace=True, workspace_directory=self.workspace_dir.path)
+    def test_option_saves_db_in_workspace(self) -> None:
+        o = PipelineOptions(workspace_directory=self.workspace_dir.path)
         p = Pipeline([DummyTask()], options=o)
         p.run()
         self.assertTrue(self.workspace_dir.path.joinpath("impuls.db").exists())
 
     def test_removes_existing_db(self) -> None:
-        o = PipelineOptions(workspace_directory=self.workspace_dir.path, save_db_in_workspace=True)
+        o = PipelineOptions(workspace_directory=self.workspace_dir.path)
 
         (self.workspace_dir.path / "impuls.db").write_bytes(b"")
 
@@ -239,7 +239,7 @@ class TestPipeline(TestCase):
         self.assertEqual(t.executed_count, 1)
 
     def test_run_on_existing_db(self) -> None:
-        o = PipelineOptions(workspace_directory=self.workspace_dir.path, save_db_in_workspace=True)
+        o = PipelineOptions(workspace_directory=self.workspace_dir.path)
 
         copyfile(
             str(Path(__file__).parent / "tasks" / "fixtures" / "wkd.db"),

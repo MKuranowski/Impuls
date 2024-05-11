@@ -366,15 +366,8 @@ class MultiFile(Generic[ResourceT_co]):
                 tasks=self.intermediate_pipeline_tasks_factory(feed),
                 options=self.options,
                 name=feed.version,
+                db_path=path / f"{feed.version}.db",
             )
-
-            # Unless asked to, work on an in-memory database
-            intermediate_db_path = path / f"{feed.version}.db"
-            if self.options.save_db_in_workspace:
-                pipeline.db_path = intermediate_db_path
-            else:
-                pipeline.db_path = None
-                pipeline.tasks.append(SaveDB(intermediate_db_path))
 
             # Make the intermediate input and additional resources available
             pipeline.managed_resources = {**resources}

@@ -25,6 +25,3 @@ class PipelineOptions:
 
     If the given directory doesn't exist, pipeline attempts to create it (and its parents).
     """
-
-    save_db_in_workspace: bool = True
-    """Deprecated and ignored - databases are always saved in the workspace."""

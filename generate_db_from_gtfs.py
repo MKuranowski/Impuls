@@ -29,7 +29,6 @@ def main() -> None:
             options=impuls.PipelineOptions(
                 force_run=True,
                 workspace_directory=temp_workspace,
-                save_db_in_workspace=True,
             ),
         )
         impuls.initialize_logging(verbose=True)

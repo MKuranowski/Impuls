@@ -526,22 +526,15 @@ class TestMultiFile(TestCase):
         self.assertEqual(p.options, self.options)
 
         db_path = self.workspace.path / "intermediate_dbs" / f"{version}.db"
-        if p.options.save_db_in_workspace:
-            self.assertEqual(p.db_path, db_path)
-        else:
-            self.assertIsNone(p.db_path)
+        self.assertEqual(p.db_path, db_path)
 
         assert p.managed_resources is not None
         self.assertEqual(len(p.managed_resources), 1)
         self.assertIn(f"{version}.txt", p.managed_resources)
 
-        self.assertEqual(len(p.tasks), 1 if p.options.save_db_in_workspace else 2)
+        self.assertEqual(len(p.tasks), 1)
         self.assertIsInstance(p.tasks[0], DummyTask)
         self.assertEqual(p.tasks[0].name, f"DummyTask.{version}")
-
-        if not p.options.save_db_in_workspace:
-            self.assertIsInstance(p.tasks[1], SaveDB)
-            self.assertEqual(cast(SaveDB, p.tasks[1]).to, db_path)
 
     def check_pre_merge_tasks(
         self,
@@ -803,10 +796,9 @@ class TestMultiFile(TestCase):
         self.check_final_pipeline(final)
         self.multi_file.intermediate_provider.needed.assert_not_called()
 
-    def test_save_db_in_workspace(self) -> None:
+    def test_saves_db_in_workspace(self) -> None:
         self.options = PipelineOptions(
             workspace_directory=self.workspace.path,
-            save_db_in_workspace=True,
         )
         self.multi_file.options = self.options
         intermediates, final = self.multi_file.prepare()

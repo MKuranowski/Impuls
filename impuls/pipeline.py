@@ -40,8 +40,6 @@ class Pipeline:
         self.options.workspace_directory.mkdir(parents=True, exist_ok=True)
 
         # Figure out the database path
-        if not self.options.save_db_in_workspace:
-            self.logger.warning("in-memory databases are deprecated, an on-disk one will be used")
         self.db_path: Path = (
             Path(db_path) if db_path else self.options.workspace_directory / "impuls.db"
         )

@@ -23,13 +23,7 @@ class AbstractTestTask:
         runtime: TaskRuntime
 
         def _prepare_db(self) -> DBConnection:
-            # Where to open the database, as prescribed by the "save_db_in_workspace" option
-            db_path = (
-                str(self.workspace.path / "impuls.db")
-                if self.options.save_db_in_workspace
-                else ":memory:"
-            )
-
+            db_path = self.workspace.path / "impuls.db"
             if self.db_name:
                 return DBConnection.cloned(from_=Path(FIXTURES_DIR, self.db_name), in_=db_path)
             else:
