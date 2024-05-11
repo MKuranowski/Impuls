@@ -1,6 +1,7 @@
 import csv
 from abc import abstractmethod
-from typing import Any, Callable, Iterator, Mapping, NamedTuple, Optional, Type, cast, final
+from dataclasses import dataclass
+from typing import Any, Callable, Iterator, Mapping, Optional, Type, cast, final
 
 from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
@@ -9,7 +10,8 @@ from ..resource import ManagedResource
 from ..task import Task, TaskRuntime
 
 
-class CSVFieldData(NamedTuple):
+@dataclass
+class CSVFieldData:
     """CSVFieldData describes metadata about a field from CSV field
     with new data to be applied."""
 
@@ -100,7 +102,7 @@ class ModifyFromCSV(Task):
 
         # Try to curate the entity
         invalid_fields: list[str] = []
-        for csv_field, (entity_field, converter) in self.csv_column_mapping().items():
+        for csv_field, field_data in self.csv_column_mapping().items():
             # Skip unknown columns
             if csv_field not in row:
                 continue
@@ -111,10 +113,10 @@ class ModifyFromCSV(Task):
             if not raw_value:
                 # Skip empty cells
                 continue
-            elif converter:
+            elif field_data.converter:
                 # Have to convert from string to a different type
                 try:
-                    value = converter(raw_value)
+                    value = field_data.converter(raw_value)
                 except ValueError:
                     invalid_fields.append(csv_field)
                     continue
@@ -123,7 +125,7 @@ class ModifyFromCSV(Task):
                 value = raw_value
 
             # Set the value on the entity
-            setattr(entity, entity_field, value)
+            setattr(entity, field_data.entity_field, value)
 
         # Check if all fields were parsed correctly
         if invalid_fields:
@@ -241,10 +243,11 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
 
     @staticmethod
     def csv_column_mapping() -> Mapping[str, CSVFieldData]:
+        route_type_converter = CSVFieldData("type", lambda x: Route.Type(int(x)))
         return {
             "route_short_name": CSVFieldData("short_name"),
             "route_long_name": CSVFieldData("long_name"),
-            "route_type": CSVFieldData("type", lambda x: Route.Type(int(x))),
+            "route_type": route_type_converter,
             "route_color": CSVFieldData("color"),
             "route_text_color": CSVFieldData("text_color"),
             "route_sort_order": CSVFieldData("sort_order", int),
