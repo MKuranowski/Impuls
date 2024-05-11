@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from logging import getLogger
 from operator import attrgetter
 from pathlib import Path
-from typing import Any, Callable, Generic, Mapping, NamedTuple, Protocol, Type, TypedDict, TypeVar
+from typing import Any, Callable, Generic, Mapping, NamedTuple, Protocol, TypedDict, TypeVar
 
 from .errors import InputNotModified
 from .model import Date
@@ -25,8 +25,8 @@ from .tasks import SaveDB, TruncateCalendars, merge
 from .tools.temporal import date_range
 from .tools.types import Self
 
-AnyResource = TypeVar("AnyResource", bound=Resource)
-AnyResource_co = TypeVar("AnyResource_co", bound=Resource, covariant=True)
+ResourceT = TypeVar("ResourceT", bound=Resource)
+ResourceT_co = TypeVar("ResourceT_co", bound=Resource, covariant=True)
 
 logger = getLogger("MultiFile")
 
@@ -63,11 +63,11 @@ class _CachedFeedMetadata(TypedDict):
 
 
 @dataclass(frozen=True)
-class IntermediateFeed(Generic[AnyResource]):
+class IntermediateFeed(Generic[ResourceT]):
     """IntermediateFeed represents self-contained schedules for a set period of time -
     a single version of schedules."""
 
-    resource: AnyResource
+    resource: ResourceT
     """resource represents arbitrary data containing schedule data. This resource's
     last_modified time must be filled in by the IntermediateFeedProvider - and must be available
     before the first call to fetch."""
@@ -120,7 +120,7 @@ class IntermediateFeed(Generic[AnyResource]):
         )
 
 
-class IntermediateFeedProvider(Protocol[AnyResource]):
+class IntermediateFeedProvider(Protocol[ResourceT]):
     """IntermediateFeedProvider is an abstraction over an external repository of versioned
     schedules. The provider is responsible for communicating with the external repository
     and figuring out which feeds are needed to create a complete database.
@@ -128,10 +128,10 @@ class IntermediateFeedProvider(Protocol[AnyResource]):
     The IntermediateFeedProvider is also responsible for filling in the last_modified
     field of generated feeds' resources."""
 
-    def needed(self) -> list[IntermediateFeed[AnyResource]]: ...
+    def needed(self) -> list[IntermediateFeed[ResourceT]]: ...
 
 
-def prune_outdated_feeds(feeds: list[IntermediateFeed[AnyResource]], today: Date) -> None:
+def prune_outdated_feeds(feeds: list[IntermediateFeed[ResourceT]], today: Date) -> None:
     """Removes feeds which end before `today`."""
     feeds.sort(key=attrgetter("start_date"))
 
@@ -160,7 +160,7 @@ def empty_tasks_factory(*_: Any) -> list[Task]:
 
 
 @dataclass
-class MultiFile(Generic[AnyResource_co]):
+class MultiFile(Generic[ResourceT_co]):
     """MultiFile prepares Pipelines and Resources for creating a single,
     continuous database, when the source data is available in multiple disjoint files.
 
@@ -209,7 +209,7 @@ class MultiFile(Generic[AnyResource_co]):
     options: PipelineOptions
     """Options for the MultiFile process and created Pipelines."""
 
-    intermediate_provider: IntermediateFeedProvider[AnyResource_co]
+    intermediate_provider: IntermediateFeedProvider[ResourceT_co]
     """intermediate_provider is responsible for calculating which intermediate feeds
     are required to create the final database."""
 
@@ -299,7 +299,7 @@ class MultiFile(Generic[AnyResource_co]):
 
         return Pipelines(intermediates, final)
 
-    def resolve_versions(self) -> "_ResolvedVersions[AnyResource_co]":
+    def resolve_versions(self) -> "_ResolvedVersions[ResourceT_co]":
         # If from_cache - resolve only based on locally cached files
         if self.options.from_cache:
             # NOTE: No changes to cached inputs will be made - no need to invalidate the cache
@@ -310,7 +310,7 @@ class MultiFile(Generic[AnyResource_co]):
         logger.info("Checking needed intermediate feeds")
         needed = self.intermediate_provider.needed()
         cached = _load_cached(self.intermediate_inputs_path())
-        return _ResolvedVersions.from_(needed, cached)
+        return _ResolvedVersions[ResourceT_co].from_(needed, cached)
 
     def prepare_intermediate_pipelines(
         self,
@@ -478,7 +478,7 @@ class MultiFile(Generic[AnyResource_co]):
 
 
 @dataclass
-class _ResolvedVersions(Generic[AnyResource]):
+class _ResolvedVersions(Generic[ResourceT]):
     """ResolvedVersions groups both cached and external versions
     by the action that needs to be taken"""
 
@@ -490,13 +490,13 @@ class _ResolvedVersions(Generic[AnyResource]):
     up_to_date: list[IntermediateFeed[LocalResource]] = field(default_factory=list)
     """Subset of cached feeds which are needed and up-to-date."""
 
-    to_fetch: list[IntermediateFeed[AnyResource]] = field(default_factory=list)
+    to_fetch: list[IntermediateFeed[ResourceT]] = field(default_factory=list)
     """Subset of needed feeds which need to be pulled and processed."""
 
     @classmethod
     def from_(
-        cls: Type[Self],
-        needed: list[IntermediateFeed[AnyResource]],
+        cls,
+        needed: list[IntermediateFeed[ResourceT]],
         cached: list[IntermediateFeed[LocalResource]],
     ) -> Self:
         """Resolves versions based on all needed and all cached feeds."""
@@ -634,7 +634,7 @@ def _load_cached(intermediate_inputs_path: Path) -> list[IntermediateFeed[LocalR
 
 def _save_to_cache(
     intermediate_inputs_path: Path,
-    feed: IntermediateFeed[AnyResource],
+    feed: IntermediateFeed[ResourceT],
 ) -> IntermediateFeed[LocalResource]:
     """Downloads the intermediate input into its cache"""
     # TODO: Check if the resource name can be used as a filename
