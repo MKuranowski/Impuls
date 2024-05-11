@@ -409,13 +409,25 @@ class ManagedResource:
         """size returns the size of the file in bytes"""
         return self.stored_at.stat().st_size
 
-    def open_text(self, **open_args: Any) -> TextIO:
+    def open_text(
+        self,
+        buffering: int = -1,
+        encoding: Optional[str] = None,
+        errors: Optional[str] = None,
+        newline: Optional[str] = None,
+    ) -> TextIO:
         """open_text opens the cached file in "r" mode, with the provided arguments"""
-        return self.stored_at.open(mode="r", **open_args)
+        return self.stored_at.open(
+            mode="r",
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
 
-    def open_binary(self, **open_args: Any) -> BinaryIO:
+    def open_binary(self, buffering: int = -1) -> BinaryIO:
         """open_text opens the cached file in "rb" mode, with the provided arguments"""
-        return self.stored_at.open(mode="rb", **open_args)  # type: ignore
+        return self.stored_at.open(mode="rb", buffering=buffering)
 
     def text(self, encoding: Optional[str] = None, errors: Optional[str] = None) -> str:
         """text reads the content of the file into a string.
