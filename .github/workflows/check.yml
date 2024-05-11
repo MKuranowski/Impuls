@@ -28,7 +28,7 @@ jobs:
       - name: Set up mdbtools
         run: sudo apt-get install -qy --no-install-recommends mdbtools
       - name: Install dependencies
-        run: pip install -Ur requirements.dev.txt
+        run: pip install -r requirements.dev.txt -r requirements.examples.txt
       - name: Build and install Impuls
         run: |
           pip install --no-build-isolation -Cbuild-dir=builddir --editable .
@@ -39,9 +39,14 @@ jobs:
         run: isort --check examples/ impuls/ tests/
       - name: Lint Python
         run: flake8 examples/ impuls/ tests/
+      - name: Type Check Python
+        uses: jakebailey/pyright-action@v2
+        with:
+          pylance-version: latest-release
+          extra-args: "examples/ impuls/ tests/"
       - name: Run Python tests
         run: pytest
-      - name: Check zig formatting
+      - name: Check Zig formatting
         run: zig fmt --check impuls/extern/zig/
       - name: Run Zig tests
         run: meson test -C builddir
