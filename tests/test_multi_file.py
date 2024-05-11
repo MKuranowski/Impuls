@@ -24,7 +24,7 @@ from impuls.multi_file import (
     logger,
     prune_outdated_feeds,
 )
-from impuls.tasks import SaveDB, TruncateCalendars, merge
+from impuls.tasks import TruncateCalendars, merge
 from impuls.tools.temporal import date_range
 from impuls.tools.testing_mocks import MockDatetimeNow, MockFile, MockResource
 
@@ -292,7 +292,7 @@ class TestResolvedVersions(TestCase):
             )
             needed_not_cached.resource.last_modified = datetime(2023, 4, 5)
 
-            resolved = _ResolvedVersions.from_(
+            resolved = _ResolvedVersions[MockResource].from_(
                 [needed_already_cached, needed_cached_stale, needed_not_cached],
                 [cached_no_longer_needed, cached_up_to_date, cached_stale],
             )
