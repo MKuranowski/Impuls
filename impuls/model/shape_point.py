@@ -65,6 +65,6 @@ class ShapePoint(Entity):
             .field("sequence", int)
             .field("lat", float)
             .field("lon", float)
-            .field("shape_dist_traveled", float, nullable=True)
+            .nullable_field("shape_dist_traveled", float)
             .kwargs()
         )

@@ -113,8 +113,8 @@ class Stop(Entity):
             .field("code", str)
             .field("zone_id", str)
             .field("location_type", int, lambda x: cls.LocationType(x))
-            .field("parent_station", Optional[str], lambda x: x or "")  # type: ignore
-            .field("wheelchair_boarding", bool, nullable=True)
+            .optional_field("parent_station", str, lambda x: x or "")
+            .nullable_field("wheelchair_boarding", bool)
             .field("platform_code", str)
             .field("pkpplk_code", str)
             .field("ibnr_code", str)

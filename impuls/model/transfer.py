@@ -109,11 +109,11 @@ class Transfer(Entity):
             .field("id", int)
             .field("from_stop_id", str)
             .field("to_stop_id", str)
-            .field("from_route_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("to_route_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("from_trip_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("to_trip_id", Optional[str], lambda x: x or "")  # type: ignore
+            .optional_field("from_route_id", str, lambda x: x or "")
+            .optional_field("to_route_id", str, lambda x: x or "")
+            .optional_field("from_trip_id", str, lambda x: x or "")
+            .optional_field("to_trip_id", str, lambda x: x or "")
             .field("type", int, cls.Type)
-            .field("min_transfer_time", int, nullable=True)
+            .nullable_field("min_transfer_time", int)
             .kwargs()
         )

@@ -108,7 +108,7 @@ class StopTime(Entity):
             .field("pickup_type", int, cls.PassengerExchange)
             .field("drop_off_type", int, cls.PassengerExchange)
             .field("stop_headsign", str)
-            .field("shape_dist_traveled", float, nullable=True)
+            .nullable_field("shape_dist_traveled", float)
             .field("original_stop_id", str)
             .field("platform", str)
             .kwargs()

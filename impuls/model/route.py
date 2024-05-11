@@ -101,6 +101,6 @@ class Route(Entity):
             .field("type", int, cls.Type)
             .field("color", str)
             .field("text_color", str)
-            .field("sort_order", int, nullable=True)
+            .nullable_field("sort_order", int)
             .kwargs()
         )

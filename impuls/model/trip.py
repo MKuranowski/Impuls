@@ -115,11 +115,11 @@ class Trip(Entity):
             .field("calendar_id", str)
             .field("headsign", str)
             .field("short_name", str)
-            .field("direction", int, cls.Direction, nullable=True)
-            .field("block_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("shape_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("wheelchair_accessible", bool, nullable=True)
-            .field("bikes_allowed", bool, nullable=True)
-            .field("exceptional", bool, nullable=True)
+            .nullable_field("direction", int, cls.Direction)
+            .optional_field("block_id", str, lambda x: x or "")
+            .optional_field("shape_id", str, lambda x: x or "")
+            .nullable_field("wheelchair_accessible", bool)
+            .nullable_field("bikes_allowed", bool)
+            .nullable_field("exceptional", bool)
             .kwargs()
         )

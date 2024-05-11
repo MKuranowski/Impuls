@@ -1,6 +1,6 @@
 from typing import Any, Callable, Optional, Sequence, Type, TypeVar
 
-from ...tools.types import Self, SQLNativeType, union_to_tuple_of_types
+from ...tools.types import Self, SQLNativeType
 
 SQL_T = TypeVar("SQL_T", bound=SQLNativeType)
 
@@ -23,63 +23,118 @@ class DataclassSQLBuilder:
             raise RuntimeError(f"Too few fields, expected {len(self.row)}, got {self.i}")
         return self.fields
 
+    def _get_value(self) -> SQLNativeType:
+        if self.i >= len(self.row):
+            raise RuntimeError(f"Too many fields, expected {len(self.row)}")
+        return self.row[self.i]
+
+    def _save_field(self, field: str, value: Any) -> None:
+        self.fields[field] = value
+        self.i += 1
+
     def field(
         self: Self,
         field: str,
         incoming_type: Type[SQL_T],
         converter: Optional[Callable[[SQL_T], Any]] = None,
-        nullable: bool = False,
     ) -> Self:
         """field consumes next element from the SQL row and adds it the the kwargs under the
         `field` name.
 
-        The `incoming_type` is either a Type, or a Union of multiple types.
-        Those types are then passed through to isinstance to type-check the incoming data.
+        `incoming_type` is used to type-check the incoming field - the incoming value
+        must be an instance of `incoming_type`.
 
-        If `converter` is not None, `converter(incoming_value)` will be returned
-        in the keyword arguments instead of the incoming value.
-        For convenience, if incoming_type is exactly bool, a converter is automatically provided.
+        `converter`, if present will be applied to the incoming value. This can be used
+        to change between SQL and Impuls types. For convenience, if `incoming_type` is `bool`,
+        a converter is automatically provided.
 
-        If `nullable` is set to True, and the incoming value is `None`, `None` will be returned,
-        bypassing `converter` and the `isinstance` check.
-
-        Comparison of different semantics between nullable and incoming_type=Optional[...]
-
-        | incoming type | converter         | nullable | saved type          |
-        |---------------|-------------------|----------|---------------------|
-        | T             | None              | False    | T                   |
-        | T             | T -> U            | False    | U                   |
-        | T \\| None    | None              | False    | T \\| None          |
-        | T \\| None    | (T \\| None) -> U | False    | U                   |
-        | T             | None              | True     | T \\| None          |
-        | T             | T -> U            | True     | U \\| None          |
-        | T \\| None    | T -> U            | True     | U \\| None          |
-
+        See `nullable_field` and `optional_field` if the incoming value may be NULL.
         """
         # Retrieve the current argument
-        if self.i >= len(self.row):
-            raise RuntimeError(f"Too many fields, expected {len(self.row)}")
-        value = self.row[self.i]
+        value = self._get_value()
 
-        # Special case for nullable columns
-        if nullable and value is None:
-            self.fields[field] = None
-            self.i += 1
-            return self
-
-        # Automatically provide a converter for booleans
-        if converter is None and incoming_type is bool:
+        # Special case for bool
+        if incoming_type is bool:
             incoming_type = int  # type: ignore
             converter = bool
 
-        # Type-check the incoming value
-        allowed_types = union_to_tuple_of_types(incoming_type)
-        if not isinstance(value, allowed_types):
-            got_type = type(value).__name__
-            expected_type = str(tuple(t.__name__ for t in allowed_types))  # type: ignore
-            raise TypeError(f"{field}: got {got_type}; expected {expected_type}")
+        # Type check value
+        if not isinstance(value, incoming_type):
+            raise TypeError(
+                f"{field}: got {type(value).__name__}, expected {incoming_type.__name__}"
+            )
 
-        # Save the value; passing it through the converter
-        self.fields[field] = converter(value) if converter is not None else value
-        self.i += 1
+        # Save the field
+        self._save_field(field, converter(value) if converter else value)
+        return self
+
+    def nullable_field(
+        self,
+        field: str,
+        incoming_type: Type[SQL_T],
+        converter: Optional[Callable[[SQL_T], Any]] = None,
+    ) -> Self:
+        """nullable_field consumes next element from the SQL row and adds it the the kwargs
+        under the `field` name.
+
+        `incoming_type` is used to type-check the incoming field - the incoming value
+        must be an instance of `incoming_type`, or be None.
+
+        `converter`, if present will be applied to the incoming value, if that is not NULL.
+        For convenience, if `incoming_type` is `bool`, a converter is automatically provided.
+
+        NULL values bypass the converter (in contrast with `optional_field`) and are
+        saved directly as None.
+        """
+        # Retrieve the current argument
+        value = self._get_value()
+
+        # Allow NULLs
+        if value is None:
+            self._save_field(field, None)
+            return self
+
+        # Special case for bool
+        if incoming_type is bool:
+            incoming_type = int  # type: ignore
+            converter = bool
+
+        # Type check value
+        if not isinstance(value, incoming_type):
+            raise TypeError(
+                f"{field}: got {type(value).__name__}, expected {incoming_type.__name__}"
+            )
+
+        # Save the field
+        self._save_field(field, converter(value) if converter else value)
+        return self
+
+    def optional_field(
+        self,
+        field: str,
+        incoming_type: Type[SQL_T],
+        converter: Callable[[Optional[SQL_T]], Any],
+    ) -> Self:
+        """optional_field consumes next element from the SQL row and adds it the the kwargs
+        under the `field` name.
+
+        `incoming_type` is used to type-check the incoming field - the incoming value
+        must be an instance of `incoming_type`, or be None.
+
+        `converter` is always applied to the incoming value, regardless if it's None or not.
+        If you find `converter` optional, use `nullable_field` instead.
+
+        NULL values are passed the converter (in contrast with `nullable_field`).
+        """
+        # Retrieve the current argument
+        value = self._get_value()
+
+        # Type check value
+        if value is not None and not isinstance(value, incoming_type):
+            raise TypeError(
+                f"{field}: got {type(value).__name__}, expected Optional[{incoming_type.__name__}]"
+            )
+
+        # Save the field
+        self._save_field(field, converter(value))
         return self

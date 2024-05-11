@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
+from typing import Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -81,9 +81,9 @@ class FareRule(Entity):
             **DataclassSQLBuilder(row)
             .field("id", int)
             .field("fare_id", str)
-            .field("route_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("origin_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("destination_id", Optional[str], lambda x: x or "")  # type: ignore
-            .field("contains_id", Optional[str], lambda x: x or "")  # type: ignore
+            .optional_field("route_id", str, lambda x: x or "")
+            .optional_field("origin_id", str, lambda x: x or "")
+            .optional_field("destination_id", str, lambda x: x or "")
+            .optional_field("contains_id", str, lambda x: x or "")
             .kwargs()
         )

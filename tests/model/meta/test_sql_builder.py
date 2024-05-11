@@ -1,6 +1,5 @@
 import unittest
 from enum import IntEnum
-from typing import Union
 
 from impuls.model.meta.sql_builder import DataclassSQLBuilder
 
@@ -40,20 +39,6 @@ class TestDataclassSQLBuilder(unittest.TestCase):
         with self.assertRaises(TypeError):
             DataclassSQLBuilder(("1",)).field("id", int).kwargs()
 
-    def test_type_checks_union(self) -> None:
-        self.assertDictEqual(
-            DataclassSQLBuilder(("1",)).field("id", Union[str, int]).kwargs(),
-            {"id": "1"},
-        )
-
-        self.assertDictEqual(
-            DataclassSQLBuilder((1,)).field("id", Union[str, int]).kwargs(),
-            {"id": 1},
-        )
-
-        with self.assertRaises(TypeError):
-            DataclassSQLBuilder((None,)).field("id", Union[str, int]).kwargs()
-
     def test_converter(self) -> None:
         self.assertDictEqual(
             DataclassSQLBuilder((2,)).field("dir", int, Direction).kwargs(),
@@ -74,8 +59,8 @@ class TestDataclassSQLBuilder(unittest.TestCase):
 
     def test_nullable(self) -> None:
         b = DataclassSQLBuilder((1, None))
-        b.field("concrete", int, nullable=True)
-        b.field("null", int, nullable=True)
+        b.nullable_field("concrete", int)
+        b.nullable_field("null", int)
         d = b.kwargs()
 
         self.assertEqual(d["concrete"], 1)
@@ -83,9 +68,9 @@ class TestDataclassSQLBuilder(unittest.TestCase):
 
     def test_nullable_bool(self) -> None:
         b = DataclassSQLBuilder((0, 1, None))
-        b.field("zero", bool, nullable=True)
-        b.field("one", bool, nullable=True)
-        b.field("null", bool, nullable=True)
+        b.nullable_field("zero", bool)
+        b.nullable_field("one", bool)
+        b.nullable_field("null", bool)
         d = b.kwargs()
 
         self.assertIs(d["zero"], False)
@@ -94,14 +79,32 @@ class TestDataclassSQLBuilder(unittest.TestCase):
 
     def test_nullable_converter(self) -> None:
         b = DataclassSQLBuilder((1, None))
-        b.field("right", int, converter=Direction, nullable=True)
-        b.field("null", int, converter=Direction, nullable=True)
+        b.nullable_field("right", int, converter=Direction)
+        b.nullable_field("null", int, converter=Direction)
         d = b.kwargs()
 
         self.assertIs(d["right"], Direction.RIGHT)
         self.assertIsNone(d["null"])
 
         with self.assertRaises(ValueError):
-            DataclassSQLBuilder((5,)).field(
-                "dir", int, converter=Direction, nullable=True
-            ).kwargs()
+            DataclassSQLBuilder((5,)).field("dir", int, converter=Direction).kwargs()
+
+    def test_optional(self) -> None:
+        b = DataclassSQLBuilder(("foo", "", None))
+        b.optional_field("non_empty", str, lambda x: x or "")
+        b.optional_field("empty", str, lambda x: x or "")
+        b.optional_field("null", str, lambda x: x or "")
+        d = b.kwargs()
+
+        self.assertEqual(d["non_empty"], "foo")
+        self.assertEqual(d["empty"], "")
+        self.assertEqual(d["null"], "")
+
+    def test_optional_type_checks(self) -> None:
+        b = DataclassSQLBuilder((None,))
+        b.optional_field("foo", str, lambda x: x or "")
+        _ = b.kwargs()
+
+        b = DataclassSQLBuilder((0,))
+        with self.assertRaises(TypeError):
+            b.optional_field("foo", str, lambda x: x or "")
