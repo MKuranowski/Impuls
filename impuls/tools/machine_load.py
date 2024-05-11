@@ -5,11 +5,6 @@ from typing import Any
 
 from .types import Self
 
-try:
-    import resource
-except ImportError:
-    resource = None
-
 # Platform-dependent memory_usage_kb function
 # cSpell: words psapi rusage getrusage getpagesize maxrss sunos
 
@@ -48,14 +43,14 @@ if sys.platform == "win32":
             # PeakWorkingSetSize is in bytes
             return int(pmc.PeakWorkingSetSize) // 1024
         finally:
-            # Ensure the process handle is closed; although the Windows docs day
+            # Ensure the process handle is closed; although the Windows docs say
             # that the CloseHandle on current process handle does nothing.
             if not kernel32.CloseHandle(process_handle):
                 raise ctypes.WinError()
 
 elif sys.platform == "darwin":
     # Special case: Darwin returns the number in bytes, not KiB
-    assert resource, "resource module missing on Darwin"
+    import resource
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
@@ -63,26 +58,28 @@ elif sys.platform == "darwin":
 
 elif sys.platform.startswith(("sunos", "solaris")):
     # Special case: SunOS and Solaris returns the number in pages, not KiB
-    assert resource, "resource module missing on Solaris/SunOS"
+    import resource
+
     PAGE_SIZE_TO_KIB = resource.getpagesize() // 1024
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * PAGE_SIZE_TO_KIB
 
-elif resource:
+elif sys.platform.startswith(("linux", "freebsd", "openbsd", "aix")):
     # Most of other POSIX systems: Linux, *BSD, AIX return the value in KiB.
     #
     # However, pure POSIX doesn't mandate the existence of ru_maxrss and
     # some systems (Cygwin, SerenityOS) don't set it. Don't know what happens in that case,
     # hopefully Python just sets ru_maxrss to zero.
+    import resource
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
         return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 else:
-    # Unknown system, without the POSIX resource module - just nop out the function
+    # Unknown system, just nop out the function
 
     def memory_usage_kb() -> int:
         """Returns the memory usage of the current process."""
