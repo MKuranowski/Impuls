@@ -29,6 +29,8 @@ jobs:
         run: sudo apt-get install -qy --no-install-recommends mdbtools
       - name: Install dependencies
         run: pip install -r requirements.dev.txt -r requirements.examples.txt
+      - name: Check meson.build
+        run: python check_sources_in_meson_build.py
       - name: Build and install Impuls
         run: |
           pip install --no-build-isolation -Cbuild-dir=builddir --editable .
