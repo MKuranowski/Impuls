@@ -4,7 +4,7 @@ from sys import exit
 
 from mesonbuild import mparser
 
-SOURCE_EXTENSIONS = (".c", ".zig", ".py")
+SOURCE_EXTENSIONS = ("c", "zig", "py")
 
 
 def read_meson_build() -> mparser.CodeBlockNode:
@@ -60,8 +60,8 @@ def find_declared_zig_sources(meson_build: mparser.CodeBlockNode) -> set[str]:
 
 def find_actual_sources() -> set[str]:
     sources = set[str]()
-    for dir, _, files in Path("impuls").walk():
-        sources.update(str(dir / file) for file in files if file.endswith(SOURCE_EXTENSIONS))
+    for ext in SOURCE_EXTENSIONS:
+        sources.update(str(f) for f in Path("impuls").glob(f"**/*.{ext}"))
     return sources
 
 
