@@ -1,10 +1,26 @@
 import argparse
 from pathlib import Path
-from shutil import copy
 from tempfile import TemporaryDirectory
 
 import impuls
 import impuls.tasks
+
+
+def generate_db_from_gtfs(gtfs: Path, output: Path) -> None:
+    with TemporaryDirectory() as temp_workspace_str:
+        temp_workspace = Path(temp_workspace_str)
+        pipeline = impuls.Pipeline(
+            tasks=[
+                impuls.tasks.LoadGTFS(gtfs.name),
+                impuls.tasks.SaveDB(output),
+            ],
+            resources={gtfs.name: impuls.LocalResource(gtfs)},
+            options=impuls.PipelineOptions(
+                force_run=True,
+                workspace_directory=temp_workspace,
+            ),
+        )
+        pipeline.run()
 
 
 def main() -> None:
@@ -18,23 +34,9 @@ def main() -> None:
     )
     arg_parser.add_argument("gtfs", help="path to GTFS", metavar="FILE", type=Path)
     args = arg_parser.parse_args()
-    gtfs: Path = args.gtfs
-    output: Path = args.output
 
-    with TemporaryDirectory() as temp_workspace_str:
-        temp_workspace = Path(temp_workspace_str)
-        pipeline = impuls.Pipeline(
-            tasks=[impuls.tasks.LoadGTFS(gtfs.name)],
-            resources={gtfs.name: impuls.LocalResource(gtfs)},
-            options=impuls.PipelineOptions(
-                force_run=True,
-                workspace_directory=temp_workspace,
-            ),
-        )
-        impuls.initialize_logging(verbose=True)
-        pipeline.run()
-
-        copy(temp_workspace / "impuls.db", output)
+    impuls.initialize_logging(verbose=True)
+    generate_db_from_gtfs(args.gtfs, args.output)
 
 
 if __name__ == "__main__":
