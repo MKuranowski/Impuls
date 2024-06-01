@@ -31,10 +31,17 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record.message = record.getMessage()
         record.asctime = self.formatTime(record)
+        if record.exc_info and not record.exc_text:
+            record.exc_text = self.formatException(record.exc_info)
+            exception_suffix = f"\n{record.exc_text}"
+        else:
+            exception_suffix = ""
+
         msg_color = self.get_msg_color(record.levelno)
         return (
             f"{color.BLUE}[{color.CYAN}{record.levelname}{color.BLUE} {record.asctime}] "
             f"{color.GREEN}{record.name}{color.RESET}: {msg_color}{record.message}{color.RESET}"
+            f"{exception_suffix}"
         )
 
 
