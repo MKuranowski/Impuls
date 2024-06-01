@@ -190,3 +190,20 @@ By default, the extern zig library will be built in debug mode. To change that, 
 Unfortunately, meson-python requires all python and zig source files in meson.build. Python
 files need to be listed for packaging to work, while zig source files need to be listed for
 the build backend to properly detect whether libextern needs to be recompiled.
+
+### Building wheels
+
+Zig has been choses for its excellent cross-compilation support. Thanks to this, building
+all wheels for a release does not require tools like [cibuildwheel](https://github.com/pypa/cibuildwheel),
+virtual machines, or even any containers. As long as Zig is installed, all wheels can be
+build on that machine.
+
+Before building wheels, install a few extra dependencies in the virtual environment:
+`pip install -U build wheel`.
+
+To build the wheels, simply run `python build_wheels.py`.
+
+See `python build_wheels.py --help` for all available options. To debug failed builds, run
+`python build_wheels.py --verbose --jobs 1 FAILED_CONFIG_NAME`.
+
+See [CONFIGURATION in build_wheels.py](/build_wheels.py#L32) for available configurations.

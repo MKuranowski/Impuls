@@ -7,6 +7,7 @@ _impuls_workspace
 _workspace_*
 *.egg-info
 .coverage
+.mesonpy*
 htmlcov
 builddir
 dist
