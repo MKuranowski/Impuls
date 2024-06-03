@@ -6,22 +6,24 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Impuls'
-copyright = '2024, Mikołaj Kuranowski'
-author = 'Mikołaj Kuranowski'
+project = "Impuls"
+copyright = "2024, Mikołaj Kuranowski"
+author = "Mikołaj Kuranowski"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.autosummary", "autoapi.extension"]
 
-templates_path = ['_templates']
+autoapi_dirs = ["../../impuls"]
+autoapi_type = "python"
+
+templates_path = ["_templates"]
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
-html_static_path = ['_static']
+html_theme = "alabaster"
+html_static_path = ["_static"]
