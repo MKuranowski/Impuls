@@ -10,4 +10,5 @@ _workspace_*
 .mesonpy*
 htmlcov
 builddir
+docs/build
 dist
