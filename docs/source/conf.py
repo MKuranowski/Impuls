@@ -13,10 +13,14 @@ author = "Mikołaj Kuranowski"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.autosummary", "autoapi.extension"]
-
-autoapi_dirs = ["../../impuls"]
-autoapi_type = "python"
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.autosummary"]
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "special-members": "__iter__,__next__,__enter__,__exit__,__contains__",
+    "show-inheritance": True,
+}
+autodoc_mock_imports = ["impuls.extern.libextern"]
 
 templates_path = ["_templates"]
 exclude_patterns = []
