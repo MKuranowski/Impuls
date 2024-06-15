@@ -7,7 +7,7 @@ Welcome to Impuls's documentation!
 ==================================
 
 .. toctree::
-   autoapi/index
+   api
 
 
 
