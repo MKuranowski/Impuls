@@ -1,13 +1,15 @@
-from . import errors, model, tools
+from . import db, errors, model, multi_file, resource, tasks, tools
 from .app import App
-from .db import DBConnection
 from .pipeline import Pipeline, PipelineOptions, Task, TaskRuntime
-from .resource import HTTPResource, LocalResource, Resource
 from .tools.logs import initialize as initialize_logging
 
 __all__ = [
+    "db",
     "errors",
     "model",
+    "multi_file",
+    "resource",
+    "tasks",
     "tools",
     "App",
     "DBConnection",
@@ -23,3 +25,8 @@ __all__ = [
 
 __name__ = "impuls"
 __version__ = "0.6.0"
+
+DBConnection = db.DBConnection
+Resource = resource.Resource
+HTTPResource = resource.HTTPResource
+LocalResource = resource.LocalResource

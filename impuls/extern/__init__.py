@@ -8,6 +8,8 @@ from typing import Mapping, Sequence
 
 from ..tools.types import StrPath
 
+__all__ = ["load_gtfs", "save_gtfs"]
+
 logger = logging.getLogger(__name__)
 
 c_char_p_p = POINTER(c_char_p)
