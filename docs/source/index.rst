@@ -15,21 +15,21 @@ Impuls has first-class support for pulling in data from external sources, using 
 bandwidth if some of the input data has not changed, or even allows to stop the
 processing early if none of the resources have been modified.
 
-.. figure:: _static/pipeline.*
-   :scale: 40 %
-   :alt: pipeline visualization
+.. figure:: /_static/pipeline.*
+    :scale: 40 %
+    :alt: pipeline visualization
 
-   Diagram of basic data-processing components of Impuls
+    Diagram of basic data-processing components of Impuls
 
 A module for dealing with versioned, or *multi-file* sources is also provided. It allows
 for easy and very flexible processing of schedules provided in discrete versions into
 a single coherent file.
 
-.. figure:: _static/multi_file.*
-   :scale: 40 %
-   :alt: multi-file pipeline visualization
+.. figure:: /_static/multi_file.*
+    :scale: 40 %
+    :alt: multi-file pipeline visualization
 
-   Diagram of multi-file/"versioned" data-processing in Impuls
+    Diagram of multi-file/"versioned" data-processing in Impuls
 
 
 Installation
@@ -49,7 +49,8 @@ Table of Contents
 -----------------
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   api
+    db_schema
+    api
 
