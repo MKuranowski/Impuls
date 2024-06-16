@@ -1,12 +1,10 @@
 API Reference
 =============
 
-.. rubric:: Modules
-
 All of the following modules are accessible when importing the top-level package via ``import impuls``.
 
 .. autosummary::
-    :toctree: generated
+    :toctree: api
 
     impuls
     impuls.db

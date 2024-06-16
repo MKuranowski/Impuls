@@ -11,5 +11,5 @@ _workspace_*
 htmlcov
 builddir
 docs/build
-docs/source/generated
+docs/source/api
 dist
