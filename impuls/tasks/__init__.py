@@ -1,3 +1,4 @@
+from . import merge
 from .add_entity import AddEntity
 from .exec_sql import ExecuteSQL
 from .generate_trip_headsign import GenerateTripHeadsign
@@ -21,4 +22,5 @@ __all__ = [
     "SaveDB",
     "SaveGTFS",
     "TruncateCalendars",
+    "merge",
 ]

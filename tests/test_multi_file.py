@@ -12,11 +12,11 @@ from impuls import LocalResource, Pipeline, PipelineOptions, Task, TaskRuntime
 from impuls.errors import InputNotModified, MultipleDataErrors, ResourceNotCached
 from impuls.model import Date
 from impuls.multi_file import (
+    CachedFeedMetadata,
     IntermediateFeed,
     IntermediateFeedProvider,
     MultiFile,
     Pipelines,
-    _CachedFeedMetadata,
     _load_cached,
     _remove_from_cache,
     _ResolvedVersions,
@@ -405,7 +405,7 @@ class TestCache(TestCase):
         self.assertEqual(out_feed.start_date, Date(2023, 4, 1))
 
         with (self.d / "v1.txt.metadata").open(mode="r") as metadata_fp:
-            metadata: _CachedFeedMetadata = json.load(metadata_fp)
+            metadata: CachedFeedMetadata = json.load(metadata_fp)
 
         self.assertDictEqual(
             metadata,
