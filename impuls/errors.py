@@ -4,6 +4,9 @@ _T = TypeVar("_T")
 
 
 class InputNotModified(Exception):
+    """InputNotModified is raised by the Pipeline when no resources have changed,
+    preventing pointless processing of the same data."""
+
     pass
 
 
@@ -23,6 +26,8 @@ class ResourceNotCached(DataError):
     when a Resource is not available locally.
     """
 
+    resource_name: str
+
     def __init__(self, resource_name: str) -> None:
         self.resource_name = resource_name
         super().__init__(f"Resource is not cached: {resource_name}")
@@ -36,6 +41,8 @@ class MultipleDataErrors(DataError):
     For most use cases the catch_all helper can be used to catch any DataErrors
     that might be encountered.
     """
+
+    errors: list[DataError]
 
     def __init__(self, when: str, errors: list[DataError]) -> None:
         self.errors = errors
@@ -55,8 +62,8 @@ class MultipleDataErrors(DataError):
 
         Any other Exception is passed through to the caller.
 
-        Note that `may_raise_data_error` must not be a generator expression,
-        and should usually be a `map` object. Generator expressions stop at the
+        Note that ``may_raise_data_error`` must not be a generator expression,
+        and should usually be a ``map`` object. Generator expressions stop at the
         first raised exception, making the whole endeavor useless.
 
         >>> def some_function(x: int) -> int:
