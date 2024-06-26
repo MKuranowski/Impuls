@@ -43,7 +43,10 @@ class Pipelines(NamedTuple):
     """
 
     intermediates: list[Pipeline]
+    """Pipelines creating all intermediate databases."""
+
     final: Pipeline
+    """Final Pipeline, taking all intermediate databases and merging them all together."""
 
     def run(self) -> None:
         """run runs all pipelines in order"""
@@ -52,7 +55,7 @@ class Pipelines(NamedTuple):
         self.final.run()
 
 
-class _CachedFeedMetadata(TypedDict):
+class CachedFeedMetadata(TypedDict):
     """JSON object used to preserve IntermediateFeed data across runs,
     stored in workspace/intermediate_inputs/{version}.metadata"""
 
@@ -65,21 +68,20 @@ class _CachedFeedMetadata(TypedDict):
 @dataclass(frozen=True)
 class IntermediateFeed(Generic[ResourceT]):
     """IntermediateFeed represents self-contained schedules for a set period of time -
-    a single version of schedules."""
+    a single version of timetables."""
 
     resource: ResourceT
-    """resource represents arbitrary data containing schedule data. This resource's
-    last_modified time must be filled in by the IntermediateFeedProvider - and must be available
-    before the first call to fetch."""
+    """resources represents arbitrary data containing schedule data by a
+    :py:class:`~impuls.Resource`. This resource's last_modified time must be filled in by the
+    :py:class:`~impuls.multi_file.IntermediateFeedProvider` - and must be available before the
+    first call to fetch."""
 
     resource_name: str
     """resource_name is a string used for identifying the resource.
     This should be the version string plus an appropriate file extension."""
 
     version: str
-    """version is an arbitrary† string identifying the feed.
-    († however, this string will be used in filenames)
-    """
+    """version is an arbitrary string identifying the feed."""
 
     start_date: Date
     """start_date represents the first day for which this feed's schedules are valid"""
@@ -94,9 +96,9 @@ class IntermediateFeed(Generic[ResourceT]):
         r.fetch_time = self.resource.fetch_time
         return IntermediateFeed(r, self.resource_name, self.version, self.start_date)
 
-    def as_cached_feed_metadata(self) -> _CachedFeedMetadata:
+    def as_cached_feed_metadata(self) -> CachedFeedMetadata:
         """Returns attributes of this IntermediateFeed as CachedFeedMetadata
-        for preserving them across runs"""
+        for preserving them across runs."""
         return {
             "version": self.version,
             "start_date": str(self.start_date),
@@ -107,9 +109,9 @@ class IntermediateFeed(Generic[ResourceT]):
     @staticmethod
     def from_cached_feed_metadata(
         r: LocalResource,
-        d: _CachedFeedMetadata,
+        d: CachedFeedMetadata,
     ) -> "IntermediateFeed[LocalResource]":
-        """Creates an IntermediateFeed from loaded metadata and a LocalResource"""
+        """Creates an IntermediateFeed from loaded metadata and a LocalResource."""
         r.last_modified = datetime.fromtimestamp(d["last_modified"], timezone.utc)
         r.fetch_time = datetime.fromtimestamp(d["fetch_time"], timezone.utc)
         return IntermediateFeed(
@@ -125,17 +127,23 @@ class IntermediateFeedProvider(Protocol[ResourceT]):
     schedules. The provider is responsible for communicating with the external repository
     and figuring out which feeds are needed to create a complete database.
 
-    The IntermediateFeedProvider is also responsible for filling in the last_modified
-    field of generated feeds' resources."""
+    In most cases, this boils down to calling an external API enumerating
+    all files required to form a coherent and continuous dataset, and returning a list
+    of :py:class:`~impuls.multi_file.IntermediateFeed` with the same :py:class:`~impuls.Resource`
+    type.
+
+    The IntermediateFeedProvider is also responsible for filling in the
+    :py:attr:`~impuls.Resource.last_modified` field of generated feeds' resources.
+    """
 
     def needed(self) -> list[IntermediateFeed[ResourceT]]: ...
 
 
 def prune_outdated_feeds(feeds: list[IntermediateFeed[ResourceT]], today: Date) -> None:
-    """Removes feeds which end before `today`."""
+    """Removes feeds which end before ``today``."""
     feeds.sort(key=attrgetter("start_date"))
 
-    # Find the feed corresponding to `self.for_date`; see `find_le` in
+    # Find the feed corresponding to `self.for_date; see find_le in
     # https://docs.python.org/3/library/bisect.html#searching-sorted-lists
     cutoff_idx = max(
         bisect_right(
@@ -156,49 +164,55 @@ MultiTaskFactory = Callable[[list[IntermediateFeed[LocalResource]]], list[Task]]
 
 
 def empty_tasks_factory(*_: Any) -> list[Task]:
+    """Returns an empty task list."""
     return []
 
 
 @dataclass
 class MultiFile(Generic[ResourceT_co]):
-    """MultiFile prepares Pipelines and Resources for creating a single,
-    continuous database, when the source data is available in multiple disjoint files.
+    """MultiFile prepares :py:class:`~impuls.multi_file.Pipelines` and multiple
+    :py:class:`~impuls.Resource` objects for creating a single, continuous database,
+    when the source data is available in multiple disjoint files.
 
     This is a solution to a common problem. Say the source data has the following files:
-    - 2023-04-01.txt
-    - 2023-04-17.txt
-    - 2023-05-01.txt
+
+    * 2023-04-01.txt
+    * 2023-04-17.txt
+    * 2023-05-01.txt
+
     But the result is supposed to be a single GTFS feed.
 
     To be on the same page, further terminology needs to be introduced:
-    - "intermediate" and "version" refer to sole, disjoined feed
-    - "intermediate input" refers to an intermediate feed in an arbitrary
-        format
-    - "intermediate database" refers to an intermediate feed stored as an Impuls database
-    - "final" refers to the coherent, merged feed
+
+    * "intermediate" and "version" refer to sole, disjoined feed
+    * "intermediate input" refers to an intermediate feed in an arbitrary format
+    * "intermediate database" refers to an intermediate feed stored as an Impuls database
+    * "final" refers to the coherent, merged feed
 
     MultiFile will preserve intermediate inputs across runs, avoiding re-downloading.
     Intermediate databases will also be preserved across runs - reducing the need
-    to re-create them. If the intermediate feeds have not changed - InputNotModified will
-    be raised and no actual work will be performed.
+    to re-create them. If all :py:class:`~impuls.multi_file.IntermediateFeed` have not changed -
+    :py:exc:`~impuls.errors.InputNotModified` will be raised and no actual work will be performed.
 
     Special folders in the workspace directory will be used to store intermediate inputs
     and intermediate databases. Running multiple programs accessing the same workspace
     can cause unexpected issues and is not supported.
 
-    Unfortunately, as of now, MultiFile ignores changes in Resources - only changes in
-    the intermediate inputs cause Pipelines to be created.
+    Unfortunately, as of now, MultiFile ignores changes in additional :py:class:`~impuls.Resource`
+    - only changes in the intermediate inputs cause Pipelines to be created.
 
     Several Pipeline options change their meaning in the MultiFile context:
-    - from_cache: nothing is ever fetched: additional_resources must be either cached or local,
-        all cached intermediate inputs are used, bypassing the intermediate provider.
-        If the intermediate databases are up-to-date, only the final pipeline is created,
-        unless force_run is also set to True.
-    - force_run: any cached intermediate databases are ignored - in other words
-        every intermediate input will have a corresponding intermediate pipeline created.
-        The final pipeline is also created.
+
+    * from_cache: nothing is ever fetched; additional_resources must be either cached or local,
+      all cached intermediate inputs are used, bypassing the
+      :py:class:`~impuls.multi_file.IntermediateFileProvider`. If the intermediate databases are
+      up-to-date, only the final pipeline is created, unless force_run is also set to True.
+    * force_run: any cached intermediate databases are ignored - in other words
+      every intermediate input will have a corresponding intermediate pipeline created.
+      The final pipeline is also created.
 
     The process of creating all of the necessary pipelines can be summarized in 5 steps:
+
     1. Figure out which intermediate feeds are needed
     2. Remove stale and no-longer-needed cached intermediate inputs and databases
     3. Fetch missing intermediate inputs
@@ -207,7 +221,7 @@ class MultiFile(Generic[ResourceT_co]):
     """
 
     options: PipelineOptions
-    """Options for the MultiFile process and created Pipelines."""
+    """Options for the MultiFile process and created :py:class:`~impuls.multi_file.Pipelines`."""
 
     intermediate_provider: IntermediateFeedProvider[ResourceT_co]
     """intermediate_provider is responsible for calculating which intermediate feeds
@@ -222,9 +236,9 @@ class MultiFile(Generic[ResourceT_co]):
 
     pre_merge_pipeline_tasks_factory: TaskFactory = empty_tasks_factory
     """Factory for tasks applied right before merging. Runs as a sub-pipeline
-    of the final pipeline, see :py:attr:`merge.DatabaseToMerge.pre_merge_pipeline`.
+    of the final pipeline, see :py:attr:`impuls.tasks.merge.DatabaseToMerge.pre_merge_pipeline`.
 
-    A :py:class:`TruncateCalendars` task is prepended to the returned list,
+    A :py:class:`impuls.tasks.TruncateCalendars` task is prepended to the returned list,
     based on the start_date attribute of the next intermediate feed.
 
     The returned objects might be mutated - this function should always return
@@ -234,8 +248,9 @@ class MultiFile(Generic[ResourceT_co]):
     final_pipeline_tasks_factory: MultiTaskFactory = empty_tasks_factory
     """Factory for tasks applied on the final pipeline.
 
-    A :py:class:`merge.Merge` task is prepended to the returned list,
-    based on the needed intermediate feeds (as returned by a :py:class:`IntermediateFeedProvider`).
+    A :py:class:`~impuls.tasks.merge.Merge` task is prepended to the returned list,
+    based on the needed intermediate feeds (as returned by a
+    :py:class:`~impuls.multi_file.IntermediateFeedProvider`).
 
     The factory must not modified the provided list of intermediate feeds.
 
@@ -244,35 +259,36 @@ class MultiFile(Generic[ResourceT_co]):
     """
 
     additional_resources: Mapping[str, Resource] = field(default_factory=dict)
-    """Additional resources, made available for all intermediate and final pipelines"""
+    """Additional resources, made available for all intermediate and final pipelines."""
 
     merge_separator: str = ":"
-    """Passed through to :py:class:`merge.Merge` -
-    used for delimiting id fields and a unique prefix"""
+    """Passed through to the :py:class:`~impuls.tasks.merge.Merge` task -
+    used for delimiting id fields and a unique prefix."""
 
     feed_version_separator: str = "/"
-    """Passed through to :py:class:`merge.Merge` -
-    used for delimiting feed_version in a single FeedInfo object"""
+    """Passed through to the :py:class:`~impuls.tasks.merge.Merge` task -
+    used for delimiting feed_version in a single FeedInfo object."""
 
     distance_between_similar_stops_m: float = 10.0
-    """Passed through to :py:class:`merge.Merge` -
-    maximum distance for stops to be considered similar"""
+    """Passed through to the :py:class:`~impuls.tasks.merge.Merge` task -
+    maximum distance for stops to be considered similar."""
 
     def prepare(self) -> Pipelines:
-        """Returns the pipelines necessary to produce a single, merged feed.
+        """Returns the :py:class:`~impuls.multi_file.Pipelines` necessary to produce a single,
+        merged feed.
 
-        Raises InputNotModified if the intermediate inputs have not changed,
-        barring other options like from_cache or force_run.
+        Raises :py:exc:`~impuls.errors.InputNotModified` if the intermediate inputs have not
+        changed, barring other options like from_cache or force_run.
         """
         intermediate_inputs_path = self.intermediate_inputs_path()
 
         if self.additional_resources:
-            resources = self.prepare_resources()
+            resources = self._prepare_resources()
         else:
             resources = dict[str, ManagedResource]()
 
         # 1. Figure out which intermediate feeds are needed
-        versions = self.resolve_versions()
+        versions = self._resolve_versions()
         versions.log_result()
 
         # 2. Remove stale and no-longer-needed cached intermediate inputs and databases
@@ -284,7 +300,7 @@ class MultiFile(Generic[ResourceT_co]):
         local.sort(key=attrgetter("start_date"))
 
         # 3. Prepare intermediate pipelines for missing local feeds
-        intermediates = self.prepare_intermediate_pipelines(
+        intermediates = self._prepare_intermediate_pipelines(
             local,
             resources,
             force={i.version for i in versions.to_fetch},
@@ -295,11 +311,11 @@ class MultiFile(Generic[ResourceT_co]):
             raise InputNotModified
 
         # 5. Prepare final pipeline for merging intermediate feeds
-        final = self.prepare_final_pipeline(local, resources)
+        final = self._prepare_final_pipeline(local, resources)
 
         return Pipelines(intermediates, final)
 
-    def resolve_versions(self) -> "_ResolvedVersions[ResourceT_co]":
+    def _resolve_versions(self) -> "_ResolvedVersions[ResourceT_co]":
         # If from_cache - resolve only based on locally cached files
         if self.options.from_cache:
             # NOTE: No changes to cached inputs will be made - no need to invalidate the cache
@@ -312,7 +328,7 @@ class MultiFile(Generic[ResourceT_co]):
         cached = _load_cached(self.intermediate_inputs_path())
         return _ResolvedVersions[ResourceT_co].from_(needed, cached)
 
-    def prepare_intermediate_pipelines(
+    def _prepare_intermediate_pipelines(
         self,
         local: list[IntermediateFeed[LocalResource]],
         resources: Mapping[str, ManagedResource],
@@ -381,14 +397,14 @@ class MultiFile(Generic[ResourceT_co]):
 
         return pipelines
 
-    def prepare_final_pipeline(
+    def _prepare_final_pipeline(
         self,
         local: list[IntermediateFeed[LocalResource]],
         resources: Mapping[str, ManagedResource],
     ) -> Pipeline:
         logger.info("Preparing the final pipeline")
         merge_task = merge.Merge(
-            self.prepare_databases_to_merge(local, resources),
+            self._prepare_databases_to_merge(local, resources),
             separator=self.merge_separator,
             feed_version_separator=self.feed_version_separator,
             distance_between_similar_stops_m=self.distance_between_similar_stops_m,
@@ -419,7 +435,7 @@ class MultiFile(Generic[ResourceT_co]):
 
         return pipeline
 
-    def prepare_databases_to_merge(
+    def _prepare_databases_to_merge(
         self,
         local: list[IntermediateFeed[LocalResource]],
         resources: Mapping[str, ManagedResource],
@@ -448,7 +464,7 @@ class MultiFile(Generic[ResourceT_co]):
 
         return to_merge
 
-    def prepare_resources(self) -> dict[str, ManagedResource]:
+    def _prepare_resources(self) -> dict[str, ManagedResource]:
         logger.info("Preparing additional resources")
         # NOTE: Any changes in the additional resources are completely ignored:
         #       Pipeline might not run, even if the intermediate resources have changed.
@@ -602,7 +618,7 @@ def _load_cached(intermediate_inputs_path: Path) -> list[IntermediateFeed[LocalR
         recognized_files.add(content_file)
 
         with metadata_file.open("r") as f:
-            metadata: _CachedFeedMetadata = json.load(f)
+            metadata: CachedFeedMetadata = json.load(f)
 
         feed = IntermediateFeed.from_cached_feed_metadata(LocalResource(content_file), metadata)
         feeds.append(feed)

@@ -13,6 +13,7 @@ All of the following modules are accessible when importing the top-level package
     impuls.multi_file
     impuls.resource
     impuls.tasks
+    impuls.tasks.merge
     impuls.tools
     impuls.tools.geo
     impuls.tools.iteration
