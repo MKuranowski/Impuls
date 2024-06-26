@@ -28,7 +28,7 @@ class UntypedQueryResult:
     UntypedQueryResults support iteration.
 
     UntypedQueryResult should be closed after usage -
-    this can be automatically done using `with` statements.
+    this can be automatically done using ``with`` statements.
     """
 
     def __init__(self, db_cursor: sqlite3.Cursor) -> None:
@@ -48,6 +48,7 @@ class UntypedQueryResult:
 
     @property
     def rowcount(self) -> int:
+        """Read-only number of rows modified by INSERT, UPDATE or DELETE statement."""
         return self._cur.rowcount
 
     def one(self) -> SQLRow | None:
@@ -81,12 +82,12 @@ class TypedQueryResult(Generic[EntityT]):
     """TypedQueryResult is an object returned by SQL queries,
     which automatically unmarshalls objects of the Impuls data model.
 
-    The interface of this object is otherwise similar to that of `UntypedDataResult`:
+    The interface of this object is otherwise similar to that of ``UntypedDataResult``:
 
     Apart from the .one()/.many()/.all() methods, TypedQueryResult support iteration.
 
     TypedQueryResult should be closed after usage -
-    this can be automatically done using `with` statements.
+    this can be automatically done using ``with`` statements.
     """
 
     def __init__(self, db_cursor: sqlite3.Cursor, typ: Type[EntityT]) -> None:
@@ -107,6 +108,7 @@ class TypedQueryResult(Generic[EntityT]):
 
     @property
     def rowcount(self) -> int:
+        """Read-only number of rows modified by INSERT, UPDATE or DELETE statement."""
         return self._cur.rowcount
 
     def one(self) -> Optional[EntityT]:
@@ -143,56 +145,67 @@ class DBConnection:
     This is a thin wrapper around sqlite3.Connection that uses ImpulsBase interface
     to provide a dumb ORM engine.
 
-    ### Transactions
+    ############
+    Transactions
+    ############
 
     The database is run in an auto-commit mode - the user is fully responsible for
     managing transactions: unless .begin() is used,
     statements implicitly begin and commit a transaction.
 
-    ### ORM substitutions
+    #################
+    ORM substitutions
+    #################
 
     Typed queries work by substituting 3 keywords in the passed SQL:
-    - `:table` - replaced with the table name
-    - `:cols` - replaced with comma-separated column names, in brackets
-    - `:vals` - replaced with question marks (corresponding to table columns), in brackets
-    - `:set` - replaced with "column_name=?, ...", without brackets
-    - `:where` - replaces with "primary_key_column=? AND ...", without brackets.
+
+    * ``:table`` - replaced with the table name
+    * ``:cols`` - replaced with comma-separated column names, in brackets
+    * ``:vals`` - replaced with question marks (corresponding to table columns), in brackets
+    * ``:set`` - replaced with "column_name=?, ...", without brackets
+    * ``:where`` - replaced with "primary_key_column=? AND ...", without brackets.
 
     The substitutions maybe better explained by an example - to persist a CalendarException,
-    it's enough to write the following query:
-    `INSERT INTO :table VALUES :vals;`.
+    it's enough to write the following query: ``INSERT INTO :table VALUES :vals;``.
 
     Such query will be automatically expanded to the following:
-    `INSERT INTO calendar_exceptions VALUES (?, ?, ?);`
+    ``INSERT INTO calendar_exceptions VALUES (?, ?, ?);``
 
-    Similarly `UPDATE :table SET :set WHERE :where;` on CalendarException turns into
-    `UPDATE calendar_exceptions SET calendar_id = ?, date = ?, exception_type = ?
-    WHERE calendar_id = ? AND date = ?;`
+    Similarly ``UPDATE :table SET :set WHERE :where;`` on CalendarException turns into
+    ``UPDATE calendar_exceptions SET calendar_id = ?, date = ?, exception_type = ?
+    WHERE calendar_id = ? AND date = ?;``
 
-    #### Note on SQL Injection safety
+    ****************************
+    Note on SQL Injection safety
+    ****************************
 
     This class assumes that LiteralStrings returned by the entities' sql_* methods
     are safe to directly use in sql statements. It is the programmer's responsibility
     to ensure so.
 
-    ### Closing the DB
+    ##############
+    Closing the DB
+    ##############
 
     DBConnection's close() method releases resources held by the DBConnection.
     Any unclosed transactions are **not** closed.
 
-    DBConnection can be used in a `with` statement - and such connection
+    DBConnection can be used in a ``with`` statement - and such connection
     will be automatically closed upon exit from the with block.
     (Note that this behavior is different to sqlite3.Connection)
 
-    ### New sqlite functions
+    ####################
+    New sqlite functions
+    ####################
 
     For convenience several additional SQL function are provided,
-    apart from those described at <https://www.sqlite.org/lang_corefunc.html>.
-    - `unicode_lower` - equivalent to Python's str.lower
-    - `unicode_upper` - equivalent to Python's str.upper
-    - `unicode_casefold` - equivalent to Python's str.casefold
-    - `unicode_title` - equivalent to Python's str.title
-    - `re_sub` - equivalent to Python's re.sub
+    apart from those described at https://www.sqlite.org/lang_corefunc.html.
+
+    * ``unicode_lower`` - equivalent to Python's str.lower
+    * ``unicode_upper`` - equivalent to Python's str.upper
+    * ``unicode_casefold`` - equivalent to Python's str.casefold
+    * ``unicode_title`` - equivalent to Python's str.title
+    * ``re_sub`` - equivalent to Python's re.sub
     """
 
     def __init__(self, path: StrPath) -> None:
@@ -223,7 +236,7 @@ class DBConnection:
 
     @classmethod
     def cloned(cls: Type[Self], from_: StrPath, in_: StrPath) -> Self:
-        """Creates a new database inside `in_` with the contents of `from_`.
+        """Creates a new database inside ``in_`` with the contents of ``from_``.
         Returns a DBConnection to the new database.
         """
         self = cls(in_)
@@ -267,12 +280,10 @@ class DBConnection:
 
     @contextmanager
     def transaction(self: Self) -> Generator[Self, None, None]:
-        """Abstracts transactions in a `with` block.
+        """Abstracts transactions in a ``with`` block.::
 
-        ```
-        with database.transaction():
-            do_something_on(database)
-        ```
+            with database.transaction():
+                do_something_on(database)
 
         A transaction is opened at the entry to the with block.
         If an exception is raised in the body, the changes are rolled back.
@@ -305,11 +316,11 @@ class DBConnection:
 
         The parameters and results are passed unchanged to/from the sqlite3 module.
 
-        Logically equivalent to
-        ```
-        for parameter in parameters:
-            raw_execute(sql, parameter)
-        ```
+        Logically equivalent to::
+
+            for parameter in parameters:
+                raw_execute(sql, parameter)
+
         Except that results are collected into a single Cursor -
         which means SELECT queries can't be used with this function.
         """
@@ -336,7 +347,7 @@ class DBConnection:
     def typed_in_execute(self, sql: str, parameters: Entity) -> UntypedQueryResult:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
-        The `parameters` object is automatically converted to format accepted by the
+        The ``parameters`` object is automatically converted to format accepted by the
         sqlite3 module. Results are passed unchanged.
         """
         return UntypedQueryResult(
@@ -351,14 +362,14 @@ class DBConnection:
     ) -> UntypedQueryResult:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
-        The `parameters` objects are automatically converted to format accepted by the
+        The ``parameters`` objects are automatically converted to format accepted by the
         sqlite3 module. Results are passed unchanged.
 
-        Logically equivalent to
-        ```
-        for parameter in parameters:
-            raw_execute(sql, parameter)
-        ```
+        Logically equivalent to::
+
+            for parameter in parameters:
+                raw_execute(sql, parameter)
+
         Except that results are collected into a single Cursor -
         which means SELECT queries can't be used with this function.
         """
@@ -374,8 +385,8 @@ class DBConnection:
     ) -> TypedQueryResult[EntityT]:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
-        The `parameters` are passed unchanged to the sqlite3 module.
-        Results are automatically converted to instances of `typ` ImpulsBase objects.
+        The ``parameters`` are passed unchanged to the sqlite3 module.
+        Results are automatically converted to instances of ``typ`` ImpulsBase objects.
         """
         return TypedQueryResult(
             self._con.execute(
@@ -391,18 +402,18 @@ class DBConnection:
     # Simple methods for working on the entities form the model
 
     def retrieve(self, typ: Type[EntityT], *pk: SQLNativeType) -> Optional[EntityT]:
-        """Retrieves an object of type `typ` with given primary key (usually its ID)
+        """Retrieves an object of type ``typ`` with given primary key (usually its ID)
         from the database.
 
-        Returns `None` if no such object is found.
+        Returns ``None`` if no such object is found.
         """
         return self.typed_out_execute("SELECT * FROM :table WHERE :where", typ, pk).one()
 
     def retrieve_must(self, typ: Type[EntityT], *pk: SQLNativeType) -> EntityT:
-        """Retrieves an object of type `typ` with given primary key (usually its ID)
+        """Retrieves an object of type ``typ`` with given primary key (usually its ID)
         from the database.
 
-        Raises EmptyQueryResult if no such object is found
+        Raises EmptyQueryResult if no such object is found.
         """
         return self.typed_out_execute("SELECT * FROM :table WHERE :where", typ, pk).one_must(
             f"No {typ.__name__} with the following primary key: {pk}"
