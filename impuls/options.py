@@ -4,24 +4,34 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class PipelineOptions:
-    force_run: bool = False
-    """By default pipeline raises InputNotModified if all resources were not modified.
-    Setting this flag to True suppresses the error and forces the pipeline to run.
+    """PipelineOptions control the behavior of :py:class:`~impuls.Pipeline`."""
 
-    This option has no effect if there are no resources or from_cache is set - in those cases
-    the pipeline runs unconditionally.
+    force_run: bool = False
+    """force_run, when set to ``True``, suppresses the :py:exc:`~impuls.errors.InputNotModified`
+    error and forces the :py:class:`~impuls.Pipeline` to run.
+
+    The default value is ``False``, and :py:class:`~impuls.Pipeline` raises
+    :py:exc:`~impuls.errors.InputNotModified` if all resources were not modified.
+
+    This option has no effect if there are no resources or :py:attr:`from_cache` is set -
+    in those cases the :py:class:`~impuls.Pipeline` runs unconditionally.
     """
 
     from_cache: bool = False
-    """Causes the Pipeline to never fetch any resource, forcing to use locally cached ones.
-    If any Resource is not cached, MultipleDataError with ResourceNotCached will be raised.
+    """from_cache, when set to ``True``, causes the Pipeline to never fetch any resource,
+    forcing to use locally cached ones. If any :py:class:`~impuls.Resource` is not cached,
+    :py:exc:`~impuls.errors.MultipleDataError` with :py:exc:`~impuls.errors.ResourceNotCached`
+    will be raised.
+
+    Default value is ``False``.
 
     Forces the pipeline to run.
     """
 
     workspace_directory: Path = Path("_impuls_workspace")
-    """Directory where input resources are cached, and where tasks may store their workload
-    to preserve it across runs.
+    """workspace_directory controls the directory where input resources are cached,
+    and where tasks may store their workload to preserve it across runs.
 
-    If the given directory doesn't exist, pipeline attempts to create it (and its parents).
+    If the given directory doesn't exist, :py:class:`~impuls.Pipeline` attempts to create it
+    (and its parents).
     """
