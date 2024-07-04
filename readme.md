@@ -24,8 +24,9 @@ TODO Before 1.0.0 release
 
 - [ ] Generate documentation with Sphinx
 - [ ] Setup Read the Docs
-- [ ] Setup automatic wheel (cross-)compilation
+- [x] Setup automatic wheel (cross-)compilation
 - [ ] Add translations to the model
+- [ ] Automatically set up `App.name` to the class name.
 
 Installation and compilation
 ----------------------------
