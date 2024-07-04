@@ -13,6 +13,25 @@ from .tools.types import StrPath
 
 
 class Pipeline:
+    """Pipeline encapsulates the process of downloading and processing multiple
+    resources by a sequence of tasks.
+
+    :param list[Task] tasks: List of :py:class:`~impuls.Task` instances to be executed in the Pipeline
+    :param Mapping[str, Resource] | None resources: Additional :py:class:`~impuls.Resource`
+        instances to be made available to the tasks being executed, by their name.
+        Defaults to no additional resources.
+    :param PipelineOptions options: Detailed options controlling the behavior of the Pipeline,
+        usually controllable by the end-user. See the documentation for the class itself for
+        more details.
+    :param str name: Prefix to be used by Pipeline and Task loggers. Defaults to no prefix.
+    :param StrPath | None db_path: Path where the SQLite database with data should be stored.
+        Defaults to impuls.db inside of the workspace directory. For advanced usage only, the
+        :py:class:`~impuls.tasks.SaveDB` task should be used.
+    :param bool run_on_existing_db: Don't clear the database before executing the Tasks;
+        effectively assuming that the database stored at ``db_path`` exists and has
+        the expected schema. Advanced usage only.
+    """
+
     def __init__(
         self,
         tasks: list[Task],
@@ -45,6 +64,11 @@ class Pipeline:
         )
 
     def prepare_resources(self) -> None:
+        """prepare_resources ensures that all resources are cached and available locally.
+        Raises :py:exc:`~impuls.errors.InputNotModified` if none of the resources have changed
+        since previous run, or :py:exc:`~impuls.errors.MultipleDataErrors` with
+        :py:exc:`~impuls.errors.ResourceNotCached`.
+        """
         if self.managed_resources is not None:
             # Resources are already prepared - no need to do anything
             return
@@ -60,6 +84,12 @@ class Pipeline:
         self.managed_resources = MappingProxyType(managed)
 
     def open_db(self) -> DBConnection:
+        """open_db opens a :py:class:`~impuls.DBConnection` to an empty database
+        stored in the workspace, following the Impuls :py:mod:`~impuls.model`.
+
+        Except that the database may not be stored in the workspace nor it may be empty,
+        but this is reserved for advanced usage only.
+        """
         if self.run_on_existing_db and self.db_path.exists():
             return DBConnection(self.db_path)
         else:
@@ -68,6 +98,10 @@ class Pipeline:
             return DBConnection.create_with_schema(self.db_path)
 
     def run(self) -> None:
+        """run ensures all resources are cached and then executes all tasks
+        on a fresh database.
+        """
+
         # Ensure resources are ready to use
         self.prepare_resources()
         assert self.managed_resources is not None
