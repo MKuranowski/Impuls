@@ -11,21 +11,64 @@ from .tools.logs import initialize as initialize_logging
 
 
 class App(ABC):
+    """App is a helper abstract class for writing applications/scripts using Impuls.
+    It provides a helper, glue code from main to running a :py:class:`~impuls.Pipeline`
+    or :py:class:`~impuls.multi_file.Pipelines`
+    (returned by :py:class:`~impuls.multi_file.MultiFile`)::
+
+        class MyApp(impuls.App):
+            def prepare(
+                self,
+                args: argparse.Namespace,
+                options: impuls.PipelineOptions,
+            ) -> impuls.Pipeline | impuls.multi_file.MultiFile[impuls.Resource]:
+                ... # Prepare your own Pipeline or MultiFile
+
+        if __name__ == "__main__":
+            MyApp("MyApp").run()
+    """
+
+    name: str
+    workspace_directory: Path
+
     def __init__(self, name: str, workspace_directory: Path = Path("_impuls_workspace")) -> None:
         self.name = name
         self.workspace_directory = workspace_directory
 
     @abstractmethod
     def prepare(self, args: Namespace, options: PipelineOptions) -> Pipeline | MultiFile[Resource]:
+        """prepare must be overwritten and must return a :py:class:`~impuls.Pipeline` or a
+        :py:class:`~impuls.multi_file.MultiFile` to be run by the App.
+        """
         raise NotImplementedError
 
     def add_arguments(self, parser: ArgumentParser) -> None:
+        """add_argument may be overwritten to add extra arguments to be parsed from
+        the command line. Those arguments will then be provided to the :py:meth:`~impuls.App.run`
+        method.
+
+        Several default arguments are always added, namely:
+
+        * ``-f`` / ``--force-run``,
+        * ``-c`` / ``--from-cache``,
+        * ``-v`` / ``--verbose``.
+
+        The first two options are used to create :py:class:`~impuls.PipelineOptions`,
+        while the last one is used when setting up logging.
+        """
         pass  # Default to no extra arguments
 
     def before_run(self) -> None:
+        """before_run may be overwritten to execute arbitrary actions after
+        :py:meth:`~impuls.App.prepare` is called, but before the Pipeline(s) are run.
+        Default is to do nothing.
+        """
         pass
 
     def after_run(self) -> None:
+        """after_run may be overwritten to execute arbitrary actions after the Pipeline(s)
+        are run. Default is to do nothing.
+        """
         pass
 
     @final
@@ -65,6 +108,9 @@ class App(ABC):
 
     @final
     def run(self, args_str: list[str] | None = None) -> None:
+        """run parses command-line arguments (either from the provided list or sys.argv),
+        prepares the Pipeline(s) and runs them.
+        """
         args, options = self._parse_args(args_str)
         initialize_logging(verbose=args.verbose)
         to_run = self.prepare(args, options)
