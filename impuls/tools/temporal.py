@@ -565,26 +565,30 @@ def date_range(start: None, end: Date) -> LeftUnboundedDateRange: ...
 
 def date_range(start: Date | None, end: Date | None = None) -> DateRange:
     """date_range returns a DateRange object for all dates from
-    `start` to `end`, inclusive.
+    ``start`` to ``end``, inclusive.
 
     Those objects can be iterated over, but also combined using set-like operations
     with the following methods:
-    - isdisjoint
-    - issubset (operator <)
-    - union (operator |)
-    - intersection (operator &)
-    - difference (operator -)
-    - (operator ==)
 
-    DateRange instances are hashable, and can be used as dictionary keys.
-    DateRange objects are also iterable (with the exception of InfiniteDateRange),
+    * isdisjoint
+    * issubset (operator ``<``)
+    * union (operator ``|``)
+    * intersection (operator ``&``)
+    * difference (operator ``-``)
+    * (operator ``==``)
+
+    :py:obj:`DateRange` instances are hashable, and can be used as dictionary keys.
+    DateRange objects are also iterable (with the exception of :py:class:`InfiniteDateRange`),
     but iterators with start=None or end=None are infinite.
 
-    If `start` is None, returns "LeftUnboundedDateRange" - a DateRange without a start bound.
-    If `end` is None, returns "RightUnboundedDateRange" - a DateRange without an end bound.
+    If ``start`` is None, returns :py:class:`LeftUnboundedDateRange` -
+    a DateRange without a start bound.
 
-    However, if both `start` and `end` are None - an exception is raised,
-    please explicitly construct EmptyDateRange() or InfiniteDateRange().
+    If ``end`` is None, returns :py:class:`RightUnboundedDateRange` -
+    a DateRange without an end bound.
+
+    However, if both ``start`` and ``end`` are None - an exception is raised,
+    please explicitly construct :py:class:`EmptyDateRange` or :py:class:`InfiniteDateRange`.
     """
     if start and end:
         return BoundedDateRange(start, end)
@@ -595,5 +599,5 @@ def date_range(start: Date | None, end: Date | None = None) -> DateRange:
     else:
         raise ValueError(
             "date_range(None, None) is ambiguous - "
-            "use EmptyDateRange or InfiniteDateRange() explicitly"
+            "use EmptyDateRange() or InfiniteDateRange() explicitly"
         )
