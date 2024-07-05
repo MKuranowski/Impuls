@@ -32,11 +32,16 @@ import requests
 import yaml
 
 from .errors import InputNotModified, MultipleDataErrors, ResourceNotCached
-from .tools.types import Self
+from .tools.types import Self, StrPath
 
 FETCH_CHUNK_SIZE = 1024 * 128
+"""Preferred size of chunks returned by :py:meth:`~impuls.resource.Resource.fetch`"""
+
 DATETIME_MIN_UTC = datetime.min.replace(tzinfo=timezone.utc)
+"""Helper constant with an aware version of datetime.min"""
+
 DATETIME_MAX_UTC = datetime.max.replace(tzinfo=timezone.utc)
+"""Helper constant with an aware version of datetime.max"""
 
 
 logger = logging.getLogger(__name__)
@@ -47,8 +52,8 @@ logger = logging.getLogger(__name__)
 
 
 class Resource(Protocol):
-    """Resource is a protocol describing any type of resources,
-    which can be downloaded and used by the pipeline.
+    """Resource is a protocol describing any type of resource,
+    which can be downloaded and used by the :py:class:`~impuls.Pipeline`.
     """
 
     last_modified: datetime
@@ -63,15 +68,16 @@ class Resource(Protocol):
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         """fetch returns the content of the resource;
-        preferably in chunks of `FETCH_CHUNK_SIZE` length.
+        preferably in chunks of :py:const:`~impuls.resource.FETCH_CHUNK_SIZE` length.
 
-        `last_modified` and `fetch_time` attributes of the should
-        be updated right before the first chunk is returned.
+        :py:attr:`~impuls.resource.Resource.last_modified` and
+        :py:attr:`~impuls.resource.Resource.fetch_time` attributes of the should be updated right
+        before the first chunk is returned.
 
-        If conditional is set to true, the Resource must raise
-        InputNotModified if the resource was not modified since
-        `last_modified`. In this case, `last_modified` and
-        `fetch_time` must not be updated.
+        If conditional is set to true, the Resource must raise InputNotModified if the resource
+        was not modified since :py:attr:`~impuls.resource.Resource.last_modified`. In this case,
+        :py:attr:`~impuls.resource.Resource.last_modified` and
+        :py:attr:`~impuls.resource.Resource.fetch_time` must not be updated.
         """
         ...
 
@@ -79,27 +85,30 @@ class Resource(Protocol):
 class LocalResource(Resource):
     """LocalResource is a Resource located on the local filesystem.
 
-    LocalResources are assumed to be always available, and thus need not be cached.
+    LocalResources are assumed to be always available, and thus don't need to be cached.
 
     This however introduces a few issues with the
-    last_modified and fetch_times fields when within the Pipeline:
-    - fetch_time is always the same as last_modified,
-    - last_modified is only updated before the pipeline starts
+    last_modified and fetch_times fields when within the :py:class:`~impuls.Pipeline`:
 
-    fetch_time thus is not the time when the file was last opened,
-    and if the file was modified after Pipeline has started, last_modified won't be updated;
+    * :py:attr:`~impuls.resource.Resource.fetch_time` is always the same as
+        :py:attr:`~impuls.resource.Resource.last_modified`,
+    * :py:attr:`~impuls.resource.Resource.last_modified` is only updated before the pipeline
+        starts
+
+    :py:attr:`~impuls.resource.Resource.fetch_time` thus is not the time when the file was
+    last opened, and if the file was modified after :py:class:`~impuls.Pipeline` has started,
+    :py:attr:`~impuls.resource.Resource.last_modified` won't be updated;
     but new file content will be returned.
 
     Those quirks should not be an issue as long as:
-    - the file is not modified while the pipeline is running,
-    - the pipeline does not rely on fetch_time.
+
+    * the file is not modified while the pipeline is running,
+    * the pipeline does not rely on the actual access time of the file.
     """
 
     path: Path
-    last_modified: datetime
-    fetch_time: datetime
 
-    def __init__(self, path: Union[str, Path]) -> None:
+    def __init__(self, path: StrPath) -> None:
         self.path = path if isinstance(path, Path) else Path(path)
         self.last_modified = DATETIME_MIN_UTC
         self.fetch_time = DATETIME_MIN_UTC
@@ -108,8 +117,8 @@ class LocalResource(Resource):
         """update_last_modified refreshes the last_modified attribute
         to the modification time of the file; without fetching it.
 
-        If fake_fetch_time is set to true (it defaults to False),
-        fetch_time is also set to the last modification time.
+        If ``fake_fetch_time`` is set to ``True`` (it defaults to ``False``),
+        :py:attr:`~impuls.resource.Resource.fetch_time` is also set to the last modification time.
         """
         current_last_modified = datetime.fromtimestamp(self.path.stat().st_mtime, timezone.utc)
         if current_last_modified > self.last_modified:
@@ -136,7 +145,8 @@ class LocalResource(Resource):
 
 
 class HTTPResource(Resource):
-    """HTTPResource is a Resource on a remote server, accessible using HTTP or HTTPS.
+    """HTTPResource is a :py:class:`~impuls.resource.Resource` on a remote server,
+    accessible using HTTP or HTTPS.
 
     Due to limitation of the Last-Modified and If-Modified-Since headers,
     last_modified is precise only to the second, if the file server has updated
@@ -145,7 +155,6 @@ class HTTPResource(Resource):
 
     request: requests.Request
     session: requests.Session
-    last_modified: datetime
 
     def __init__(
         self,
@@ -167,10 +176,10 @@ class HTTPResource(Resource):
     ) -> Self:
         """get creates a HTTPResource performing a GET request to the provided URL.
 
-        params, if provided, should be a dictionary or a list of k-v tuples.
+        ``params``, if provided, should be a dictionary or a list of k-v tuples.
         Those parameters are appended to the URL.
 
-        headers, if provided, should be a dictionary of headers to send to the server.
+        ``headers``, if provided, should be a dictionary of headers to send to the server.
         """
         return cls(requests.Request("GET", url, params=params, headers=headers))
 
@@ -186,17 +195,17 @@ class HTTPResource(Resource):
     ) -> Self:
         """post creates a HTTPResource performing a POST request to the provided URL.
 
-        params, if provided, are should be a dictionary or a list of k-v tuples.
+        ``params``, if provided, are should be a dictionary or a list of k-v tuples.
         Those parameters are appended to the URL.
 
-        headers, if provided, should be a dictionary of headers to send to the server.
+        ``headers``, if provided, should be a dictionary of headers to send to the server.
 
-        data, if provided, is the body to attach to the request.
-        May be a dictionary or a list of k-v tuples - in this case data is URL-form encoded
+        ``data``, if provided, is the body to attach to the request.
+        May be a dictionary or a list of k-v tuples - in this case ``data`` is URL-form encoded
         before sending to the server.
 
-        json, if provided, is the body to attach to the to the request, using JSON encoding.
-        If both data and json is provided, data takes precedence.
+        ``json``, if provided, is the body to attach to the to the request, using JSON encoding.
+        If both ``data`` and ``json`` is provided, ``data`` takes precedence.
         """
         return cls(
             requests.Request("POST", url, params=params, headers=headers, data=data, json=json),
@@ -236,11 +245,13 @@ class HTTPResource(Resource):
 
 
 class WrappedResource(ABC, Resource):
-    """WrappedResource is a helper abstract class for implementing
-    modification on existing resources using the adapter pattern.
+    """WrappedResource is a helper abstract class for implementing modifications to
+    existing :py:class:`~impuls.resource.Resource` instances using the
+    `decorator pattern <https://en.wikipedia.org/wiki/Decorator_pattern>`_.
 
-    WrappedResource simply proxies the last_modified and fetch_time properties
-    to the wrapped resource, leaving out fetch implementation.
+    WrappedResource simply proxies the :py:attr:`~impuls.resource.Resource.last_modified` and
+    :py:attr:`~impuls.resource.Resource.fetch_time` properties to the wrapped resource,
+    leaving out :py:meth:`~impuls.resource.Resource.fetch` implementation.
     """
 
     r: Resource
@@ -269,16 +280,16 @@ class WrappedResource(ABC, Resource):
         raise NotImplementedError
 
 
-@final
 class TimeLimitedResource(WrappedResource):
-    """TimeLimitedResource wraps a Resource and ensures the time between conditional
-    fetches is at least `minimal_time_between`.
+    """TimeLimitedResource wraps a :py:class:`~impuls.resource.Resource` and ensures
+    the time between conditional fetches is at least ``minimal_time_between``.
 
     TimeLimitedResource can be used to cache constantly-changing resources
     or to prevent bothering an external server.
     """
 
     minimal_time_between: timedelta
+    """minimal time which must pass between fetches to the external server"""
 
     def __init__(self, r: Resource, minimal_time_between: timedelta) -> None:
         super().__init__(r)
@@ -295,17 +306,16 @@ class TimeLimitedResource(WrappedResource):
         return self.r.fetch(conditional)
 
 
-@final
 class ZippedResource(WrappedResource):
-    """ZippedResource wraps a Resource pointing to a zip archive,
+    """ZippedResource wraps a :py:class:`~impuls.resource.Resource` pointing to a zip archive,
     creating a Resource which reads the content of one file from that archive.
 
-    - `file_name_in_zip` dictates which file to extract from the archive.
+    - :py:attr:`.file_name_in_zip` dictates which file to extract from the archive.
         It defaults to None, which first checks if there's one file in the archive,
         and extracts it.
-    - `save_zip_in_memory` dictates whether the zipfile can be saved in memory.
-        It defaults to True, but if the archive itself is huge this option may be
-        set to False, causing the zip file to be written to a temporary file.
+    - :py:attr:`.save_zip_in_memory` dictates whether the zipfile can be saved in memory.
+        It defaults to ``True``, but if the archive itself is huge this option may be
+        set to ``False``, causing the zip file to be written to a temporary file.
     """
 
     file_name_in_zip: str | None
@@ -328,7 +338,7 @@ class ZippedResource(WrappedResource):
                     yield chunk
 
     def pick_file(self, in_: ZipFile) -> ZipInfo:
-        """Picks the file to decompress"""
+        """Picks the file to decompress."""
         if self.file_name_in_zip is None:
             files = in_.infolist()
             if len(files) != 1:
@@ -341,14 +351,15 @@ class ZippedResource(WrappedResource):
             raise ValueError(f"Can't find file {self.file_name_in_zip!r} in ZIP") from e
 
     def fetch_zip(self, conditional: bool) -> ContextManager[BinaryIO]:
-        """Fetches the bytes of the zip file, depending on the `save_zip_in_memory`"""
+        """Fetches the bytes of the zip file, depending on the :py:attr:`.save_zip_in_memory`
+        setting."""
         if self.save_zip_in_memory:
             return self.fetch_zip_to_memory(conditional)
         else:
             return self.fetch_zip_to_temp_file(conditional)
 
     def fetch_zip_to_memory(self, conditional: bool) -> BytesIO:
-        """Fetches the zipfile to a BytesIO and returns it"""
+        """Fetches the zipfile to a BytesIO and returns it."""
         b = BytesIO()
         for chunk in self.r.fetch(conditional):
             b.write(chunk)
@@ -371,18 +382,21 @@ class ZippedResource(WrappedResource):
 
 @dataclass(frozen=True)
 class ManagedResource:
-    """ManagedResource represents a resource which has been cached† by a Pipeline.
+    """ManagedResource represents a resource which has been cached† by a
+    :py:class:`~impuls.Pipeline`.
 
-    The name may be confusing, it does not implement the Resource protocol;
-    it's not an input to the Pipeline, rather a ManagedResource is the output of Pipeline.
+    The name may be confusing, it does not implement the :py:class:`~impuls.resource.Resource`
+    protocol; it's not an input to the Pipeline, rather a ManagedResource is the output of
+    :py:class:`~impuls.Pipeline`.
 
     ManagedResources should not be modified. However, if they are modified:
-    - all tasks following the modifying task will receive the modified ManagedResource.
-    - all tasks preceding and including the modifying task
-      may receive a modified ManagedResource or an unmodified fresh copy of the Resource.
 
-    † - LocalResources are not cached; in this case stored_at
-    is the same as the original Resource path.
+    * all tasks following the modifying task will receive the modified ManagedResource.
+    * all tasks preceding and including the modifying task may receive a modified
+        ManagedResource or an unmodified fresh copy of the Resource.
+
+    † - LocalResources are not cached; in this case :py:attr:`.stored_at` is the same as the
+    original :py:attr:`LocalResource.path`.
     """
 
     stored_at: Path
@@ -538,7 +552,7 @@ def _write_metadata(r: Resource, metadata_path: Path) -> None:
 
 def _download_resource(r: Resource, to: Path, conditional: bool = True) -> None:
     """_cache_resource ensures the latest content of the resource
-    is saved in the `to` file.
+    is saved in the ``to`` file.
     """
     # Dump the contents to a temporary file, and swap it with the target file
     # only on successful fetch.
@@ -570,11 +584,11 @@ def cache_resources(
 ) -> tuple[dict[str, ManagedResource], bool]:
     """cache_resources ensures all resources are stored locally by fetching outdated resources.
 
-    First returned element is a mapping from resource name
-    to its ManagedResource counterpart.
+    First returned element is a mapping from resource name to its :py:class:`ManagedResource`
+    counterpart.
 
-    Second returned element is a flag se to True if at least one Resource
-    was fetched. It's set to False if there are no Resources.
+    Second returned element is a flag set to ``True`` if at least one :py:class:`Resource`
+    was fetched. It's set to ``False`` if there are no resources.
     """
     modified: bool = False
     managed_resources: dict[str, ManagedResource] = {}
@@ -607,8 +621,10 @@ def _ensure_resource_cached(
     workspace: Path,
 ) -> tuple[str, ManagedResource]:
     """_ensure_resource_cached checks that a resource is stored at its cache path,
-    restoring the resource metadata. If a resource is not cached raises ResourceNotCached.
-    Returns the name of the resource alongside a ManagedResource.
+    restoring the resource metadata. If a :py:class:`Resource` is not cached raises
+    :py:exc:`~impuls.errors.ResourceNotCached`.
+
+    Returns the name of the resource alongside a :py:class:`ManagedResource`.
     """
     cached_path = _cache_path_of_resource(r, name, workspace)
     if not cached_path.exists():
@@ -627,12 +643,13 @@ def ensure_resources_cached(
     workspace: Path,
 ) -> dict[str, ManagedResource]:
     """ensure_resources_cached ensures all resources are stored locally
-    **without** fetching any resources. If any resource is not cached, raises MultipleDataErrors
-    with a list of ResourceNotCached corresponding to all missing resources.
+    **without** fetching any resources. If any resource is not cached, raises
+    :py:exc:`~impuls.errors.MultipleDataErrors` with a list of
+    :py:exc:`~impuls.errors.ResourceNotCached` corresponding to all missing resources.
 
-    Never raises InputNotModified.
+    Never raises :py:exc:`~impuls.errors.InputNotModified`.
 
-    Returns a mapping from resource name to its ManagedResource counterpart.
+    Returns a mapping from resource name to its :py:class:`ManagedResource` counterpart.
     """
 
     # Function to be passed to MultipleDataErrors.catch_all
@@ -655,17 +672,18 @@ def prepare_resources(
     workspace: Path,
     from_cache: bool = False,
 ) -> tuple[dict[str, ManagedResource], bool]:
-    """prepare_resources ensures all provided Resources are available locally.
+    """prepare_resources ensures all provided :py:class:`Resource` instances are available locally.
 
-    If from_cache is False, missing or stale resources are fetched; otherwise
-    MultipleDataError with ResourceNotCached may be raised.
+    If ``from_cache`` is False, missing or stale resources are fetched; otherwise
+    :py:exc:`~impuls.errors.MultipleDataErrors` with :py:exc:`~impuls.errors.ResourceNotCached`
+    may be raised.
 
     First returned element is a mapping from resource name
-    to its ManagedResource counterpart.
+    to its :py:class:`ManagedResource` counterparts.
 
-    The second returned flag, indicating whether the Pipeline should continue.
-    It's set to True if there are no resources, from_cache is True or at least
-    one Resource was cached.
+    The second returned flag, indicating whether the :py:class:`~impuls.Pipeline` should continue.
+    It's set to ``True`` if there are no resources, ``from_cache`` is ``True`` or at least
+    one :py:class:`Resource` was cached.
     """
     if not r:
         return {}, True
