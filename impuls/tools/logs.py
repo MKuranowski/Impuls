@@ -5,6 +5,10 @@ from . import color
 
 
 class ColoredFormatter(logging.Formatter):
+    """ColoredFormatter is an opinionated log formatter with human-readable output colored
+    with `ANSI escape sequences <https://en.wikipedia.org/wiki/ANSI_escape_code>`_.
+    """
+
     default_time_format = "%H:%M:%S"
     default_msec_format = "%s.%03d"
 
@@ -46,6 +50,10 @@ class ColoredFormatter(logging.Formatter):
 
 
 def initialize(verbose: bool) -> None:
+    """Resets logging handlers to ensure only a single, logging.StreamHandler using Impuls's
+    custom ColoredFormatter outputs onto the terminal (via stderr).
+    Any other registered logging.Handlers printing to stdout or stderr are removed.
+    """
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG if verbose else logging.INFO)
 

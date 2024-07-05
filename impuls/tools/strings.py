@@ -1,10 +1,6 @@
 import re
 
-# dot and dot-dot have special meaning, as per POSIX "Filename":
-# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170
-# Other names come from Windows:
-# http://web.archive.org/web/20120414111738/http://www.blindedbytech.com/2006/11/16/forbidden-file-and-folder-names-on-windows
-ILLEGAL_PORTABLE_NAMES = frozenset(
+ILLEGAL_PORTABLE_NAMES: frozenset[str] = frozenset(
     (
         ".",
         "..",
@@ -33,6 +29,12 @@ ILLEGAL_PORTABLE_NAMES = frozenset(
         "LPT9",
     )
 )
+"""Set of filenames which can't be reliably used on some operating systems.
+
+For example, "." and ".." (dot and dot-dot) have
+`special meaning in POSIX <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170>`_,
+while `Windows has its own set of forbidden filenames <http://web.archive.org/web/20120414111738/http://www.blindedbytech.com/2006/11/16/forbidden-file-and-folder-names-on-windows>`_.
+"""
 
 
 def camel_to_snake(camel: str) -> str:
