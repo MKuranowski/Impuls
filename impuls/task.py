@@ -10,7 +10,7 @@ from .resource import ManagedResource
 
 @dataclass(frozen=True)
 class TaskRuntime:
-    """TaskRuntime is the argument passed to Task.execute,
+    """TaskRuntime is the argument passed to :py:meth:`Task.execute`,
     with the runtime environment for the task to act upon.
     """
 
@@ -20,7 +20,7 @@ class TaskRuntime:
 
 
 class Task(ABC):
-    """Task is the fundamental block of a Pipeline,
+    """Task is the fundamental block of a :py:class:`~impuls.Pipeline`,
     responsible for actually working on the data.
     """
 
@@ -37,7 +37,7 @@ class Task(ABC):
 
         As of now, Tasks are guaranteed to run in a single thread with a single runtime,
         but execute may be called multiple times in different runtime. Thus, it is safe
-        for Task sub-classes to hold some execute-related state, but that state should be
+        for Task implementations to hold some execute-related state, but that state should be
         reset on entry to execute.
         """
         raise NotImplementedError
