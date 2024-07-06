@@ -14,6 +14,12 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class FareAttribute(Entity):
+    """FareAttributes define a single logical fare class. Due to the way :py:class:`FareRule`
+    is applied, there may be multiple FareAttributes representing the same "ticket".
+
+    Equivalent to `GTFS's fare_attributes.txt entries <https://gtfs.org/schedule/reference/#fare_attributestxt>`_.
+    """
+
     class PaymentMethod(IntEnum):
         ON_BOARD = 0
         BEFORE_BOARDING = 1

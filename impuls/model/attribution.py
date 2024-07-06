@@ -13,6 +13,12 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class Attribution(Entity):
+    """Attribution represents a copyright or any other attribution which must be attached
+    to the dataset.
+
+    Equivalent to `GTFS's attributions.txt entries <https://gtfs.org/schedule/reference/#attributionstxt>`_.
+    """
+
     id: str
     organization_name: str
     is_producer: bool = field(default=False, repr=False)

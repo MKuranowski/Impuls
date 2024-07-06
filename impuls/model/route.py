@@ -14,6 +14,22 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class Route(Entity):
+    """Route instances group multiple trips operated by one :py:class:`Agency` under
+    a single, common identifier.
+
+    The same as a "line"; not to be confused with a "shape" or a "pattern". For example
+    all U2 services in Berlin should be grouped under a single route with short_name "U2" and
+    long_name "Pankow - Ruhleben". For agencies where lines are not commonly used in passenger
+    information, service types may be used instead (common use case for railway operators, e.g.
+    PKP Intercity (Poland) should represent TLK, IC, EIC and EIP train categories as routes,
+    and Korail (South Korea) should represent KTX, ITX, Nuriro, Mungunghwa and Saemeul
+    train categories as routes). If there's no real distinction of services operated by
+    an agency (common use case for long-haul coaches), a single route with agency name
+    is sufficient.
+
+    Equivalent to `GTFS's routes.txt entries <https://gtfs.org/schedule/reference/#routestxt>`_.
+    """
+
     class Type(IntEnum):
         TRAM = 0
         METRO = 1

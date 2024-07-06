@@ -14,6 +14,14 @@ from .meta.utility_types import TimePoint
 @final
 @dataclass
 class Frequency(Entity):
+    """Frequency instances provide an alternative way of defining multiple trips
+    in bulk. When a :py:class:`Trip` has at least one :py:class:`Frequency`, that trips
+    :py:class:`StopTime` absolute times are ignored, instead multiple trips using the relative
+    time differences are used as a pattern for multiple trips following the same pattern.
+
+    Equivalent to `GTFS's frequencies.txt entries <https://gtfs.org/schedule/reference/#frequenciestxt>`_.
+    """
+
     trip_id: str
     start_time: TimePoint
     end_time: TimePoint = field(repr=False)

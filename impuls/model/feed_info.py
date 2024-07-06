@@ -14,6 +14,11 @@ from .meta.utility_types import Date
 @final
 @dataclass
 class FeedInfo(Entity):
+    """FeedInfo describes metadata about the schedule dataset.
+
+    Equivalent to `GTFS's feed_info.txt <https://gtfs.org/schedule/reference/#feed_infotxt>`_.
+    """
+
     publisher_name: str
     publisher_url: str = field(repr=False)
     lang: str = field()
@@ -25,7 +30,7 @@ class FeedInfo(Entity):
 
     id: int = field(default=0, repr=False)
     """id of the FeedInfo must be always 0, as there can only be
-    entry in the feed_info table."""
+    at most one entry in the feed_info table."""
 
     @staticmethod
     def sql_table_name() -> LiteralString:

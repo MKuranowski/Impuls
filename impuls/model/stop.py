@@ -14,6 +14,24 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class Stop(Entity):
+    """Stop can represent 3 different point-like entities,
+    depending on the :py:attr:`location_type` value, usually physical stops.
+
+    :py:obj:`LocationType.STOP` represent physical places where passengers can embark
+    and disembark from vehicles.
+
+    :py:obj:`LocationType.STATION` represent a grouping of multiple stops and exits under
+    a single physical structure. Note that two stops on an opposite side of a road do not
+    form a station (as these do not form a single physical structure), but an underground
+    bus terminus might. Stop-station structures should be only used when you want to provide
+    exits, or different platform positions. If those details are not available,
+    it is ok to provide single stops representing entire railway stations.
+
+    :py:obj:`LocationType.EXIT` represent an exit to a station.
+
+    Equivalent to `GTFS's stops.txt entries <https://gtfs.org/schedule/reference/#stopstxt>`_.
+    """
+
     class LocationType(IntEnum):
         STOP = 0
         STATION = 1
@@ -27,10 +45,10 @@ class Stop(Entity):
     zone_id: str = field(default="", repr=False)
     location_type: LocationType = field(default=LocationType.STOP, repr=False)
 
-    # NOTE: parent_station is a special case when serialized to SQL;
-    #       the empty string is mapped to NULL.
-    #       This makes it easier to treat it as a key referencing Stop.id.
     parent_station: str = field(default="", repr=False)
+    """parent_station references :py:attr:`Stop.id`, with empty string mapping to SQL NULL.
+    Optional for stops, forbidden for stations and mandatory for exits.
+    """
 
     wheelchair_boarding: Optional[bool] = field(default=None, repr=False)
     platform_code: str = field(default="", repr=False)

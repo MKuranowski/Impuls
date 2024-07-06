@@ -15,6 +15,11 @@ from .meta.utility_types import TimePoint
 @final
 @dataclass
 class StopTime(Entity):
+    """StopTime represents a stoppage/passage of a :py:class:`Trip` at/through a :py:class:`Stop`.
+
+    Equivalent to `GTFS's stop_times.txt entries <https://gtfs.org/schedule/reference/#stop_timestxt>`_.
+    """
+
     class PassengerExchange(IntEnum):
         SCHEDULED_STOP = 0
         NONE = 1
@@ -22,7 +27,10 @@ class StopTime(Entity):
         ON_REQUEST = 3
 
     trip_id: str
+
     stop_id: str
+    """The referred stop_id must be of :py:obj:`~Stop.LocationType.STOP` location type."""
+
     stop_sequence: int = field(repr=False)
     arrival_time: TimePoint = field(repr=False)
     departure_time: TimePoint = field(repr=False)

@@ -14,6 +14,11 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class Transfer(Entity):
+    """Transfer represent special rules for transferring between vehicles on the network.
+
+    Equivalent to `GTFS's transfers.txt entries <https://gtfs.org/schedule/reference/#transferstxt>`_.
+    """
+
     class Type(IntEnum):
         RECOMMENDED = 0
         TIMED = 1
@@ -30,7 +35,8 @@ class Transfer(Entity):
     min_transfer_time: Optional[int] = field(default=None, repr=False)
 
     id: int = field(default=0, repr=False)
-    """This field is ignored on `DBConnection.create` - SQLite automatically generates an ID.
+    """This field is ignored on :py:meth:`DBConnection.create` -
+    SQLite automatically generates an ID.
 
     The GTFS primary key clause is incompatible with SQL, as it contains optional columns
     (in SQL PRIMARY KEY implies NOT NULL) - hence the need for a separate ID.
