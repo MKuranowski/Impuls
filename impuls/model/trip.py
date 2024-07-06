@@ -14,6 +14,13 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class Trip(Entity):
+    """Trips represent a single journey made by a vehicle, belonging to
+    a specific :py:class:`Route` and :py:class:`Calendar`, grouping multiple
+    :py:class:`StopTime` objects.
+
+    Equivalent to `GTFS's trips.txt entries <https://gtfs.org/schedule/reference/#tripstxt>`_.
+    """
+
     class Direction(IntEnum):
         OUTBOUND = 0
         INBOUND = 1
@@ -25,15 +32,18 @@ class Trip(Entity):
     short_name: str = field(default="", repr=False)
     direction: Optional[Direction] = field(default=None, repr=False)
 
-    # NOTE: block_id is a special case when serialized to SQL;
-    #       the empty string is mapped to NULL.
-    #       This makes it easier to treat it as a key of some sorts.
     block_id: str = field(default="", repr=False)
+    """block_id is used to group multiple trips where a rider can transfer without
+    leaving a vehicle. This should only be used for circular routes or through service
+    between routes; grouping multiple outbound and inbound trips (from a single diagram)
+    of a single route with block_id provides no value to riders and creates visual confusion
+    in consumer applications.
 
-    # NOTE: shape_id is a special case when serialized to SQL;
-    #       the empty string is mapped to NULL.
-    #       This makes it easier to treat it as a key of some sorts.
+    Empty string maps to SQL NULL.
+    """
+
     shape_id: str = field(default="", repr=False)
+    """shape_id references :py:attr:`Shape.id`, with empty string mapping to SQL NULL."""
 
     wheelchair_accessible: Optional[bool] = field(default=None, repr=False)
     bikes_allowed: Optional[bool] = field(default=None, repr=False)

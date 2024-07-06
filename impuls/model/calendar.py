@@ -16,6 +16,16 @@ from .meta.utility_types import Date
 @final
 @dataclass
 class Calendar(Entity):
+    """Calendar defines a set of dates on which :py:class:`Trip` instances operate.
+
+    Equivalent to `GTFS's calendar.txt entries <https://gtfs.org/schedule/reference/#calendartxt>`_.
+
+    Contrary to GTFS, Calendar entries are mandatory, even if all operating dates are defined
+    using :py:class:`CalendarException` instances. If this is the case, all weekdays should be set
+    to ``False`` and :py:attr:`start_date` and :py:attr:`end_date` should be set to
+    :py:const:`Date.SIGNALS_EXCEPTIONS`.
+    """
+
     id: str
     monday: bool = field(default=False, repr=False)
     tuesday: bool = field(default=False, repr=False)
@@ -122,8 +132,8 @@ class Calendar(Entity):
         """Computes the set of active dates of this Calendar,
         **not** taking exceptions into account.
 
-        Use CalendarException.reflect_in_active_dates
-        to take CalendarExceptions into account.
+        Use :py:meth:`CalendarException.reflect_in_active_dates`
+        to take :py:class:`CalendarException` instances into account.
         """
         if self.start_date == Date.SIGNALS_EXCEPTIONS and self.end_date == Date.SIGNALS_EXCEPTIONS:
             return set()

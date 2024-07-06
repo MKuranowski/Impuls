@@ -5,6 +5,7 @@ from typing_extensions import LiteralString
 from ...tools.types import Self, SQLNativeType
 
 EntityT = TypeVar("EntityT", bound="Entity")
+"""EntityT is a helper TypeVar bound to an :py:class:`Entity`."""
 
 
 class Entity(Protocol):
@@ -19,14 +20,15 @@ class Entity(Protocol):
 
     @staticmethod
     def sql_create_table() -> LiteralString:
-        """sql_create_table returns the SQL CREATE TABLE statement."""
+        """sql_create_table returns the SQL CREATE TABLE statement necessary to hold
+        entities of this type."""
         ...
 
     @staticmethod
     def sql_columns() -> LiteralString:
         """sql_columns returns a "(col1, col2, col3)" string used in SQL queries
         for this type. The number of question marks must match the number of elements
-        returned by sql_marshall.
+        returned by :py:meth:`sql_marshall`.
         """
         ...
 
@@ -34,7 +36,7 @@ class Entity(Protocol):
     def sql_placeholder() -> LiteralString:
         """sql_placeholder returns a "(?, ?, ?, ?, ...)" string used in SQL queries
         for this type. The number of question marks must match the number of elements
-        returned by sql_marshall."""
+        returned by :py:meth:`sql_marshall`."""
         ...
 
     @staticmethod
@@ -55,7 +57,8 @@ class Entity(Protocol):
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
         """sql_primary_key converts the primary key of an entity into its SQL representation.
-        The returned tuple should have the same elements ans sql_where_clause has parameters."""
+        The returned tuple should have the same number of elements as :py:meth:`sql_where_clause`
+        has parameters."""
         ...
 
     @classmethod

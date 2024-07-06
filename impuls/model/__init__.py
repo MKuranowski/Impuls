@@ -57,3 +57,7 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     Frequency,
     Transfer,
 ]
+"""List of all :py:class:`Entity` classes which belong to the Impuls data model.
+The list is ordered to allow marshalling without KEY violations, e.g. :py:class:`Trip` is
+before :py:class:`StopTime` as the latter references :py:attr:`Trip.id`.
+"""

@@ -38,17 +38,18 @@ class DataclassSQLBuilder:
         incoming_type: Type[SQL_T],
         converter: Optional[Callable[[SQL_T], Any]] = None,
     ) -> Self:
-        """field consumes next element from the SQL row and adds it the the kwargs under the
-        `field` name.
+        """field consumes next element from the SQL row and adds it to the kwargs under the
+        ``field`` name.
 
-        `incoming_type` is used to type-check the incoming field - the incoming value
-        must be an instance of `incoming_type`.
+        ``incoming_type`` is used to type-check the incoming field - the incoming value
+        must be an instance of ``incoming_type``.
 
-        `converter`, if present will be applied to the incoming value. This can be used
-        to change between SQL and Impuls types. For convenience, if `incoming_type` is `bool`,
+        ``converter``, if present will be applied to the incoming value. This can be used
+        to change between SQL and Impuls types. For convenience, if ``incoming_type`` is ``bool``,
         a converter is automatically provided.
 
-        See `nullable_field` and `optional_field` if the incoming value may be NULL.
+        See :py:meth:`nullable_field` and :py:meth:`optional_field` if the incoming value may be
+        NULL.
         """
         # Retrieve the current argument
         value = self._get_value()
@@ -74,17 +75,17 @@ class DataclassSQLBuilder:
         incoming_type: Type[SQL_T],
         converter: Optional[Callable[[SQL_T], Any]] = None,
     ) -> Self:
-        """nullable_field consumes next element from the SQL row and adds it the the kwargs
-        under the `field` name.
+        """nullable_field consumes next element from the SQL row and adds it to the kwargs
+        under the ``field`` name.
 
-        `incoming_type` is used to type-check the incoming field - the incoming value
-        must be an instance of `incoming_type`, or be None.
+        ``incoming_type`` is used to type-check the incoming field - the incoming value
+        must be an instance of ``incoming_type``, or be None.
 
-        `converter`, if present will be applied to the incoming value, if that is not NULL.
-        For convenience, if `incoming_type` is `bool`, a converter is automatically provided.
+        ``converter``, if present will be applied to the incoming value, if that is not NULL.
+        For convenience, if ``incoming_type`` is ``bool``, a converter is automatically provided.
 
-        NULL values bypass the converter (in contrast with `optional_field`) and are
-        saved directly as None.
+        NULL values bypass the converter (in contrast with :py:meth:`optional_field`) and are
+        saved directly as ``None``.
         """
         # Retrieve the current argument
         value = self._get_value()
@@ -115,16 +116,16 @@ class DataclassSQLBuilder:
         incoming_type: Type[SQL_T],
         converter: Callable[[Optional[SQL_T]], Any],
     ) -> Self:
-        """optional_field consumes next element from the SQL row and adds it the the kwargs
-        under the `field` name.
+        """optional_field consumes next element from the SQL row and adds it to the kwargs
+        under the ``field`` name.
 
-        `incoming_type` is used to type-check the incoming field - the incoming value
-        must be an instance of `incoming_type`, or be None.
+        ``incoming_type`` is used to type-check the incoming field - the incoming value
+        must be an instance of ``incoming_type``, or be ``None``.
 
-        `converter` is always applied to the incoming value, regardless if it's None or not.
-        If you find `converter` optional, use `nullable_field` instead.
+        ``converter`` is always applied to the incoming value, regardless if it's ``None`` or not.
+        If you find ``converter`` optional, use :py:meth:`nullable_field` instead.
 
-        NULL values are passed the converter (in contrast with `nullable_field`).
+        NULL values are passed the converter (in contrast with :py:meth:`nullable_field`).
         """
         # Retrieve the current argument
         value = self._get_value()

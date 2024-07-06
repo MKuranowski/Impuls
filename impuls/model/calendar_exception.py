@@ -15,6 +15,14 @@ from .meta.utility_types import Date
 @final
 @dataclass
 class CalendarException(Entity):
+    """CalendarExceptions are used to override operating dates defined by a :py:class:`Calendar`.
+
+    Equivalent to `GTFS's calendar_dates.txt entries <https://gtfs.org/schedule/reference/#calendar_datestxt>`_.
+
+    Contrary to GTFS, :py:class:`Calendar` entries are mandatory (even if empty), as
+    :py:attr:`calendar_id` is **always** a foreign key referencing :py:attr:`Calendar.id`.
+    """
+
     class Type(IntEnum):
         ADDED = 1
         REMOVED = 2

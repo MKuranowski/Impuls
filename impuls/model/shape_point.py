@@ -13,6 +13,18 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class ShapePoint(Entity):
+    """ShapePoints describe the real path a trip takes, used for plotting
+    journeys on a map.
+
+    Equivalent to `GTFS's shapes.txt entries <https://gtfs.org/schedule/reference/#shapestxt>`_.
+
+    Note that in GTFS ``shape_id`` is not a primary key in any table, rather, it's
+    a "virtual", implied entity. In Impuls, this is not the case, a separate ``shapes``
+    table is present, with a sole primary key column, ``shape_id``. There's no corresponding
+    entity for that table. Before inserting ShapePoints into a database, execute a
+    ``INSERT INTO shapes (shape_id) VALUES (?)`` SQL statement.
+    """
+
     shape_id: str
     sequence: int
     lat: float = field(repr=False)

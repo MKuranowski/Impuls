@@ -6,6 +6,13 @@ from ...tools.types import Self
 
 
 class TimePoint(timedelta):
+    """TimePoint is an extension of datetime.timedelta to represent
+    *seconds since noon minus 12 hours*.
+
+    The extension only provides ``__str__`` and :py:meth:`from_str` methods
+    to help with conversion between TimePoints and HH:MM:SS strings.
+    """
+
     def __str__(self) -> str:
         """Converts the TimePoint to a GTFS-compliant string
 
@@ -34,7 +41,18 @@ class TimePoint(timedelta):
 
 
 class Date(date):
+    """Date is an extension of datetime.date to represent dates of the Impuls model.
+
+    The extension provides ``__str__`` and :py:meth:`from_ymd_str` methods to convert
+    between dates and YYYY-MM-DD strings, and a few other helper functions.
+    """
+
     SIGNALS_EXCEPTIONS: ClassVar["Date"]
+    """A placeholder Date used in :py:class:`~impuls.model.Calendar` to indicate that
+    this calendar is defined exclusively using :py:class:`~impuls.model.CalendarException`
+    instances. In principle, this could be any date, but only :py:obj:`SIGNALS_EXCEPTIONS`
+    is identified by the :py:class:`~impuls.tasks.SaveGTFS` task.
+    """
 
     def __str__(self) -> str:
         """Converts the string to a YYYY-MM-DD format.
@@ -62,7 +80,7 @@ class Date(date):
         return cls(int(m[1]), int(m[2]), int(m[3]))
 
     def add_days(self: Self, delta: int) -> Self:
-        """Returns a new day _delta_ days off from self. Delta may be negative.
+        """Returns a new day ``delta`` days off from self. Delta may be negative.
 
         >>> Date(2012, 6, 1).add_days(4)
         Date(2012, 6, 5)

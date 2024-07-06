@@ -13,6 +13,19 @@ from .meta.sql_builder import DataclassSQLBuilder
 @final
 @dataclass
 class Agency(Entity):
+    """Agency represents the entity/public body/company responsible for high-level management
+    (especially fares) of a public transportation network.
+
+    The exact meaning is up to the user, but an *Agency* should be the body riders associate
+    as responsible for the transit system. For example, in Poland, for publicly run
+    city networks this should be the city-run public transport authority (the organizer, e.g.
+    Zarząd Transportu Miejskiego), but for train networks this should be the train company
+    itself (e.g. Koleje Mazowieckie, even though technically the organizer is usually the
+    voivodeship marshal).
+
+    Equivalent to `GTFS's agency.txt entries <https://gtfs.org/schedule/reference/#agencytxt>`_.
+    """
+
     id: str
     name: str
     url: str = field(repr=False)
