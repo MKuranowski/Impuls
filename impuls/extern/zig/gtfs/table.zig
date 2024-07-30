@@ -3,7 +3,7 @@ const from_gtfs = @import("./conversion_from_gtfs.zig");
 const std = @import("std");
 const to_gtfs = @import("./conversion_to_gtfs.zig");
 
-const ComptimeStringMap = std.ComptimeStringMap;
+const StaticStringMap = std.StaticStringMap;
 const FnFromGtfs = c.FnFromGtfs;
 const FnToGtfs = c.FnToGtfs;
 const mem = std.mem;
@@ -49,14 +49,14 @@ pub const Table = struct {
         return s;
     }
 
-    /// gtfsColumnNamesToIndices creates a std.ComptimeStringMap mapping GTFS column names
+    /// gtfsColumnNamesToIndices creates a std.StaticStringMap mapping GTFS column names
     /// to indices into Table.columns.
-    pub fn gtfsColumnNamesToIndices(comptime self: Table) type {
+    pub fn gtfsColumnNamesToIndices(comptime self: Table) StaticStringMap(usize) {
         comptime var kvs: [self.columns.len]struct { []const u8, usize } = undefined;
         inline for (self.columns, 0..) |col, i| {
             kvs[i] = .{ col.gtfsName(), i };
         }
-        return ComptimeStringMap(usize, kvs);
+        return StaticStringMap(usize).initComptime(kvs);
     }
 
     /// gtfsNameWithoutExtension returns the GTFS name of the table without the ".txt" extension
