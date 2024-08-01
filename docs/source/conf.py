@@ -20,6 +20,7 @@ autodoc_default_options = {
     "special-members": "__iter__,__next__,__enter__,__exit__,__contains__",
     "show-inheritance": True,
 }
+autodoc_member_order = "groupwise"
 autodoc_mock_imports = ["impuls.extern.libextern"]
 
 templates_path = ["_templates"]
@@ -29,5 +30,5 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
+html_theme = "furo"
 html_static_path = ["_static"]
