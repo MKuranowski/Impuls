@@ -15,23 +15,27 @@ GTFSHeaders = Mapping[str, Sequence[str]]
 class SaveGTFS(Task):
     """SaveGTFS exports the contained data to as a GTFS zip file at the provided path.
 
-    `headers` is a mapping from a GTFS table (excluding the .txt extension) to a sequence of
+    ``headers`` is a mapping from a GTFS table (excluding the .txt extension) to a sequence of
     colum names. SaveGTFS doesn't validate the provided mapping, so the caller must ensure
     all required columns and files are provided.
 
-    When `emit_empty_calendars` is set to True (default is False), empty calendars will
+    When ``emit_empty_calendars`` is set to True (default is False), empty calendars will
     still be generated in the calendar.txt file.
     """
+
+    headers: GTFSHeaders
+    target: Path
+    emit_empty_calendars: bool
 
     def __init__(
         self,
         headers: GTFSHeaders,
-        target: Path,
+        target: StrPath,
         emit_empty_calendars: bool = False,
     ) -> None:
         super().__init__()
         self.headers = headers
-        self.target = target
+        self.target = Path(target)
         self.emit_empty_calendars = emit_empty_calendars
 
     def execute(self, r: TaskRuntime) -> None:

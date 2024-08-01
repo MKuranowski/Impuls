@@ -6,10 +6,11 @@ from ..task import Task, TaskRuntime
 @final
 class GenerateTripHeadsign(Task):
     """GenerateTripHeadsign is a task which fills the trip_headsign
-    field for all trips which don't already have a headsign.
+    field for all :py:class:`Trips <impuls.model.Trip>` which don't already have a headsign.
 
     The generated headsign is the name of the last stop of the trip.
-    This step will break if there are trips without any stops."""
+    This step will break if there are trips without any stops.
+    """
 
     def execute(self, r: TaskRuntime) -> None:
         # mmm yes, nice correlated nested select statement :)

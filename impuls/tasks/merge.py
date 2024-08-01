@@ -19,8 +19,13 @@ from ..tools.types import Self, all_non_none
 
 @dataclass(frozen=True)
 class DatabaseToMerge:
+    """DatabaseToMerge represents a database to-be-merged with the runtime database."""
+
     resource_name: str
+    """Name of the resource with the Impuls DB to be merged."""
+
     prefix: str
+    """Prefix to add before IDs of copied entities."""
 
     pre_merge_pipeline: Pipeline | None = None
     """Pipeline to run just before merging. This pipeline runs on a temporary
@@ -30,6 +35,10 @@ class DatabaseToMerge:
 
 @dataclass(frozen=True)
 class RouteHash:
+    """RouteHash represents all attributes of a :py:class:`~impuls.model.Route` required
+    to conclude that two routes should be merged.
+    """
+
     id: str
     agency_id: str
     short_name: str
@@ -49,6 +58,10 @@ class RouteHash:
 
 @dataclass(frozen=True)
 class StopHash:
+    """StopHash represents all attributes of a :py:class:`~impuls.model.Stop`, excluding the
+    latitude and longitude, required to conclude that two stops should be merged.
+    """
+
     id: str
     name: str
     code: str
@@ -73,8 +86,14 @@ class StopHash:
 
 
 class ConflictResolution(NamedTuple):
+    """ConflictResolution describes how IDs from an incoming DB need to be changed
+    to avoid merge conflicts. Not all entities will have an entry in the :py:attr:`ids_to_change`
+    list - such entities don't need to be merged, as an entity in the runtime database already
+    contains a similar-enough object.
+    """
+
     ids_to_change: list[tuple[str, str]]
-    """(new_id, old_id) pairs of ids that need to be changes"""
+    """(new_id, old_id) pairs of ids that need to be changed"""
 
     total: int
     merged: int
@@ -84,43 +103,84 @@ class ConflictResolution(NamedTuple):
 class Merge(Task):
     """Merge tasks inserts data from provided impuls databases into the current one.
 
-    The user must ensure that `f"{db_to_merge.prefix}{separator}{id}" generates unique
+    The user must ensure that ``f"{db_to_merge.prefix}{separator}{id}"`` generates unique
     ids across all data. This especially applies if the runtime database already has data.
 
     This tasks also performs merging of some entity types, provided they have the same ID:
 
-    - Agency and Attribution instances are always merged - attributes of the first encountered
-        instance are kept.
-    - Calendar, CalendarException, FareAttribute, FareRule, ShapePoint, Trip, StopTime, Frequency
-        and Transfer instances are never merged - incoming ids are always prefixed by the
-        database_to_merge prefix.
-    - Route instances are merged if they have the same agency_id, short_name, type and color.
-        Other attributes of the first encountered instance are kept.
-        If the comparison attributes do not match, the incoming id will have a numeric suffix
-        added.
-    - Stop instances are merged if they have the same name, code, zone_id, location_type,
-        parent_station, wheelchair_boarding, platform_code and are within 10m of each other.
-        Other attributes of the first encountered instance are kept.
-        If the comparison attributes do not match, the incoming id will have a numeric suffix
-        added.
-    - FeedInfo is treated specially:
-        - If it exists in the current (runtime) database, it is kept as-is,
-            and any other instances are ignored.
-        - If **all** to-merge databases have a FeedInfo object, then the attributes of the first
-            encountered one are kept, except that:
-                - feed_start_date is set to the min of all encountered feed_start_date
-                - feed_end_date is set to the max of all encountered feed_end_date
-                - feed_version is set to all encountered feed_versions, separated with
-                    `feed_version_separator`
-        - Otherwise, no FeedInfo object will be created.
-        The first case is meant for merging on smaller, helper datasets to an already-loaded
-        major database.
-        The second case serves merging versioned datasets, with the last case preventing
-        any inconsistencies in the FeedInfo object.
-    - Stop.zone_id is left untouched - effectively merging zones across datasets.
-    - Trip.block_id and Trip.shape_id are prefixed with db_to_merge.prefix - effectively
-        never merging blocks or shapes across datasets.
+    * :py:class:`~impuls.model.Agency` and :py:class:`~impuls.model.Attribution` instances
+      are always merged - attributes of the first encountered instance are kept.
+    * :py:class:`~impuls.model.Calendar`, :py:class:`~impuls.model.CalendarException`,
+      :py:class:`~impuls.model.FareAttribute`, :py:class:`~impuls.model.FareRule`,
+      :py:class:`~impuls.model.ShapePoint`, :py:class:`~impuls.model.Trip`,
+      :py:class:`~impuls.model.StopTime`, :py:class:`~impuls.model.Frequency` and
+      :py:class:`~impuls.model.Transfer` instances are never merged - incoming ids are always
+      prefixed by the :py:attr:`DatabaseToMerge.prefix` and :py:attr:`separator`.
+    * :py:class:`~impuls.model.Route` instances are merged if they have the same
+      :py:attr:`~impuls.model.Route.agency_id`, :py:attr:`~impuls.model.Route.short_name`,
+      :py:attr:`~impuls.model.Route.type` and :py:attr:`~impuls.model.Route.color`.
+      Other attributes of the first encountered instance are kept. If the comparison attributes
+      do not match, the incoming id will have a numeric suffix added.
+    * :py:class:`~impuls.model.Stop` instances are merged if they have the same
+      :py:attr:`~impuls.model.Stop.name`, :py:attr:`~impuls.model.Stop.code`,
+      :py:attr:`~impuls.model.Stop.zone_id`, :py:attr:`~impuls.model.Stop.location_type`,
+      :py:attr:`~impuls.model.Stop.parent_station`,
+      :py:attr:`~impuls.model.Stop.wheelchair_boarding`,
+      :py:attr:`~impuls.model.Stop.platform_code` and are within
+      :py:attr:`distance_between_similar_stops_m` (default 10 meters) of each other.
+      Other attributes of the first encountered instance are kept. If the comparison attributes
+      do not match, the incoming id will have a numeric suffix added.
+    * :py:class:`~impuls.model.FeedInfo` is treated specially:
+
+      * If it exists in the current (runtime) database, it is kept as-is,
+        and any other instances are ignored.
+      * If **all** to-merge databases have a :py:class:`~impuls.model.FeedInfo` object, then the
+        attributes of the first encountered one are kept, except that:
+
+        * feed_start_date is set to the min of all encountered feed_start_date
+        * feed_end_date is set to the max of all encountered feed_end_date
+        * feed_version is set to all encountered feed_versions, separated with
+          :py:attr:`feed_version_separator`
+
+      * Otherwise, no :py:class:`~impuls.model.FeedInfo` object will be created.
+
+      The first case is meant for merging on smaller, helper datasets to an already-loaded
+      major database. The second case serves merging versioned datasets, with the last case
+      preventing any inconsistencies in the :py:class:`~impuls.model.FeedInfo` object.
+
+    * :py:attr:`Stop.zone_id <impuls.model.Stop.zone_id>` is left untouched - effectively
+      merging zones across datasets.
+    * :py:attr:`Trip.block_id <impuls.model.Trip.block_id>` and
+      :py:attr:`Trip.shape_id <impuls.model.Trip.shape_id>` are prefixed with
+      :py:attr:`DatabaseToMerge.prefix` - effectively never merging blocks or shapes across
+      datasets.
     """
+
+    databases_to_merge: list[DatabaseToMerge]
+    """List of databases to merge into the runtime DB."""
+
+    separator: str
+    """Separator inserted between :py:attr:`DatabaseToMerge.prefix` and entity IDs.
+    Defaults to ``:``.
+    """
+
+    feed_version_separator: str
+    """Separator for :py:attr:`FeedInfo.version <impuls.model.FeedInfo.version>` when
+    a new :py:class:`~impuls.model.FeedInfo` is created based on the incoming databases.
+    Defaults to ``/``.
+    """
+
+    distance_between_similar_stops_m: float
+    """How close should 2 stops with the same :py:class:`StopHash` be in order to be merged.
+    Defaults to 10 meters.
+    """
+
+    _known_routes: dict[RouteHash, str]
+    _used_route_ids: set[str]
+    _known_stops: dict[StopHash, list[Stop]]
+    _used_stop_ids: set[str]
+    _feed_infos: list[FeedInfo | None] | None
+    """None if FeedInfo should not be collected, otherwise list of FeedInfos from merged dbs"""
 
     def __init__(
         self,
@@ -136,15 +196,22 @@ class Merge(Task):
         self.distance_between_similar_stops_m = distance_between_similar_stops_m
 
         # State
-        self.known_routes: dict[RouteHash, str] = {}
-        self.used_route_ids: set[str] = set()
-        self.known_stops: dict[StopHash, list[Stop]] = {}
-        self.used_stop_ids: set[str] = set()
+        self._known_routes = {}
+        self._used_route_ids = set()
+        self._known_stops = {}
+        self._used_stop_ids = set()
+        self._feed_infos = None
 
-        self.feed_infos: list[FeedInfo | None] | None = None
-        """None if FeedInfo should not be collected, otherwise list of FeedInfos from merged dbs"""
+    def _clear_state(self) -> None:
+        self._known_routes.clear()
+        self._used_route_ids.clear()
+        self._known_stops.clear()
+        self._used_stop_ids.clear()
+        self._feed_infos = None
 
     def execute(self, r: TaskRuntime) -> None:
+        self._clear_state()
+
         self.logger.info("Collecting data about existing routes and stops")
         self.initialize_known_objects(r.db)
 
@@ -168,22 +235,22 @@ class Merge(Task):
         self.initialize_known_feed_info(db)
 
     def initialize_known_routes(self, db: DBConnection) -> None:
-        self.known_routes.clear()
-        self.used_route_ids.clear()
+        self._known_routes.clear()
+        self._used_route_ids.clear()
         for route in db.retrieve_all(Route):
-            self.used_route_ids.add(route.id)
-            self.known_routes[RouteHash.of(route)] = route.id
+            self._used_route_ids.add(route.id)
+            self._known_routes[RouteHash.of(route)] = route.id
 
     def initialize_known_stops(self, db: DBConnection) -> None:
-        self.known_stops.clear()
-        self.used_stop_ids.clear()
+        self._known_stops.clear()
+        self._used_stop_ids.clear()
         for stop in db.retrieve_all(Stop):
-            self.used_stop_ids.add(stop.id)
-            self.known_stops[StopHash.of(stop)] = [stop]
+            self._used_stop_ids.add(stop.id)
+            self._known_stops[StopHash.of(stop)] = [stop]
 
     def initialize_known_feed_info(self, db: DBConnection) -> None:
         feed_info_count = db.count(FeedInfo)
-        self.feed_infos = None if feed_info_count > 0 else []
+        self._feed_infos = None if feed_info_count > 0 else []
 
     def merge(
         self,
@@ -194,7 +261,7 @@ class Merge(Task):
     ) -> None:
         # To copy objects from the incoming db, its prefix needs to be to the id columns.
         # This means that the incoming db will be mutated. To prevent multiple mutations
-        # if the db is re-used across runs, it is copied into a temporary file.
+        # if the db is re-used across runs, it needs to be copied into a temporary file.
         with temp_db_file(incoming_path, incoming_prefix) as incoming_mut_path:
             self.run_pre_merge_pipeline(incoming_mut_path, pre_merge_pipeline)
             with attached(db, incoming_mut_path), db.transaction():
@@ -251,16 +318,16 @@ class Merge(Task):
         for incoming_route in db.typed_out_execute("SELECT * FROM incoming.routes", Route):
             total += 1
             hash = RouteHash.of(incoming_route)
-            new_id = self.known_routes.get(hash)
+            new_id = self._known_routes.get(hash)
 
             if new_id is None:
                 new_id = find_non_conflicting_id(
-                    self.used_route_ids,
+                    self._used_route_ids,
                     incoming_route.id,
                     self.separator,
                 )
-                self.used_route_ids.add(new_id)
-                self.known_routes[hash] = new_id
+                self._used_route_ids.add(new_id)
+                self._known_routes[hash] = new_id
             else:
                 merged += 1
 
@@ -294,7 +361,7 @@ class Merge(Task):
             hash = StopHash.of(incoming_stop)
             similar_stop = pick_closest_stop(
                 incoming_stop,
-                self.known_stops.get(hash, []),
+                self._known_stops.get(hash, []),
                 self.distance_between_similar_stops_m,
             )
 
@@ -304,12 +371,12 @@ class Merge(Task):
 
             else:
                 new_id = find_non_conflicting_id(
-                    self.used_stop_ids,
+                    self._used_stop_ids,
                     incoming_stop.id,
                     self.separator,
                 )
-                self.used_stop_ids.add(new_id)
-                self.known_stops.setdefault(hash, []).append(incoming_stop)
+                self._used_stop_ids.add(new_id)
+                self._known_stops.setdefault(hash, []).append(incoming_stop)
 
             if incoming_stop.id != new_id:
                 # Tuple order is (new_id, old_id) for substitution in
@@ -422,14 +489,14 @@ class Merge(Task):
     def collect_incoming_feed_info(self, db: DBConnection) -> None:
         self.logger.debug("Collecting FeedInfo")
 
-        if self.feed_infos is not None:
+        if self._feed_infos is not None:
             feed_info = db.typed_out_execute("SELECT * FROM incoming.feed_info", FeedInfo).one()
-            self.feed_infos.append(feed_info)
+            self._feed_infos.append(feed_info)
 
     def insert_feed_info(self, db: DBConnection) -> None:
         # Shallow copy - pyright can't narrow the type to list[FeedInfo] after a type guard
         # when operating directly on the class attribute.
-        feed_infos = self.feed_infos
+        feed_infos = self._feed_infos
 
         if not feed_infos:
             return  # DB had FeedInfo before merging - keep it
@@ -446,8 +513,8 @@ class Merge(Task):
 
 @contextmanager
 def attached(db: DBConnection, path_to_incoming: str) -> Generator[None, None, None]:
-    """Attaches a database from the provided path as `incoming`.
-    Detached that database on exit.
+    """Attaches a database from the provided path as ``incoming``.
+    Detaches that database on exit.
     """
     db.raw_execute("ATTACH DATABASE ? as incoming", (path_to_incoming,))
     try:
@@ -459,10 +526,10 @@ def attached(db: DBConnection, path_to_incoming: str) -> Generator[None, None, N
 @contextmanager
 def temp_db_file(db_path: str, db_prefix: str) -> Generator[str, None, None]:
     """Creates a temporary copy of a database, so that it can be mutated
-    without the changes being visible in db_path.
+    without the changes being visible in ``db_path``.
 
-    In other words, copies the file from `db_path` to a temporary file
-    and returns path of that temporary file. `db_prefix` is only used to generate
+    In other words, copies the file from ``db_path`` to a temporary file
+    and returns path of that temporary file. ``db_prefix`` is only used to generate
     the temporary file name. The temporary file is removed on exit.
     """
     fd, temp_path = mkstemp(prefix="impuls-merge", suffix=f"{db_prefix}.db")
@@ -482,8 +549,7 @@ def pick_closest_stop(
     """Picks the closest stop from candidates to incoming, as long as the distance
     is not greater than the provided maximum.
 
-    If there are no candidates at all, or there are no candidates max_distance_m radius,
-    returns None.
+    If there are no candidates within the provided ``max_distance_m`` radius, returns None.
     """
     closest, distance_m = min(
         ((s, earth_distance_m(incoming.lat, incoming.lon, s.lat, s.lon)) for s in candidates),

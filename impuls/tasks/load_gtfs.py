@@ -34,6 +34,8 @@ class LoadGTFS(Task):
     in earlier lines.
     """
 
+    resource: str
+
     def __init__(self, resource: str) -> None:
         super().__init__()
         self.resource = resource

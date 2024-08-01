@@ -14,6 +14,7 @@ All of the following modules are accessible when importing the top-level package
     impuls.resource
     impuls.tasks
     impuls.tasks.merge
+    impuls.tasks.modify_from_csv
     impuls.tools
     impuls.tools.geo
     impuls.tools.iteration
