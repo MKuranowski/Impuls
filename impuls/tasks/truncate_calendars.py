@@ -8,6 +8,8 @@ from ..tools.temporal import DateRange
 
 
 class NoServicesLeft(DataError):
+    """NoServicesLeft is raised by :py:class:`TruncateCalendars` when all calendars are removed."""
+
     def __init__(self, target: DateRange) -> None:
         self.target = target
         super().__init__(f"No services left after calendar truncation to {self.target}")
@@ -17,20 +19,27 @@ class NoServicesLeft(DataError):
 class TruncateCalendars(Task):
     """TruncateCalendars removes any services beyond the provided range.
 
-    For simplicity, all Calendars are converted to exception-based.
+    For simplicity, all :py:class:`Calendars <impuls.model.Calendar>` are converted to
+    exception-based (all active dates represented by :py:class:`~impuls.model.CalendarException`).
     """
+
+    target: DateRange
+    fail_on_empty: bool
+
+    _to_drop: set[str]
+    _to_update: dict[str, set[Date]]
 
     def __init__(self, target: DateRange, fail_on_empty: bool = True) -> None:
         super().__init__()
         self.target = target
         self.fail_on_empty = fail_on_empty
 
-        self.to_drop: set[str] = set()
-        self.to_update: dict[str, set[Date]] = {}
+        self._to_drop = set()
+        self._to_update = {}
 
     def clear_state(self) -> None:
-        self.to_drop.clear()
-        self.to_update.clear()
+        self._to_drop.clear()
+        self._to_update.clear()
 
     def execute(self, r: TaskRuntime) -> None:
         self.clear_state()
@@ -44,9 +53,9 @@ class TruncateCalendars(Task):
         for calendar in db.retrieve_all(Calendar):
             truncated_dates = self.compute_truncated_days_of(calendar, db)
             if not truncated_dates:
-                self.to_drop.add(calendar.id)
+                self._to_drop.add(calendar.id)
             else:
-                self.to_update[calendar.id] = truncated_dates
+                self._to_update[calendar.id] = truncated_dates
 
     def compute_truncated_days_of(self, calendar: Calendar, db: DBConnection) -> set[Date]:
         current_dates = CalendarException.reflect_in_active_dates(
@@ -60,7 +69,7 @@ class TruncateCalendars(Task):
         return {date for date in current_dates if date in self.target}
 
     def check_if_empty(self) -> None:
-        if not self.to_update:
+        if not self._to_update:
             if self.fail_on_empty:
                 raise NoServicesLeft(self.target)
             else:
@@ -72,14 +81,14 @@ class TruncateCalendars(Task):
         self.set_exceptions_on_calendars(db)
 
     def drop_calendars(self, db: DBConnection) -> None:
-        self.logger.info("Dropping %d calendar(s)", len(self.to_drop))
+        self.logger.info("Dropping %d calendar(s)", len(self._to_drop))
         db.raw_execute_many(
             "DELETE FROM calendars WHERE calendar_id = ?",
-            ((calendar_id,) for calendar_id in self.to_drop),
+            ((calendar_id,) for calendar_id in self._to_drop),
         )
 
     def make_all_calendars_use_exceptions(self, db: DBConnection) -> None:
-        self.logger.info("Updating dates of %d calendar(s)", len(self.to_update))
+        self.logger.info("Updating dates of %d calendar(s)", len(self._to_update))
         exceptions_date_str = Date.SIGNALS_EXCEPTIONS.strftime("%Y-%m-%d")
         db.raw_execute(
             (
@@ -95,7 +104,7 @@ class TruncateCalendars(Task):
             "INSERT INTO calendar_exceptions (calendar_id, date, exception_type) VALUES (?, ?, ?)",
             (
                 (calendar_id, date.strftime("%Y-%m-%d"), 1)
-                for calendar_id, dates in self.to_update.items()
+                for calendar_id, dates in self._to_update.items()
                 for date in dates
             ),
         )

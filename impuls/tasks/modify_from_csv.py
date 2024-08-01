@@ -13,7 +13,8 @@ from ..task import Task, TaskRuntime
 @dataclass
 class CSVFieldData:
     """CSVFieldData describes metadata about a field from CSV field
-    with new data to be applied."""
+    with new data to be applied.
+    """
 
     entity_field: str
     converter: Optional[Callable[[str], Any]] = None
@@ -25,11 +26,27 @@ class ModifyFromCSV(Task):
 
     See ModifyXXXFromCSV for table-specific options.
 
-    Parameters
-    - `resource`: name of the resource with data (in CSV).
-    - `must_curate_all`: if True, then this task will fail if some entities weren't curated.
+    Parameters:
+
+    * ``resource``: name of the resource with data (in CSV).
+    * ``must_curate_all``: if True, then this task will fail if some entities weren't curated.
         Defaults to `False`.
-    - `silent`: if True, doesn't warn every time an entity from CSV isn't found in the DB."""
+    * ``silent``: if True, doesn't warn every time an entity from CSV isn't found in the DB.
+    """
+
+    resource: str
+    must_curate_all: bool
+    silent: bool
+
+    seen_ids: set[str]
+    """seen_ids contains IDs of all curated entities.
+    Cleared on every entry to :py:meth:`execute`.
+    """
+
+    missing_ids: set[str]
+    """missing_ids contains IDs of all entities from the provided resource which were
+    missing in the database. Cleared on every entry to :py:meth:`execute`.
+    """
 
     def __init__(self, resource: str, must_curate_all: bool = False, silent: bool = False) -> None:
         super().__init__()
@@ -39,8 +56,8 @@ class ModifyFromCSV(Task):
         self.silent = silent
 
         # Step state
-        self.seen_ids: set[str] = set()
-        self.missing_ids: set[str] = set()
+        self.seen_ids = set()
+        self.missing_ids = set()
 
     @staticmethod
     @abstractmethod
@@ -53,7 +70,7 @@ class ModifyFromCSV(Task):
     @abstractmethod
     def csv_column_mapping() -> Mapping[str, CSVFieldData]:
         """csv_field_mapping returns the mapping from a CSV column name
-        to metadata bout the column - the corresponding entity field and
+        to metadata about the column - the corresponding entity field and
         a converter from string to a value of an appropriate type."""
         raise NotImplementedError
 
@@ -174,20 +191,29 @@ class ModifyFromCSV(Task):
 
 @final
 class ModifyStopsFromCSV(ModifyFromCSV):
-    """ModifyStopsFromCSV implements the ModifyFromCSV field for stops.
+    """ModifyStopsFromCSV implements the :py:class:`~impuls.tasks.modify_from_csv.ModifyFromCSV`
+    step for :py:class:`Stops <impuls.model.Stop>`.
 
     The CSV file pointed by the provided resource must have a
-    header row and must have a `stop_id` field.
+    header row and must have a ``stop_id`` field.
 
     The following fields may be present, and will be used to update
-    the metadata of the matching Stop:
-    - stop_name
-    - stop_code
-    - stop_lat
-    - stop_lon
-    - zone_id
+    the metadata of the matching :py:class:`~impuls.model.Stop`:
 
-    See documentation for ModifyFromCSV for the description of available options.
+    * ``stop_name``
+    * ``stop_code``
+    * ``stop_lat``
+    * ``stop_lon``
+    * ``zone_id``
+    * ``wheelchair_boarding``
+    * ``platform_code``
+
+    Parameters:
+
+    * ``resource``: name of the resource with data (in CSV).
+    * ``must_curate_all``: if True, then this task will fail if some entities weren't curated.
+        Defaults to `False`.
+    * ``silent``: if True, doesn't warn every time an entity from CSV isn't found in the DB.
     """
 
     @staticmethod
@@ -220,21 +246,28 @@ class ModifyStopsFromCSV(ModifyFromCSV):
 
 @final
 class ModifyRoutesFromCSV(ModifyFromCSV):
-    """ModifyRoutesFromCSV implements the ModifyFromCSV field for routes.
+    """ModifyStopsFromCSV implements the :py:class:`~impuls.tasks.modify_from_csv.ModifyFromCSV`
+    step for :py:class:`Routes <impuls.model.Route>`.
 
     The CSV file pointed by the provided resource must have a
-    header row and must have a `route_id` field.
+    header row and must have a ``route_id`` field.
 
     The following fields may be present, and will be used to update
-    the metadata of the matching Stop:
-    - route_short_name
-    - route_long_name
-    - route_type
-    - route_color
-    - route_text_color
-    - route_sort_order
+    the metadata of the matching :py:class:`~impuls.model.Route`:
 
-    See documentation for ModifyFromCSV for the description of available options.
+    * ``route_short_name``
+    * ``route_long_name``
+    * ``route_type``
+    * ``route_color``
+    * ``route_text_color``
+    * ``route_sort_order``
+
+    Parameters:
+
+    * ``resource``: name of the resource with data (in CSV).
+    * ``must_curate_all``: if True, then this task will fail if some entities weren't curated.
+        Defaults to `False`.
+    * ``silent``: if True, doesn't warn every time an entity from CSV isn't found in the DB.
     """
 
     @staticmethod

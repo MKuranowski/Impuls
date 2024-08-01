@@ -42,23 +42,39 @@ def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, st
 
 @final
 class LoadBusManMDB(Task):
-    """LoadBusManMDB loads data into the database from a
-    BusMan MDB database.
+    """LoadBusManMDB loads data into the database from a BusMan MDB database.
 
-    Only the following entities are loaded:
-    Routes, Stops, Calendars, Trips, StopTimes.
+    Only the following entities are loaded: :py:class:`~impuls.model.Route`,
+    :py:class:`~impuls.model.Stop`, :py:class:`~impuls.model.Calendar`,
+    :py:class:`~impuls.model.Trip` and :py:class:`~impuls.model.StopTime`.
 
-    Agency has to be manually curated beforehand.
-    Calendar or CalendarExceptions have to be manually curated after the import.
+    :py:class:`~impuls.model.Agency` has to be manually curated beforehand (e.g. with
+    :py:class:`~impuls.tasks.AddEntity` task).
+
+    The imported :py:class:`~impuls.model.Calendar` entities will be empty after the import.
+    Providing dates for calendars must be done manually afterwards.
+
+    Most MDB databases seen in the wild have no stop positions. This step will
+    set the latitude and longitude to 0. Further curation is usually necessary.
 
     Parameters:
-    - `resource`: name of the resource with MDB file
-    - `agency_id`: ID of the manually curated Agency
-    - `ignore_route_id`: use route_short_name as the ID,
-        instead of the BusMan internal ID
-    - `ignore_stop_id`: use stop_code as the ID,
-        instead of the BusMan internal ID
+
+    * ``resource``: name of the resource with MDB file
+    * ``agency_id``: ID of the manually curated Agency
+    * ``ignore_route_id``: use route_short_name as the ID, instead of the BusMan internal ID
+    * ``ignore_stop_id``: use stop_code as the ID, instead of the BusMan internal ID
+
+    This task additionally requires `mdbtools <https://github.com/mdbtools/mdbtools>`_
+    to be installed. This package is available in most package managers.
     """
+
+    resource: str
+    agency_id: str
+    ignore_route_id: bool
+    ignore_stop_id: bool
+
+    _route_id_map: dict[str, str]
+    _stop_id_map: dict[str, str]
 
     def __init__(
         self,
@@ -68,19 +84,18 @@ class LoadBusManMDB(Task):
         ignore_stop_id: bool = False,
     ) -> None:
         super().__init__()
-        self.source = resource
+        self.resource = resource
         self.agency_id = agency_id
         self.ignore_route_id = ignore_route_id
         self.ignore_stop_id = ignore_stop_id
-        self.fetch_time = None
 
-        self._route_id_map: dict[str, str] = {}
-        self._stop_id_map: dict[str, str] = {}
+        self._route_id_map = {}
+        self._stop_id_map = {}
 
     def execute(self, r: TaskRuntime) -> None:
         self._route_id_map.clear()
         self._stop_id_map.clear()
-        mdb_path = r.resources[self.source].stored_at
+        mdb_path = r.resources[self.resource].stored_at
 
         # Brief description on the BusMan MDB format
         # | Table Name | Impuls equiv. entity | Comments |

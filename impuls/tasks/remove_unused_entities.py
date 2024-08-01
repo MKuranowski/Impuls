@@ -7,6 +7,21 @@ from ..task import Task, TaskRuntime
 
 @final
 class RemoveUnusedEntities(Task):
+    """RemoveUnusedEntities removes entities from the database which serve no purpose:
+
+    * :py:class:`Trips <impuls.model.Trip>` with 0 or 1 :py:class:`~impuls.model.StopTime`,
+    * :py:class:`Calendars <impuls.model.Calendar>` with no :py:class:`Trips <impuls.model.Trip>`,
+    * :py:class:`Calendars <impuls.model.Calendar>` without any active dates,
+    * :py:class:`Stops <impuls.model.Stop>` (with
+      :py:obj:`LocationType.STOP <impuls.model.Stop.LocationType.STOP>`) with no
+      :py:class:`StopTimes <impuls.model.StopTime>`,
+    * :py:class:`Stations <impuls.model.Stop>` (with
+      :py:obj:`LocationType.STATION <impuls.model.Stop.LocationType.STATION>`) with no child
+      :py:class:`Stops <impuls.model.Stop>`,
+    * :py:class:`Routes <impuls.model.Route>` with no :py:class:`Trips <impuls.model.Trip`,
+    * :py:class:`Agencies <impuls.model.Agency>` with no :py:class:`Routes <impuls.model.Route>`.
+    """
+
     def __init__(self) -> None:
         super().__init__()
 
