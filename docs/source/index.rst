@@ -7,7 +7,7 @@ The internal model used is very close to GTFS.
 The core entity for processing is called a *pipeline*, which is composed of multiple
 *tasks* that do the actual processing work.
 
-The data is stored in an sqlite3 database (in-memory by default) with a very lightweight
+The data is stored in an sqlite3 database with a very lightweight
 wrapper to map Impuls's internal model into SQL and GTFS.
 
 Impuls has first-class support for pulling in data from external sources, using its
@@ -52,5 +52,5 @@ Table of Contents
     :maxdepth: 2
 
     db_schema
+    example
     api
-
