@@ -27,7 +27,8 @@ TODO Before 1.0.0 release
 - [x] Setup automatic wheel (cross-)compilation
 - [ ] Add translations to the model
 - [ ] Automatically set up `App.name` to the class name.
-- [ ] Make tools.polish_calendar_exceptions use the resource mechanizm.
+- [ ] Make tools.polish_calendar_exceptions use the resource mechanism.
+- [ ] Make `impuls.Resource` an abstract class, instead of an interface.
 
 Installation and compilation
 ----------------------------
