@@ -20,7 +20,7 @@ class Frequency(Entity):
     time differences are used as a pattern for multiple trips following the same pattern.
 
     Equivalent to `GTFS's frequencies.txt entries <https://gtfs.org/schedule/reference/#frequenciestxt>`_.
-    """
+    """  # noqa: E501
 
     trip_id: str
     start_time: TimePoint

@@ -1,7 +1,5 @@
-import sys
-import typing
 from os import PathLike
-from typing import TYPE_CHECKING, AnyStr, Type, TypeGuard, TypeVar, Union
+from typing import TYPE_CHECKING, TypeGuard, TypeVar
 
 if TYPE_CHECKING:
     from typing_extensions import Self

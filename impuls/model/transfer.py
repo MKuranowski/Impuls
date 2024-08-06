@@ -17,7 +17,7 @@ class Transfer(Entity):
     """Transfer represent special rules for transferring between vehicles on the network.
 
     Equivalent to `GTFS's transfers.txt entries <https://gtfs.org/schedule/reference/#transferstxt>`_.
-    """
+    """  # noqa: E501
 
     class Type(IntEnum):
         RECOMMENDED = 0

@@ -16,7 +16,8 @@ class Pipeline:
     """Pipeline encapsulates the process of downloading and processing multiple
     resources by a sequence of tasks.
 
-    :param list[Task] tasks: List of :py:class:`~impuls.Task` instances to be executed in the Pipeline
+    :param list[Task] tasks: List of :py:class:`~impuls.Task` instances to be executed in the
+        Pipeline
     :param Mapping[str, Resource] | None resources: Additional :py:class:`~impuls.Resource`
         instances to be made available to the tasks being executed, by their name.
         Defaults to no additional resources.

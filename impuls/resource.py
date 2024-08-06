@@ -23,7 +23,6 @@ from typing import (
     TextIO,
     Type,
     Union,
-    final,
 )
 from urllib.parse import urlparse
 from zipfile import ZipFile, ZipInfo

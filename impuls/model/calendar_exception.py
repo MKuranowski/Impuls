@@ -21,7 +21,7 @@ class CalendarException(Entity):
 
     Contrary to GTFS, :py:class:`Calendar` entries are mandatory (even if empty), as
     :py:attr:`calendar_id` is **always** a foreign key referencing :py:attr:`Calendar.id`.
-    """
+    """  # noqa: E501
 
     class Type(IntEnum):
         ADDED = 1

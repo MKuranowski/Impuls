@@ -34,7 +34,7 @@ ILLEGAL_PORTABLE_NAMES: frozenset[str] = frozenset(
 For example, "." and ".." (dot and dot-dot) have
 `special meaning in POSIX <https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_170>`_,
 while `Windows has its own set of forbidden filenames <http://web.archive.org/web/20120414111738/http://www.blindedbytech.com/2006/11/16/forbidden-file-and-folder-names-on-windows>`_.
-"""
+"""  # noqa: E501
 
 
 def camel_to_snake(camel: str) -> str:

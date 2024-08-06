@@ -17,7 +17,7 @@ class Attribution(Entity):
     to the dataset.
 
     Equivalent to `GTFS's attributions.txt entries <https://gtfs.org/schedule/reference/#attributionstxt>`_.
-    """
+    """  # noqa: E501
 
     id: str
     organization_name: str

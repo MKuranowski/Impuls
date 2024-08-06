@@ -18,7 +18,7 @@ class FareAttribute(Entity):
     is applied, there may be multiple FareAttributes representing the same "ticket".
 
     Equivalent to `GTFS's fare_attributes.txt entries <https://gtfs.org/schedule/reference/#fare_attributestxt>`_.
-    """
+    """  # noqa: E501
 
     class PaymentMethod(IntEnum):
         ON_BOARD = 0

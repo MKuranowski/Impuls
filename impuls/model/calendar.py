@@ -24,7 +24,7 @@ class Calendar(Entity):
     using :py:class:`CalendarException` instances. If this is the case, all weekdays should be set
     to ``False`` and :py:attr:`start_date` and :py:attr:`end_date` should be set to
     :py:const:`Date.SIGNALS_EXCEPTIONS`.
-    """
+    """  # noqa: E501
 
     id: str
     monday: bool = field(default=False, repr=False)

@@ -18,7 +18,7 @@ class StopTime(Entity):
     """StopTime represents a stoppage/passage of a :py:class:`Trip` at/through a :py:class:`Stop`.
 
     Equivalent to `GTFS's stop_times.txt entries <https://gtfs.org/schedule/reference/#stop_timestxt>`_.
-    """
+    """  # noqa: E501
 
     class PassengerExchange(IntEnum):
         SCHEDULED_STOP = 0
