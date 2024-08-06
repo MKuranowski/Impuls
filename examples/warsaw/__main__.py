@@ -100,4 +100,4 @@ class WarsawGTFS(App):
 
 
 if __name__ == "__main__":
-    WarsawGTFS(__name__, Path("_workspace_warsaw")).run()
+    WarsawGTFS(workspace_directory=Path("_workspace_warsaw")).run()

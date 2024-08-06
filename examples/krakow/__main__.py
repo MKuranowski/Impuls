@@ -152,4 +152,4 @@ class KrakowGTFS(App):
 
 
 if __name__ == "__main__":
-    KrakowGTFS(__name__, Path("_workspace_krakow")).run()
+    KrakowGTFS(workspace_directory=Path("_workspace_krakow")).run()

@@ -125,4 +125,4 @@ class RadomGTFS(App):
 
 
 if __name__ == "__main__":
-    RadomGTFS(__name__, Path("_workspace_radom")).run()
+    RadomGTFS(workspace_directory=Path("_workspace_radom")).run()

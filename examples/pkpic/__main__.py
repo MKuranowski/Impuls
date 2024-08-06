@@ -106,4 +106,4 @@ class PKPIntercityGTFS(App):
 
 
 if __name__ == "__main__":
-    PKPIntercityGTFS(__name__, Path("_workspace_pkpic")).run()
+    PKPIntercityGTFS(workspace_directory=Path("_workspace_pkpic")).run()

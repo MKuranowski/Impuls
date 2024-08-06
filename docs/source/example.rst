@@ -54,7 +54,7 @@ to the data processing pipeline. Let's start by defining an empty Pipeline::
             )
 
     if __name__ == "__main__":
-        KrakowGTFS("KrakowGTFS").run()
+        KrakowGTFS().run()
 
 Although this code doesn't do much - it can still be run. :py:class:`~impuls.App` automatically
 sets up pretty logging and can parse some :py:class:`~impuls.PipelineOptions` from the
@@ -458,7 +458,7 @@ the required resources::
             )
 
     if __name__ == "__main__":
-        PKPIntercityGTFS("PKPIntercityGTFS").run()
+        PKPIntercityGTFS().run()
 
 Let's now move onto the task of loading the CSV file into the database.
 As the first thing we can create the :py:class:`~impuls.model.Agency` representing PKP Intercity::
@@ -770,7 +770,7 @@ Let's start by writing the :py:class:`impuls.App` for Radom::
             )
 
     if __name__ == "__main__":
-        RadomGTFS("RadomGTFS").run()
+        RadomGTFS().run()
 
 
 The first thing we need is a :py:class:`~impuls.multi_file.IntermediateFeedProvider`. It's going to

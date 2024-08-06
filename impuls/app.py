@@ -25,14 +25,18 @@ class App(ABC):
                 ... # Prepare your own Pipeline or MultiFile
 
         if __name__ == "__main__":
-            MyApp("MyApp").run()
+            MyApp().run()
     """
 
     name: str
     workspace_directory: Path
 
-    def __init__(self, name: str, workspace_directory: Path = Path("_impuls_workspace")) -> None:
-        self.name = name
+    def __init__(
+        self,
+        name: str | None = None,
+        workspace_directory: Path = Path("_impuls_workspace"),
+    ) -> None:
+        self.name = type(self).__name__ if name is None else name
         self.workspace_directory = workspace_directory
 
     @abstractmethod
