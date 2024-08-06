@@ -7,6 +7,7 @@ from impuls.model import Agency, FeedInfo
 from impuls.multi_file import MultiFile
 from impuls.resource import ZippedResource
 from impuls.tasks import AddEntity, ExecuteSQL, LoadBusManMDB, ModifyStopsFromCSV, SaveGTFS
+from impuls.tools import polish_calendar_exceptions
 
 from .generate_calendars import GenerateCalendars
 from .provider import RadomProvider
@@ -120,6 +121,7 @@ class RadomGTFS(App):
             ],
             additional_resources={
                 "soap_stops.csv": RadomStopsResource(),
+                "calendar_exceptions.csv": polish_calendar_exceptions.RESOURCE,
             },
         )
 

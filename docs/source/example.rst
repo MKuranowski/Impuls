@@ -899,6 +899,8 @@ The main logic of the :py:class:`~impuls.Task` can look like this::
 
     from impuls import DBConnection, Task, TaskRuntime
     from impuls.model import Date
+    from impuls.resource import ManagedResource
+    from impuls.tools.polish_calendar_exceptions import CalendarExceptionType, PolishRegion, load_exceptions
     from impuls.tools.temporal import BoundedDateRange
 
     class GenerateCalendars(Task):
@@ -914,7 +916,7 @@ The main logic of the :py:class:`~impuls.Task` can look like this::
             self.set_calendar_ids(r.db)
             with r.db.transaction():
                 self.update_calendar_entries(r.db)
-                self.generate_calendar_exceptions(r.db)
+                self.generate_calendar_exceptions(r.db, r.resources["calendar_exceptions.csv"])
 
 Even though we're generating calendar data for a year, this is not going to pose a problem
 when merging - :py:class:`~impuls.mutli_file.MultiFile` automatically runs the
@@ -997,8 +999,11 @@ table::
     class GenerateCalendars(Task):
         # ...
 
-        def generate_calendar_exceptions(self, db: DBConnection) -> None:
-            for date, exception in load_exceptions_for(PolishRegion.MAZOWIECKIE).items():
+        def generate_calendar_exceptions(
+            self, db: DBConnection, calendar_exceptions_resource: ManagedResource,
+        ) -> None:
+            exceptions = load_exceptions(calendar_exceptions_resource, PolishRegion.MAZOWIECKIE)
+            for date, exception in exceptions.items():
                 # Ignore exceptions outside of the requested range
                 if date not in self.range:
                     continue
@@ -1091,9 +1096,12 @@ We can now complete the ``intermediate_pipeline_tasks_factory``::
         ModifyStopsFromCSV("soap_stops.csv"),
     ]
 
-And we need to add the stops resource as well::
+And we need to add the stops and calendar exceptions resources as well::
+
+    from impuls.tools import polish_calendar_exceptions
 
     additional_resources = {
+        "calendar_exceptions.csv": polish_calendar_exceptions.RESOURCE,
         "soap_stops.csv": RadomStopsResource(),
     }
 

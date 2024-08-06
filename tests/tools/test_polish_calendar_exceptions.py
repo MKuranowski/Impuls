@@ -1,30 +1,25 @@
-import io
 import unittest
+from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
 
 from impuls.model import Date
+from impuls.resource import ManagedResource
 from impuls.tools.polish_calendar_exceptions import (
     CalendarExceptionType,
     PolishRegion,
-    load_exceptions_for,
+    load_exceptions,
 )
 
-FIXTURES_PATH = Path(__file__).parent / "fixtures"
-
-
-def get_fixture_exceptions_csv() -> io.StringIO:
-    content = (FIXTURES_PATH / "polish_calendar_exceptions.csv").read_text(encoding="utf-8-sig")
-    return io.StringIO(content)
-
-
-@patch(
-    "impuls.tools.polish_calendar_exceptions._do_load_exceptions_csv",
-    get_fixture_exceptions_csv,
+FIXTURE_RESOURCE = ManagedResource(
+    stored_at=Path(__file__).with_name("fixtures") / "polish_calendar_exceptions.csv",
+    last_modified=datetime.fromisoformat("2024-08-01T08:00:00+00:00"),
+    fetch_time=datetime.fromisoformat("2024-08-01T08:00:00+00:00"),
 )
+
+
 class TestPolishCalendarExceptions(unittest.TestCase):
     def test_country_wide(self) -> None:
-        exceptions = load_exceptions_for(PolishRegion.MAZOWIECKIE)
+        exceptions = load_exceptions(FIXTURE_RESOURCE, PolishRegion.MAZOWIECKIE)
 
         # Check 2022-01-01
         self.assertIn(Date(2022, 1, 1), exceptions)
@@ -63,8 +58,8 @@ class TestPolishCalendarExceptions(unittest.TestCase):
         self.assertNotIn(Date(2022, 10, 17), exceptions)
 
     def test_regional(self) -> None:
-        exceptions_ma = load_exceptions_for(PolishRegion.MAZOWIECKIE)
-        exceptions_wm = load_exceptions_for(PolishRegion.WARMINSKO_MAZURSKIE)
+        exceptions_ma = load_exceptions(FIXTURE_RESOURCE, PolishRegion.MAZOWIECKIE)
+        exceptions_wm = load_exceptions(FIXTURE_RESOURCE, PolishRegion.WARMINSKO_MAZURSKIE)
 
         # 2022-01-24 is only an exception in Warmińsko-Mazurskie
         self.assertNotIn(Date(2022, 1, 24), exceptions_ma)

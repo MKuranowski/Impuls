@@ -2,10 +2,11 @@ from typing import cast
 
 from impuls import DBConnection, Task, TaskRuntime
 from impuls.model import Date
+from impuls.resource import ManagedResource
 from impuls.tools.polish_calendar_exceptions import (
     CalendarExceptionType,
     PolishRegion,
-    load_exceptions_for,
+    load_exceptions,
 )
 from impuls.tools.temporal import BoundedDateRange
 
@@ -22,7 +23,7 @@ class GenerateCalendars(Task):
     def execute(self, r: TaskRuntime) -> None:
         self.reset_ids(r.db)
         self.update_calendar_entries(r.db)
-        self.generate_calendar_exceptions(r.db)
+        self.generate_calendar_exceptions(r.db, r.resources["calendar_exceptions.csv"])
 
     def reset_ids(self, db: DBConnection) -> None:
         self.weekday_id = self.get_calendar_id("POWSZEDNI", db)
@@ -71,8 +72,13 @@ class GenerateCalendars(Task):
             (self.sunday_id,),
         )
 
-    def generate_calendar_exceptions(self, db: DBConnection) -> None:
-        for date, exception in load_exceptions_for(PolishRegion.MAZOWIECKIE).items():
+    def generate_calendar_exceptions(
+        self,
+        db: DBConnection,
+        calendar_exceptions_resource: ManagedResource,
+    ) -> None:
+        exceptions = load_exceptions(calendar_exceptions_resource, PolishRegion.MAZOWIECKIE)
+        for date, exception in exceptions.items():
             # Ignore exceptions outside of the requested range
             if date not in self.range:
                 continue

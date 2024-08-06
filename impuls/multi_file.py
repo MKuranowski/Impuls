@@ -477,12 +477,12 @@ class MultiFile(Generic[ResourceT_co]):
 
     def intermediate_dbs_path(self) -> Path:
         p = self.options.workspace_directory / "intermediate_dbs"
-        p.mkdir(exist_ok=True)
+        p.mkdir(exist_ok=True, parents=True)
         return p
 
     def intermediate_inputs_path(self) -> Path:
         p = self.options.workspace_directory / "intermediate_inputs"
-        p.mkdir(exist_ok=True)
+        p.mkdir(exist_ok=True, parents=True)
         return p
 
 

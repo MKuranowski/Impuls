@@ -1,11 +1,17 @@
-import csv
-import io
 from enum import Enum
 from typing import NamedTuple
 
-import requests
-
 from ..model.meta.utility_types import Date
+from ..resource import HTTPResource, ManagedResource
+
+RESOURCE = HTTPResource.get(
+    "https://docs.google.com/spreadsheets/d/1kSCBQyIE8bz2NgqpzyS75I7ndnlp4dhD3TmEY2jO7K0"
+    "/export?format=csv"
+)
+"""Default resource with CSV with Polish calendar exceptions from
+https://docs.google.com/spreadsheets/d/1kSCBQyIE8bz2NgqpzyS75I7ndnlp4dhD3TmEY2jO7K0.
+Required by :py:func:`~impuls.tools.polish_calendar_exceptions.load_exceptions`.
+"""
 
 
 class PolishRegion(Enum):
@@ -47,25 +53,16 @@ class CalendarException(NamedTuple):
     holiday_name: str = ""
 
 
-def _do_load_exceptions_csv() -> io.StringIO:
-    """Actually performs the request to Google Sheet
-    and returns a text file-like object with raw CSV data"""
-    with requests.get(
-        "https://docs.google.com/spreadsheets/d/1kSCBQyIE8bz2NgqpzyS75I7ndnlp4dhD3TmEY2jO7K0"
-        "/export?format=csv"
-    ) as r:
-        r.raise_for_status()
-        r.encoding = "utf-8"
-        return io.StringIO(r.text)
-
-
-def load_exceptions_for(region: PolishRegion) -> dict[Date, CalendarException]:
-    """Loads all known calendar exceptions for a specific voivodeship
-    from an external Google Sheet."""
+def load_exceptions(
+    resource: ManagedResource,
+    region: PolishRegion,
+) -> dict[Date, CalendarException]:
+    """Loads all known calendar exceptions for a specific voivodeship from the downloaded
+    :py:obj:`~impuls.tools.polish_calendar_exceptions.RESOURCE`.
+    """
     exceptions: dict[Date, CalendarException] = {}
-    exceptions_csv_stream = _do_load_exceptions_csv()
 
-    for row in csv.DictReader(exceptions_csv_stream):
+    for row in resource.csv():
         date = Date.from_ymd_str(row["date"])
 
         # Check if the exception applies in requested region
