@@ -728,3 +728,392 @@ schedules as GTFS, which gives the following list of tasks::
 
 There are still other small things which can be done to increase the quality of the data.
 Some of data polishing is included in the `full example code <https://github.com/MKuranowski/Impuls/tree/main/examples/pkpic>`_.
+
+
+Combining multiple files/versions into a single dataset (Radom)
+---------------------------------------------------------------
+
+Some agencies push out a new file with each schedules update. Converting every
+individual file/version to a separete GTFS dataset would violate the `GTFS specification <https://gtfs.org/schedule/reference/#dataset-publishing-general-practices>`_.
+To create a high-quality all of the versions need to be loaded and merged together
+to form a single coherent timetable package.
+
+This problem seems to be especially prevalent in Poland, see datasets from
+`ZTM Poznań <https://www.ztm.poznan.pl/pl/dla-deweloperow/gtfsFiles>`_,
+`GZM ZTM (Katowice) <https://otwartedane.metropoliagzm.pl/dataset/rozklady-jazdy-i-lokalizacja-przystankow-gtfs-wersja-rozszerzona>`_,
+`ZTM Warszawa <ftp://rozklady.ztm.waw.pl>`_ and `MZDiK Radom <https://mzdik.pl/index.php?id=145>`_.
+
+In this section of the tutorial, we'll use the :py:mod:`impuls.multi_file` module to
+help us automatically process the intermediate schedules, merge them and create a single,
+high-quality, merged dataset.
+
+We're going to process data from Radom, which gives out MDB (Microsoft Access/JET) database
+exports from BusMan. Impuls comes with a task to load such files - :py:class:`~impuls.tasks.LoadBusManMDB`.
+The dataset isn't complete - stop data needs to be loaded from http://rkm.mzdik.radom.pl/,
+and calendar data will be created with the help of :py:mod:`impuls.tools.polish_calendar_exceptions`.
+
+Let's start by writing the :py:class:`impuls.App` for Radom::
+
+    import argparse
+    import impuls
+
+    class RadomGTFS(impuls.App):
+        def prepare(
+            self, args: argparse.Namespace, options: impuls.PipelineOptions,
+        ) -> impuls.multi_file.MultiFile[impuls.Resource]:
+            return impuls.multi_file.MultiFile(
+                options=options,
+                # intermediate_provider=  # TODO
+                # intermediate_pipeline_tasks_factory=  # TODO
+                # final_pipeline_tasks_factory=  # TODO
+                additional_resources={},
+            )
+
+    if __name__ == "__main__":
+        RadomGTFS("RadomGTFS").run()
+
+
+The first thing we need is a :py:class:`~impuls.multi_file.IntermediateFeedProvider`. It's going to
+provide intermediate files to process to :py:class:`~impuls.multi_file.MultiFile`. For Radom,
+the implementation will scrape database files from https://mzdik.pl/index.php?id=145 with
+`requests <https://pypi.org/project/requests/>`_ and `lxml <https://pypi.org/project/lxml/>`_.
+The mdb databases are compressed in a zip archive, so we're going to use the :py:class:`impuls.resource.ZippedResource`
+adaptor::
+
+    import re
+    from io import StringIO
+    from urllib.parse import urljoin
+
+    import requests
+    from lxml import etree
+
+    from impuls.model import Date
+    from impuls.multi_file import IntermediateFeed, IntermediateFeedProvider, prune_outdated_feeds
+    from impuls.resource import HTTPResource, ZippedResource
+
+    LIST_URL = "http://mzdik.pl/index.php?id=145"
+
+    class RadomProvider(IntermediateFeedProvider[ZippedResource]):
+        def __init__(self, for_date: Date | None = None) -> None:
+            self.for_date = for_date or Date.today()
+
+        def needed(self) -> list[IntermediateFeed[ZippedResource]]:
+            # Request the website
+            with requests.get(LIST_URL) as r:
+                r.raise_for_status()
+                r.encoding = "utf-8"
+
+            # Parse the website
+            tree = etree.parse(StringIO(r.text), etree.HTMLParser())
+
+            # Find links to schedule files and collect feeds
+            feeds: list[IntermediateFeed[ZippedResource]] = []
+            for anchor in tree.xpath("//a"):
+                href = anchor.get("href", "")
+                if not re.search(r"/upload/file/Rozklady.+\.zip", href):
+                    continue
+
+                version_match = re.search(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", href)
+                if not version_match:
+                    raise ValueError(f"unable to get feed_version from href {href!r}")
+                version = version_match[0]
+
+                feed = IntermediateFeed(
+                    ZippedResource(HTTPResource.get(urljoin(LIST_URL, href))),
+                    resource_name=f"Rozklady-{version}.mdb",
+                    version=version,
+                    start_date=Date.from_ymd_str(version),
+                )
+                feeds.append(feed)
+
+            prune_outdated_feeds(feeds, self.for_date)
+            return feeds
+
+We can now add this provider to the main :py:class:`~impuls.multi_file.MultiFile` factory.
+While we're here, we can also narrow down the resource type of that class, as we now know we're
+providing :py:class:`~impuls.resource.ZippedResource`::
+
+    def prepare(
+        self, args: argparse.Namespace, options: impuls.PipelineOptions,
+    ) -> impuls.multi_file.MultiFile[impuls.resource.ZippedResource]:
+        return impuls.multi_file.MultiFile(
+            options=options,
+            intermediate_provider=RadomProvider(),
+            # intermediate_pipeline_tasks_factory=  # TODO
+            # final_pipeline_tasks_factory=  # TODO
+            additional_resources={},
+        )
+
+The next thing we need to prepare is the :py:obj:`~impuls.multi_file.MultiFile.intermediate_pipeline_tasks_factory`.
+This function needs to take the :py:class:`~impuls.multi_file.IntermediateFeed` returned by ``RadomProvider``
+and create a list of tasks to import that file. Let's start by simply importing the file using
+:py:class:`~impuls.tasks.LoadBusManMDB`, which requires us to create an :py:class:`~impuls.model.Agency` first::
+
+    intermediate_pipeline_tasks_factory = lambda feed: [
+        AddEntity(
+            Agency(
+                id="0",
+                name="MZDiK Radom",
+                url="http://www.mzdik.radom.pl/",
+                timezone="Europe/Warsaw",
+                lang="pl",
+            ),
+            task_name="AddAgency",
+        ),
+        LoadBusManMDB(
+            feed.resource_name,
+            agency_id="0",
+            ignore_route_id=True,
+            ignore_stop_id=False,
+        ),
+    ]
+
+Unfortunately, the MDB databases don't contain all necessary data for creating a full Impuls/GTFS
+dataset - we're missing :py:class:`~impuls.model.Calendar` details and :py:class:`~impuls.model.Stop`
+positions. As mentioned earlier, we're going to load the latter from http://rkm.mzdik.radom.pl/,
+and generate the former with the help of :py:mod:`impuls.tools.polish_calendar_exceptions`.
+But before that, we need to do a bit of data cleaning - removing technical/virtual stops and unknown calendars::
+
+    intermediate_pipeline_tasks_factory = lambda feed: [
+        # ...
+        ExecuteSQL(
+            task_name="RemoveUnknownStops",
+            statement=(
+                "DELETE FROM stops WHERE stop_id IN ("
+                "    '1220', '1221', '1222', '1223', '1224', '1225', '1226', '1227', "
+                "    '1228', '1229', '649', '652', '653', '659', '662'"
+                ")"
+            ),
+        ),
+        ExecuteSQL(
+            task_name="RetainKnownCalendars",
+            statement="DELETE FROM calendars WHERE desc NOT IN ('POWSZEDNI', 'SOBOTA', 'NIEDZIELA')",
+        ),
+    ]
+
+Thank to the ``RetainKnownCalendars`` task, we know we only have 3 calendars to deal with:
+workdays ("POWSZEDNI" :py:attr:`~impuls.model.Calendar.desc`), saturdays ("SOBOTA" :py:attr:`~impuls.model.Calendar.desc`)
+and sunday ("NIEDZIELA" :py:attr:`~impuls.model.Calendar.desc`). The last calendar also applies
+on public holidays, so we're going to need to generate appropriate :py:class:`CalendarExceptions <impuls.model.CalendarException>`.
+The main logic of the :py:class:`~impuls.Task` can look like this::
+
+    from impuls import DBConnection, Task, TaskRuntime
+    from impuls.model import Date
+    from impuls.tools.temporal import BoundedDateRange
+
+    class GenerateCalendars(Task):
+        def __init__(self, start_date: Date) -> None:
+            super().__init__()
+            self.range = BoundedDateRange(start_date, start_date.add_days(365))
+
+            self.weekday_id = ""
+            self.saturday_id = ""
+            self.sunday_id = ""
+
+        def execute(self, r: TaskRuntime) -> None:
+            self.set_calendar_ids(r.db)
+            with r.db.transaction():
+                self.update_calendar_entries(r.db)
+                self.generate_calendar_exceptions(r.db)
+
+Even though we're generating calendar data for a year, this is not going to pose a problem
+when merging - :py:class:`~impuls.mutli_file.MultiFile` automatically runs the
+:py:class:`~impuls.tasks.TruncateCalendars` task in the :py:obj:`pre-merge pipeline <impuls.multi_file.MultiFile.pre_merge_pipeline_tasks_factory>`.
+Retriving the calendar IDs from the database is pretty simple::
+
+    from typing import cast
+
+    class GenerateCalendars(Task):
+        # ...
+
+        def set_calendar_ids(self, db: DBConnection) -> None:
+            self.weekday_id = self.get_calendar_id("POWSZEDNI", db)
+            self.saturday_id = self.get_calendar_id("SOBOTA", db)
+            self.sunday_id = self.get_calendar_id("NIEDZIELA", db)
+
+        def get_calendar_id(self, desc: str, db: DBConnection) -> str:
+            result = db.raw_execute("SELECT calendar_id FROM calendars WHERE desc = ?", (desc,))
+            row = result.one_must(f"Missing calendar with description {desc!r}")
+            return cast(str, row[0])
+
+Updating :py:class:`Calendars <impuls.model.Calendar>` also boils down to a couple UPDATE statements::
+
+    class GenerateCalendars(Task):
+        # ...
+
+        def update_calendar_entries(self, db: DBConnection) -> None:
+            db.raw_execute(
+                "UPDATE calendars SET start_date = ?, end_date = ?",
+                (str(self.range.start), str(self.range.end)),
+            )
+            db.raw_execute(
+                "UPDATE calendars SET "
+                "    monday = 1,"
+                "    tuesday = 1,"
+                "    wednesday = 1,"
+                "    thursday = 1,"
+                "    friday = 1,"
+                "    saturday = 0,"
+                "    sunday = 0 "
+                "  WHERE calendar_id = ?",
+                (self.weekday_id,),
+            )
+            db.raw_execute(
+                "UPDATE calendars SET "
+                "    monday = 0,"
+                "    tuesday = 0,"
+                "    wednesday = 0,"
+                "    thursday = 0,"
+                "    friday = 0,"
+                "    saturday = 1,"
+                "    sunday = 0 "
+                "  WHERE calendar_id = ?",
+                (self.saturday_id,),
+            )
+            db.raw_execute(
+                "UPDATE calendars SET "
+                "    monday = 0,"
+                "    tuesday = 0,"
+                "    wednesday = 0,"
+                "    thursday = 0,"
+                "    friday = 0,"
+                "    saturday = 0,"
+                "    sunday = 1 "
+                "  WHERE calendar_id = ?",
+                (self.sunday_id,),
+            )
+
+The last part is to generate :py:class:`CalendarExceptions <impuls.model.CalendarException>` for
+public holidays. We'll use :py:func:`impuls.tools.polish_calendar_exceptions.load_exceptions_for`
+to get all of public holidays, and then insert appropriate entries into the ``calendar_exceptions``
+table::
+
+    from impuls.tools.polish_calendar_exceptions import (
+        CalendarExceptionType,
+        PolishRegion,
+        load_exceptions_for,
+    )
+
+    class GenerateCalendars(Task):
+        # ...
+
+        def generate_calendar_exceptions(self, db: DBConnection) -> None:
+            for date, exception in load_exceptions_for(PolishRegion.MAZOWIECKIE).items():
+                # Ignore exceptions outside of the requested range
+                if date not in self.range:
+                    continue
+
+                # Ignore anything that's not a holiday
+                if CalendarExceptionType.HOLIDAY not in exception.typ:
+                    continue
+
+                date_str = str(date)
+                weekday = date.weekday()
+
+                if weekday == 6:
+                    # If a holiday falls on a sunday - not an exception
+                    pass
+
+                elif weekday == 5:
+                    # Holiday falls on saturday - replace
+                    db.raw_execute_many(
+                        "INSERT INTO calendar_exceptions (calendar_id, date, exception_type) "
+                        "VALUES (?, ?, ?)",
+                        ((self.sunday_id, date_str, 1), (self.saturday_id, date_str, 2)),
+                    )
+
+                else:
+                    # Holiday falls on a workday - replace
+                    db.raw_execute_many(
+                        "INSERT INTO calendar_exceptions (calendar_id, date, exception_type) "
+                        "VALUES (?, ?, ?)",
+                        ((self.sunday_id, date_str, 1), (self.weekday_id, date_str, 2)),
+                    )
+
+That's it for generating calendars; we can now deal with stop data.
+
+Impuls comes with a built-in :py:class:`~impuls.tasks.ModifyStopsFromCSV` task, too bad
+that http://rkm.mzdik.radom.pl/ returns stops in the XML format. Well, we can do a little trick
+and convert the XML to CSV on the fly in the :py:class:`~impuls.Resource` implementation.
+To interact with the SOAP service, we're going to use the `zeep <https://pypi.org/project/zeep/>`_
+package. The course of action is simply - get the stops from the ``GetGoogleStops`` endpoint of
+http://rkm.mzdik.radom.pl/PublicService.asmx, convert them to CSV, and return the CSV file::
+
+    from datetime import datetime, timezone
+    from typing import Iterator
+
+    import zeep
+    from impuls.resource import DATETIME_MIN_UTC, FETCH_CHUNK_SIZE, Resource
+
+    class RadomStopsResource(Resource):
+        def __init__(self) -> None:
+            self.last_modified = DATETIME_MIN_UTC
+            self.fetch_time = DATETIME_MIN_UTC
+
+        def fetch(self, conditional: bool) -> Iterator[bytes]:
+            # Fetch stops from Radom's SOAP service
+            self.fetch_time = datetime.now(timezone.utc)
+            self.last_modified = self.fetch_time
+            client = zeep.Client("http://rkm.mzdik.radom.pl/PublicService.asmx?WSDL")
+            service = client.create_service(
+                r"{http://PublicService/}PublicServiceSoap",
+                "http://rkm.mzdik.radom.pl/PublicService.asmx",
+            )
+            stops = service.GetGoogleStops().findall("S")
+
+            if len(stops) == 0:
+                raise RuntimeError("no stops returned from rkm.mzdik.radom.pl")
+
+            # Dump the stops to a csv
+            buffer = BytesIO()
+            text_buffer = TextIOWrapper(buffer, encoding="utf-8", newline="")
+            writer = csv.writer(text_buffer)
+            writer.writerow(("stop_id", "stop_name", "stop_lat", "stop_lon"))
+            for stop in stops:
+                writer.writerow((
+                    stop.attrib["id"],
+                    stop.get("n", "").strip(),
+                    stop.get("y", ""),
+                    stop.get("x", ""),
+                ))
+            text_buffer.flush()
+
+            # Yield CSV data
+            buffer.seek(0)
+            while chunk := buffer.read(FETCH_CHUNK_SIZE):
+                yield chunk
+
+We can now complete the ``intermediate_pipeline_tasks_factory``::
+
+    intermediate_pipeline_tasks_factory = lambda feed: [
+        # ...
+        GenerateCalendars(feed.start_date),
+        ModifyStopsFromCSV("soap_stops.csv"),
+    ]
+
+And we need to add the stops resource as well::
+
+    additional_resources = {
+        "soap_stops.csv": RadomStopsResource(),
+    }
+
+The last thing to do is to create the :py:obj:`~impuls.multi_file.MultiFile.final_pipeline_tasks_factory`.
+There's nothing to do after the data is merged, so we can simply save the processed data to GTFS::
+
+    final_pipeline_tasks_factory = lambda _: [
+        impuls.tasks.SaveGTFS(
+            headers={
+                "agency": ("agency_id", "agency_name", "agency_url", "agency_timezone", "agency_lang"),
+                "stops": ("stop_id", "stop_name", "stop_lat", "stop_lon"),
+                "routes": ("agency_id", "route_id", "route_short_name", "route_long_name", "route_type"),
+                "trips": ("route_id", "service_id", "trip_id"),
+                "stop_times": ("trip_id", "stop_sequence", "stop_id", "arrival_time", "departure_time"),
+                "calendar": ("service_id", "start_date", "end_date", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "service_desc"),
+                "calendar_dates": ("service_id", "date", "exception_type"),
+            },
+            target=options.workspace_directory / "radom.zip",
+        )
+    ]
+
+That's it! We now have succefully processed Radom data spread across multiple files into a single
+GTFS.
