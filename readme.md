@@ -22,7 +22,9 @@ a single coherent file.
 TODO Before 1.0.0 release
 -------------------------
 
-- [ ] Generate documentation with Sphinx
+- [x] Generate documentation with Sphinx
+- [ ] Docs - move away from autosummary and manually curate module pages,
+    and signatures where autodoc fails (@contextmanager, ignored `~`)
 - [ ] Setup Read the Docs
 - [x] Setup automatic wheel (cross-)compilation
 - [ ] Add translations to the model
