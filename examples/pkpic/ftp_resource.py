@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from ftplib import FTP_TLS
-from typing import Iterator, final
+from typing import Iterator
 
 from impuls.errors import InputNotModified
 from impuls.resource import DATETIME_MIN_UTC, Resource
@@ -37,7 +37,6 @@ class PatchedFTP(FTP_TLS):
             raise ValueError(f"invalid FTP mod_time: {x}")
 
 
-@final
 class FTPResource(Resource):
     def __init__(
         self,

@@ -1,14 +1,13 @@
 import csv
 from datetime import datetime, timezone
 from io import BytesIO, TextIOWrapper
-from typing import Any, Iterator, final
+from typing import Any, Iterator
 
 import zeep
 
 from impuls.resource import DATETIME_MIN_UTC, FETCH_CHUNK_SIZE, Resource
 
 
-@final
 class RadomStopsResource(Resource):
     def __init__(self) -> None:
         self.last_modified = DATETIME_MIN_UTC

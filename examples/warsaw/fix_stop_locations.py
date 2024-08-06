@@ -1,9 +1,6 @@
-from typing import final
-
 import impuls
 
 
-@final
 class FixStopLocations(impuls.Task):
     def __init__(self, stop_locations_resource: str) -> None:
         super().__init__()

@@ -32,7 +32,7 @@ TODO Before 1.0.0 release
 - [ ] Make tools.polish_calendar_exceptions use the resource mechanism
 - [ ] Make `impuls.Resource` an abstract class, instead of an interface
 - [ ] Make `impuls.multi_file.MultiFile` **not** generic
-- [ ] Remove pointless `@final` from tasks and other classes
+- [x] Remove pointless `@final` from tasks and other classes
 
 Installation and compilation
 ----------------------------

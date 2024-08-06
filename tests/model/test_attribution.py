@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import Attribution
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestAttribution(AbstractTestEntity.Template[Attribution]):
     def get_entity(self) -> Attribution:
         return Attribution(

@@ -1,4 +1,4 @@
-from typing import cast, final
+from typing import cast
 
 from impuls import DBConnection, Task, TaskRuntime
 from impuls.model import Date
@@ -10,7 +10,6 @@ from impuls.tools.polish_calendar_exceptions import (
 from impuls.tools.temporal import BoundedDateRange
 
 
-@final
 class GenerateCalendars(Task):
     def __init__(self, start_date: Date) -> None:
         super().__init__()

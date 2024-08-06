@@ -1,12 +1,10 @@
 import sqlite3
 from pathlib import Path
-from typing import final
 
 from ..task import Task, TaskRuntime
 from ..tools.types import StrPath
 
 
-@final
 class SaveDB(Task):
     """SaveDB saves the contained data as-is to a database at a provided path."""
 

@@ -1,6 +1,6 @@
 import re
 from io import StringIO
-from typing import Any, final
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
@@ -13,7 +13,6 @@ from impuls.resource import HTTPResource, ZippedResource
 LIST_URL = "http://mzdik.pl/index.php?id=145"
 
 
-@final
 class RadomProvider(IntermediateFeedProvider[ZippedResource]):
     def __init__(self, for_date: Date | None = None) -> None:
         self.for_date = for_date or Date.today()

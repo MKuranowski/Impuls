@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import CalendarException, Date
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestCalendarException(AbstractTestEntity.Template[CalendarException]):
     def get_entity(self) -> CalendarException:
         return CalendarException(

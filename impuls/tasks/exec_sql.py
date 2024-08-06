@@ -1,9 +1,6 @@
-from typing import final
-
 from ..task import Task, TaskRuntime
 
 
-@final
 class ExecuteSQL(Task):
     """ExecuteSQL task simply executes the provided statement."""
 

@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 from operator import attrgetter
 from pathlib import Path
-from typing import Literal, cast, final
+from typing import Literal, cast
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
@@ -469,13 +469,11 @@ def mock_feed(version: str) -> IntermediateFeed[MockResource]:
             raise ValueError(f"invalid mock feed version: {version}")
 
 
-@final
 class MockIntermediateFeedProvider(IntermediateFeedProvider[MockResource]):
     def needed(self) -> list[IntermediateFeed[MockResource]]:
         return [mock_feed("v2"), mock_feed("v3")]
 
 
-@final
 class DummyTask(Task):
     def execute(self, r: TaskRuntime) -> None:
         pass

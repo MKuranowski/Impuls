@@ -1,4 +1,4 @@
-from typing import NamedTuple, cast, final
+from typing import NamedTuple, cast
 
 from impuls import DBConnection, Task, TaskRuntime
 from impuls.model import StopTime, Trip
@@ -9,7 +9,6 @@ class Leg(NamedTuple):
     is_bus: bool
 
 
-@final
 class SplitBusLegs(Task):
     def __init__(self, agency_id: str = "0") -> None:
         super().__init__()

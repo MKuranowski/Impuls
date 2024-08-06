@@ -1,9 +1,6 @@
-from typing import final
-
 from ..task import Task, TaskRuntime
 
 
-@final
 class GenerateTripHeadsign(Task):
     """GenerateTripHeadsign is a task which fills the trip_headsign
     field for all :py:class:`Trips <impuls.model.Trip>` which don't already have a headsign.

@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import Frequency, TimePoint
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestFrequency(AbstractTestEntity.Template[Frequency]):
     def get_entity(self) -> Frequency:
         return Frequency(

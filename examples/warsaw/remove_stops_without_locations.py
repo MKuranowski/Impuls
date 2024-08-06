@@ -1,9 +1,8 @@
-from typing import Iterable, cast, final
+from typing import Iterable, cast
 
 import impuls
 
 
-@final
 class RemoveStopsWithoutLocations(impuls.Task):
     def execute(self, r: impuls.TaskRuntime) -> None:
         stops_without_positions = cast(

@@ -1,6 +1,5 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import final
 
 from impuls import App, HTTPResource, Pipeline, PipelineOptions
 from impuls.tasks import ExecuteSQL, LoadGTFS, RemoveUnusedEntities, SaveGTFS
@@ -66,7 +65,6 @@ GTFS_HEADERS = {
 }
 
 
-@final
 class KrakowGTFS(App):
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("type", choices=["bus", "tram"])

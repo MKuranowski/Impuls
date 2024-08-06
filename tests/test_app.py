@@ -1,11 +1,9 @@
 from argparse import ArgumentParser, Namespace
-from typing import final
 from unittest import TestCase
 
 from impuls import App, Pipeline, PipelineOptions, Task, TaskRuntime
 
 
-@final
 class DummyTask(Task):
     def __init__(self) -> None:
         super().__init__()
@@ -17,7 +15,6 @@ class DummyTask(Task):
 
 class TestApp(TestCase):
     def test(self) -> None:
-        @final
         class DummyApp(App):
             def __init__(self) -> None:
                 super().__init__("DummyApp")
@@ -41,7 +38,6 @@ class TestApp(TestCase):
         self.assertEqual(app.after_run_calls, 1)
 
     def test_custom_arguments(self) -> None:
-        @final
         class DummyApp(App):
             def __init__(self) -> None:
                 super().__init__("DummyApp")

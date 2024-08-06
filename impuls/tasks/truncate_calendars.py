@@ -1,5 +1,3 @@
-from typing import final
-
 from ..db import DBConnection
 from ..errors import DataError
 from ..model import Calendar, CalendarException, Date
@@ -15,7 +13,6 @@ class NoServicesLeft(DataError):
         super().__init__(f"No services left after calendar truncation to {self.target}")
 
 
-@final
 class TruncateCalendars(Task):
     """TruncateCalendars removes any services beyond the provided range.
 

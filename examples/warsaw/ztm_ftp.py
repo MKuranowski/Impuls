@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from ftplib import FTP
-from typing import Iterator, final
+from typing import Iterator
 
 from impuls.errors import InputNotModified
 from impuls.model import Date
@@ -34,7 +34,6 @@ class PatchedFTP(FTP):
             raise ValueError(f"invalid FTP mod_time: {x}")
 
 
-@final
 class FTPResource(Resource):
     def __init__(self, filename: str, last_modified: datetime = DATETIME_MIN_UTC) -> None:
         self.filename = filename
@@ -54,7 +53,6 @@ class FTPResource(Resource):
             yield from ftp.iter_binary(f"RETR {self.filename}")
 
 
-@final
 class ZTMFeedProvider(IntermediateFeedProvider[FTPResource]):
     def __init__(self, for_date: Date | None = None) -> None:
         self.for_date = Date.today()

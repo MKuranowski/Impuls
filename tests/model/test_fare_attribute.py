@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import FareAttribute
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestFareAttribute(AbstractTestEntity.Template[FareAttribute]):
     def get_entity(self) -> FareAttribute:
         return FareAttribute(

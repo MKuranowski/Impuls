@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import ShapePoint
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestShapePoint(AbstractTestEntity.Template[ShapePoint]):
     def get_entity(self) -> ShapePoint:
         return ShapePoint(

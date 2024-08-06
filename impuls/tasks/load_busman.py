@@ -2,7 +2,7 @@ import csv
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Generator, Mapping, final
+from typing import Generator, Mapping
 
 from ..db import DBConnection
 from ..model import Calendar, Date, Route, Stop, StopTime, TimePoint, Trip
@@ -40,7 +40,6 @@ def dump_mdb_table(database: Path, table_name: str) -> Generator[Mapping[str, st
         )
 
 
-@final
 class LoadBusManMDB(Task):
     """LoadBusManMDB loads data into the database from a BusMan MDB database.
 

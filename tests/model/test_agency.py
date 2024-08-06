@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import Agency
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestAgency(AbstractTestEntity.Template[Agency]):
     def get_entity(self) -> Agency:
         return Agency(

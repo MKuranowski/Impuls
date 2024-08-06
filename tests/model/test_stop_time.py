@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import StopTime, TimePoint
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestStopTime(AbstractTestEntity.Template[StopTime]):
     def get_entity(self) -> StopTime:
         return StopTime(

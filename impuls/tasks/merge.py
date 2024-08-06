@@ -7,7 +7,7 @@ from math import inf
 from operator import itemgetter
 from pathlib import Path
 from tempfile import mkstemp
-from typing import Container, Generator, Iterable, NamedTuple, Type, final
+from typing import Container, Generator, Iterable, NamedTuple, Type
 
 from ..db import DBConnection
 from ..model import FeedInfo, Route, Stop
@@ -99,7 +99,6 @@ class ConflictResolution(NamedTuple):
     merged: int
 
 
-@final
 class Merge(Task):
     """Merge tasks inserts data from provided impuls databases into the current one.
 

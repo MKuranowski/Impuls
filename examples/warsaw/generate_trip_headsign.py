@@ -1,9 +1,6 @@
-from typing import final
-
 import impuls
 
 
-@final
 class GenerateTripHeadsign(impuls.Task):
     def execute(self, r: impuls.TaskRuntime) -> None:
         # This is the most beautiful SQL statement I've every written :^)

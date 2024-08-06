@@ -1,11 +1,8 @@
-from typing import final
-
 from ..db import DBConnection
 from ..model import Calendar, CalendarException
 from ..task import Task, TaskRuntime
 
 
-@final
 class RemoveUnusedEntities(Task):
     """RemoveUnusedEntities removes entities from the database which serve no purpose:
 

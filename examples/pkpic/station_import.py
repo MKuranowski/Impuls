@@ -1,11 +1,10 @@
-from typing import cast, final
+from typing import cast
 
 import osmiter
 
 from impuls import Task, TaskRuntime
 
 
-@final
 class ImportStationData(Task):
     def __init__(self, pl_rail_map_resource: str) -> None:
         super().__init__()

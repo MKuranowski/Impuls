@@ -1,9 +1,8 @@
-from typing import cast, final
+from typing import cast
 
 from impuls import DBConnection, Task, TaskRuntime
 
 
-@final
 class GenerateRouteLongName(Task):
     def __init__(self) -> None:
         super().__init__()

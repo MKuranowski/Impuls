@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile
-from typing import final
 from unittest import TestCase
 
 from impuls import Pipeline, PipelineOptions, Task, TaskRuntime
@@ -10,7 +9,6 @@ from impuls.errors import InputNotModified
 from impuls.tools.testing_mocks import MockFile, MockResource
 
 
-@final
 class DummyTask(Task):
     def __init__(self, name: str | None = None) -> None:
         super().__init__(name)
@@ -37,7 +35,6 @@ class TestPipeline(TestCase):
         self.assertEqual(t2.executed_count, 1)
 
     def test_fetches_resources(self) -> None:
-        @final
         class ResourceCheckTask(Task):
             def __init__(self, test: "TestPipeline") -> None:
                 self.called = False
@@ -114,7 +111,6 @@ class TestPipeline(TestCase):
         self.assertEqual(bar.logger.name, "Eggs.Task.Bar")
 
     def test_option_force_run(self) -> None:
-        @final
         class ResourceCheckTask(Task):
             def __init__(self, test: "TestPipeline") -> None:
                 self.called = False
@@ -157,7 +153,6 @@ class TestPipeline(TestCase):
         self.assertTrue(t.called)
 
     def test_option_from_cache(self) -> None:
-        @final
         class ResourceCheckTask(Task):
             def __init__(self, test: "TestPipeline") -> None:
                 self.called = False

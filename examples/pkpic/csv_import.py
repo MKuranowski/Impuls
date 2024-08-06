@@ -1,7 +1,7 @@
 from datetime import timedelta
 from itertools import groupby
 from operator import itemgetter
-from typing import Mapping, final
+from typing import Mapping
 
 from impuls import DBConnection, Task, TaskRuntime
 from impuls.model import Calendar, Date, Route, Stop, StopTime, TimePoint, Trip
@@ -11,7 +11,6 @@ CSVRow = Mapping[str, str]
 DAY = timedelta(days=1)
 
 
-@final
 class CSVImport(Task):
     def __init__(self, csv_resource_name: str, agency_id: str = "0") -> None:
         super().__init__()

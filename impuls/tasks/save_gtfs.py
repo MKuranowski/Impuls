@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Mapping, Sequence, final
+from typing import Mapping, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from .. import extern
@@ -11,7 +11,6 @@ from ..tools.types import StrPath
 GTFSHeaders = Mapping[str, Sequence[str]]
 
 
-@final
 class SaveGTFS(Task):
     """SaveGTFS exports the contained data to as a GTFS zip file at the provided path.
 

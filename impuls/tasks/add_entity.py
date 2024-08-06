@@ -1,10 +1,7 @@
-from typing import final
-
 from ..model import Entity
 from ..task import Task, TaskRuntime
 
 
-@final
 class AddEntity(Task):
     """AddEntity is a simple task that adds the provided entity to the DB."""
 

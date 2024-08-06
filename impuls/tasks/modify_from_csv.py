@@ -1,7 +1,7 @@
 import csv
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Mapping, Optional, Type, cast, final
+from typing import Any, Callable, Iterator, Mapping, Optional, Type, cast
 
 from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
@@ -189,7 +189,6 @@ class ModifyFromCSV(Task):
             )
 
 
-@final
 class ModifyStopsFromCSV(ModifyFromCSV):
     """ModifyStopsFromCSV implements the :py:class:`~impuls.tasks.modify_from_csv.ModifyFromCSV`
     step for :py:class:`Stops <impuls.model.Stop>`.
@@ -244,7 +243,6 @@ class ModifyStopsFromCSV(ModifyFromCSV):
         return "SELECT stop_id FROM stops"
 
 
-@final
 class ModifyRoutesFromCSV(ModifyFromCSV):
     """ModifyStopsFromCSV implements the :py:class:`~impuls.tasks.modify_from_csv.ModifyFromCSV`
     step for :py:class:`Routes <impuls.model.Route>`.

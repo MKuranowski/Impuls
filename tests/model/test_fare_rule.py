@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import FareRule
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestFareRule(AbstractTestEntity.Template[FareRule]):
     def get_entity(self) -> FareRule:
         return FareRule(

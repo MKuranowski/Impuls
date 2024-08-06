@@ -1,5 +1,4 @@
 from tempfile import TemporaryDirectory
-from typing import final
 from zipfile import ZipFile
 
 from .. import extern
@@ -24,7 +23,6 @@ ALLOWED_FILES = {
 }
 
 
-@final
 class LoadGTFS(Task):
     """LoadGTFS attempts to load GTFS data from a ZIP archive.
 

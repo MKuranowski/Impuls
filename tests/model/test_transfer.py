@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import Transfer
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestTransfer(AbstractTestEntity.Template[Transfer]):
     def get_entity(self) -> Transfer:
         return Transfer(

@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import Date, FeedInfo
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
     def get_entity(self) -> FeedInfo:
         return FeedInfo(

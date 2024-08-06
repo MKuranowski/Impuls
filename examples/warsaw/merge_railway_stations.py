@@ -1,13 +1,11 @@
 from functools import reduce
 from itertools import groupby
 from statistics import mean
-from typing import final
 
 import impuls
 from impuls.model import Stop
 
 
-@final
 class MergeRailwayStations(impuls.Task):
     def execute(self, r: impuls.TaskRuntime) -> None:
         # Generate railway stations

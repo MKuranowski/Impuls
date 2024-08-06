@@ -1,11 +1,10 @@
-from typing import Type, final
+from typing import Type
 
 from impuls.model import Trip
 
 from .template_entity import AbstractTestEntity
 
 
-@final
 class TestAgency(AbstractTestEntity.Template[Trip]):
     def get_entity(self) -> Trip:
         return Trip(

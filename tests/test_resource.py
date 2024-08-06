@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from pathlib import Path
 from time import sleep
-from typing import Callable, Final, Iterable, Iterator, final
+from typing import Callable, Final, Iterable, Iterator
 from unittest.mock import patch
 
 import impuls.resource
@@ -79,7 +79,6 @@ class AbstractTestResource:
             self.assert_resource_fetched("5th fetch - unconditional", conditional=False)
 
 
-@final
 class TestLocalResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.f = MockFile()
@@ -98,7 +97,6 @@ class TestLocalResource(AbstractTestResource.Template):
         sleep(0.01)
 
 
-@final
 class TestHTTPResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.mocked_dt = MockDatetimeNow.evenly_spaced(
@@ -138,7 +136,6 @@ class TestHTTPResource(AbstractTestResource.Template):
             super().test()
 
 
-@final
 class TestTimeLimitedResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.mocked_dt = MockDatetimeNow(

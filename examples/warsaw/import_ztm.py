@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from io import TextIOWrapper
 from pathlib import Path
-from typing import IO, ContextManager, Generator, Iterator, TextIO, cast, final
+from typing import IO, ContextManager, Generator, Iterator, TextIO, cast
 
 from py7zr import SevenZipFile
 
@@ -55,7 +55,6 @@ class RouteParsingState:
         self.dir_1_stops -= overlap
 
 
-@final
 class ImportZTM(impuls.Task):
     def __init__(
         self,
