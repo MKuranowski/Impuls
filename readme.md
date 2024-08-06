@@ -30,8 +30,7 @@ TODO Before 1.0.0 release
 - [ ] Add translations to the model
 - [x] Automatically set up `App.name` to the class name
 - [x] Make tools.polish_calendar_exceptions use the resource mechanism
-- [ ] Make `impuls.Resource` an abstract class, instead of an interface
-- [ ] Make `impuls.multi_file.MultiFile` **not** generic
+- [x] Make `impuls.Resource` an abstract class, instead of an interface
 - [x] Remove pointless `@final` from tasks and other classes
 
 Installation and compilation

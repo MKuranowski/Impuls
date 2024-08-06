@@ -396,9 +396,8 @@ To cut a long-story short, the necessary patches look like this::
             else:
                 raise ValueError(f"invalid FTP mod_time: {x}")
 
-With the patched FTP client, we are ready to create our own class implementing :py:class:`impuls.Resource`.
-This interface contains 2 attributes and 1 method - we'll use a `dataclass <https://docs.python.org/3/library/dataclasses.html>`_
-to help with those attributes::
+With the patched FTP client, we are ready to create our own class implementing :py:class:`impuls.Resource`
+(through the :py:class:`impuls.resource.ConcreteResource` base class)::
 
     import impuls
     from dataclasses import dataclass
@@ -406,14 +405,19 @@ to help with those attributes::
     from typing import Iterable
 
     @dataclass
-    class FTPResource:
-        host: str
-        filename: str
-        username: str
-        password: str
-
-        last_modified: datetime = impuls.resource.DATETIME_MIN_UTC
-        fetch_time: datetime = impuls.resource.DATETIME_MIN_UTC
+    class FTPResource(impuls.resource.ConcreteResource):
+        def __init__(
+            self,
+            host: str
+            filename: str,
+            username: str,
+            password: str,
+        ) -> None:
+            super().__init__()
+            self.host = host
+            self.filename = filename
+            self.username = username
+            self.password = password
 
         def fetch(self, conditional: bool) -> Iterable[bytes]:
             with PatchedFTP(self.host, self.username, self.password) as ftp:
@@ -1039,7 +1043,7 @@ That's it for generating calendars; we can now deal with stop data.
 
 Impuls comes with a built-in :py:class:`~impuls.tasks.ModifyStopsFromCSV` task, too bad
 that http://rkm.mzdik.radom.pl/ returns stops in the XML format. Well, we can do a little trick
-and convert the XML to CSV on the fly in the :py:class:`~impuls.Resource` implementation.
+and convert the XML to CSV on the fly in the :py:class:`~impuls.ConcreteResource` implementation.
 To interact with the SOAP service, we're going to use the `zeep <https://pypi.org/project/zeep/>`_
 package. The course of action is simply - get the stops from the ``GetGoogleStops`` endpoint of
 http://rkm.mzdik.radom.pl/PublicService.asmx, convert them to CSV, and return the CSV file::
@@ -1048,13 +1052,9 @@ http://rkm.mzdik.radom.pl/PublicService.asmx, convert them to CSV, and return th
     from typing import Iterator
 
     import zeep
-    from impuls.resource import DATETIME_MIN_UTC, FETCH_CHUNK_SIZE, Resource
+    from impuls.resource import FETCH_CHUNK_SIZE, ConcreteResource
 
-    class RadomStopsResource(Resource):
-        def __init__(self) -> None:
-            self.last_modified = DATETIME_MIN_UTC
-            self.fetch_time = DATETIME_MIN_UTC
-
+    class RadomStopsResource(ConcreteResource):
         def fetch(self, conditional: bool) -> Iterator[bytes]:
             # Fetch stops from Radom's SOAP service
             self.fetch_time = datetime.now(timezone.utc)

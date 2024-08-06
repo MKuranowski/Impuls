@@ -5,14 +5,10 @@ from typing import Any, Iterator
 
 import zeep
 
-from impuls.resource import DATETIME_MIN_UTC, FETCH_CHUNK_SIZE, Resource
+from impuls.resource import FETCH_CHUNK_SIZE, ConcreteResource
 
 
-class RadomStopsResource(Resource):
-    def __init__(self) -> None:
-        self.last_modified = DATETIME_MIN_UTC
-        self.fetch_time = DATETIME_MIN_UTC
-
+class RadomStopsResource(ConcreteResource):
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         # Fetch stops from Radom's SOAP service
         self.fetch_time = datetime.now(timezone.utc)

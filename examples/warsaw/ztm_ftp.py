@@ -5,7 +5,7 @@ from typing import Iterator
 from impuls.errors import InputNotModified
 from impuls.model import Date
 from impuls.multi_file import IntermediateFeed, IntermediateFeedProvider, prune_outdated_feeds
-from impuls.resource import DATETIME_MIN_UTC, Resource
+from impuls.resource import ConcreteResource
 
 FTP_URL = "rozklady.ztm.waw.pl"
 
@@ -34,11 +34,10 @@ class PatchedFTP(FTP):
             raise ValueError(f"invalid FTP mod_time: {x}")
 
 
-class FTPResource(Resource):
-    def __init__(self, filename: str, last_modified: datetime = DATETIME_MIN_UTC) -> None:
+class FTPResource(ConcreteResource):
+    def __init__(self, filename: str) -> None:
+        super().__init__()
         self.filename = filename
-        self.last_modified = last_modified
-        self.fetch_time = DATETIME_MIN_UTC
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         with PatchedFTP(FTP_URL) as ftp:
@@ -66,7 +65,6 @@ class ZTMFeedProvider(IntermediateFeedProvider[FTPResource]):
                 IntermediateFeed(
                     resource=FTPResource(
                         filename,
-                        last_modified=PatchedFTP.parse_ftp_mod_time(metadata["modify"]),
                     ),
                     resource_name=filename,
                     version=filename.partition(".")[0],
@@ -76,7 +74,7 @@ class ZTMFeedProvider(IntermediateFeedProvider[FTPResource]):
                         int(filename[6:8]),
                     ),
                 )
-                for filename, metadata in ftp.mlsd()
+                for filename in ftp.nlst()
                 if filename.startswith("RA") and filename.endswith(".7z")
             ]
 

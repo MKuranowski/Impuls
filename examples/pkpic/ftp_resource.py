@@ -3,7 +3,7 @@ from ftplib import FTP_TLS
 from typing import Iterator
 
 from impuls.errors import InputNotModified
-from impuls.resource import DATETIME_MIN_UTC, Resource
+from impuls.resource import ConcreteResource
 
 FTP_URL = "ftps.intercity.pl"
 
@@ -37,19 +37,17 @@ class PatchedFTP(FTP_TLS):
             raise ValueError(f"invalid FTP mod_time: {x}")
 
 
-class FTPResource(Resource):
+class FTPResource(ConcreteResource):
     def __init__(
         self,
         filename: str,
         username: str,
         password: str,
-        last_modified: datetime = DATETIME_MIN_UTC,
     ) -> None:
+        super().__init__()
         self.filename = filename
         self.username = username
         self.password = password
-        self.last_modified = last_modified
-        self.fetch_time = DATETIME_MIN_UTC
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         with PatchedFTP(FTP_URL, self.username, self.password) as ftp:

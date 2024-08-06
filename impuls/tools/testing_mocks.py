@@ -12,7 +12,7 @@ from typing import Any, Generator, Iterable, Iterator, Mapping, Optional, Protoc
 import requests
 
 from ..errors import InputNotModified
-from ..resource import DATETIME_MIN_UTC, Resource
+from ..resource import DATETIME_MIN_UTC, ConcreteResource
 from .types import Self
 
 
@@ -146,10 +146,14 @@ class MockHTTPResponse:
             rest = rest[chunk_size:]
 
 
-class MockResource(Resource):
+class MockResource(ConcreteResource):
     """MockResource mocks a Resource, returning a predefined content
     and allowing control over the last_modified attribute.
     """
+
+    content: bytes
+    clock: DatetimeNowLike
+    persistent_last_modified: datetime | None
 
     def __init__(
         self,
@@ -159,11 +163,12 @@ class MockResource(Resource):
         clock: DatetimeNowLike = datetime.now,
         persist_last_modified: bool = False,
     ) -> None:
-        self.content = content
+        super().__init__()
         self.last_modified = last_modified
         self.fetch_time = fetch_time
-        self.clock = clock
 
+        self.content = content
+        self.clock = clock
         self.persistent_last_modified = fetch_time if persist_last_modified else None
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:

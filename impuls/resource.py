@@ -18,7 +18,6 @@ from typing import (
     Iterator,
     Mapping,
     Optional,
-    Protocol,
     Sequence,
     TextIO,
     Type,
@@ -50,21 +49,42 @@ logger = logging.getLogger(__name__)
 #
 
 
-class Resource(Protocol):
-    """Resource is a protocol describing any type of resource,
+class Resource(ABC):
+    """Resource is the base abstract class describing any type of resource,
     which can be downloaded and used by the :py:class:`~impuls.Pipeline`.
+
+    This base class has a abstract method (:py:meth:`fetch`) and 2 abstract, settable
+    properties. The latter are implemented by :py:class:`impuls.resource.ConcreteResource`
+    (which stores those two properties) and :py:class:`impuls.resource.WrappedResource` (which
+    delegates the calls to another Resource). When creating a new type of resource, inherit from
+    either of those two classes instead.
     """
 
-    last_modified: datetime
-    """last_modified contains the last update time of the resource.
-    Only available after a call to fetch. Must be an aware datetime instance.
-    """
+    @property
+    @abstractmethod
+    def last_modified(self) -> datetime:
+        """last_modified contains the last update time of the resource.
+        Only available after a call to fetch. Must be an aware datetime instance.
+        """
+        ...
 
-    fetch_time: datetime
-    """fetch_time contains the timestamp of the last successful call to fetch.
-    Only available after a call to fetch. Must be an aware datetime instance.
-    """
+    @last_modified.setter
+    @abstractmethod
+    def last_modified(self, __new: datetime) -> None: ...
 
+    @property
+    @abstractmethod
+    def fetch_time(self) -> datetime:
+        """fetch_time contains the timestamp of the last successful call to fetch.
+        Only available after a call to fetch. Must be an aware datetime instance.
+        """
+        ...
+
+    @fetch_time.setter
+    @abstractmethod
+    def fetch_time(self, __new: datetime) -> None: ...
+
+    @abstractmethod
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         """fetch returns the content of the resource;
         preferably in chunks of :py:const:`~impuls.resource.FETCH_CHUNK_SIZE` length.
@@ -81,7 +101,69 @@ class Resource(Protocol):
         ...
 
 
-class LocalResource(Resource):
+class ConcreteResource(Resource):
+    """ConcreteResource is an abstract :py:class:`Resource` implementation which stores the
+    ``last_modified`` and ``fetch_time`` properties. :py:meth:`~impuls.resource.Resource.fetch`
+    still needs to be implemented.
+
+    ``super().__init__()`` must be called by implementing classes in their ``__init__`` methods.
+    """
+
+    def __init__(self) -> None:
+        self._last_modified: datetime = DATETIME_MIN_UTC
+        self._fetch_time: datetime = DATETIME_MIN_UTC
+
+    @property
+    def last_modified(self) -> datetime:
+        return self._last_modified
+
+    @last_modified.setter
+    def last_modified(self, new: datetime) -> None:
+        self._last_modified = new
+
+    @property
+    def fetch_time(self) -> datetime:
+        return self._fetch_time
+
+    @fetch_time.setter
+    def fetch_time(self, new: datetime) -> None:
+        self._fetch_time = new
+
+
+class WrappedResource(Resource):
+    """WrappedResource is a helper abstract class for implementing modifications to
+    existing :py:class:`~impuls.resource.Resource` instances using the
+    `decorator pattern <https://en.wikipedia.org/wiki/Decorator_pattern>`_.
+
+    WrappedResource proxies the ``last_modified`` and ``fetch_time`` properties to the
+    wrapped resource, but leaves :py:meth:`impuls.resource.Resource.fetch` unimplemented.
+
+    ``super().__init__()`` must be called by implementing classes in their ``__init__`` methods.
+    """
+
+    r: Resource
+
+    def __init__(self, r: Resource) -> None:
+        self.r = r
+
+    @property
+    def last_modified(self) -> datetime:
+        return self.r.last_modified
+
+    @last_modified.setter
+    def last_modified(self, new: datetime) -> None:
+        self.r.last_modified = new
+
+    @property
+    def fetch_time(self) -> datetime:
+        return self.r.fetch_time
+
+    @fetch_time.setter
+    def fetch_time(self, new: datetime) -> None:
+        self.r.fetch_time = new
+
+
+class LocalResource(ConcreteResource):
     """LocalResource is a Resource located on the local filesystem.
 
     LocalResources are assumed to be always available, and thus don't need to be cached.
@@ -108,9 +190,8 @@ class LocalResource(Resource):
     path: Path
 
     def __init__(self, path: StrPath) -> None:
+        super().__init__()
         self.path = path if isinstance(path, Path) else Path(path)
-        self.last_modified = DATETIME_MIN_UTC
-        self.fetch_time = DATETIME_MIN_UTC
 
     def update_last_modified(self, fake_fetch_time: bool = False) -> bool:
         """update_last_modified refreshes the last_modified attribute
@@ -143,7 +224,7 @@ class LocalResource(Resource):
                 yield chunk
 
 
-class HTTPResource(Resource):
+class HTTPResource(ConcreteResource):
     """HTTPResource is a :py:class:`~impuls.resource.Resource` on a remote server,
     accessible using HTTP or HTTPS.
 
@@ -160,10 +241,9 @@ class HTTPResource(Resource):
         request: requests.Request,
         session: Optional[requests.Session] = None,
     ) -> None:
+        super().__init__()
         self.request = request
         self.session = session or requests.Session()
-        self.fetch_time = DATETIME_MIN_UTC
-        self.last_modified = DATETIME_MIN_UTC
 
     @classmethod
     def get(
@@ -241,42 +321,6 @@ class HTTPResource(Resource):
 
             for chunk in resp.iter_content(FETCH_CHUNK_SIZE, decode_unicode=False):
                 yield chunk
-
-
-class WrappedResource(ABC, Resource):
-    """WrappedResource is a helper abstract class for implementing modifications to
-    existing :py:class:`~impuls.resource.Resource` instances using the
-    `decorator pattern <https://en.wikipedia.org/wiki/Decorator_pattern>`_.
-
-    WrappedResource simply proxies the :py:attr:`~impuls.resource.Resource.last_modified` and
-    :py:attr:`~impuls.resource.Resource.fetch_time` properties to the wrapped resource,
-    leaving out :py:meth:`~impuls.resource.Resource.fetch` implementation.
-    """
-
-    r: Resource
-
-    def __init__(self, r: Resource) -> None:
-        self.r = r
-
-    @property
-    def last_modified(self) -> datetime:
-        return self.r.last_modified
-
-    @last_modified.setter
-    def last_modified(self, new: datetime) -> None:  # type: ignore
-        self.r.last_modified = new
-
-    @property
-    def fetch_time(self) -> datetime:
-        return self.r.fetch_time
-
-    @fetch_time.setter
-    def fetch_time(self, new: datetime) -> None:  # type: ignore
-        self.r.fetch_time = new
-
-    @abstractmethod
-    def fetch(self, conditional: bool) -> Iterator[bytes]:
-        raise NotImplementedError
 
 
 class TimeLimitedResource(WrappedResource):
