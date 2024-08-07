@@ -1,12 +1,11 @@
 import json
-import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from operator import attrgetter
 from pathlib import Path
 from typing import Literal, cast
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from impuls import LocalResource, Pipeline, PipelineOptions, Task, TaskRuntime
 from impuls.errors import InputNotModified, MultipleDataErrors, ResourceNotCached
@@ -19,9 +18,7 @@ from impuls.multi_file import (
     Pipelines,
     _load_cached,
     _remove_from_cache,
-    _ResolvedVersions,
     _save_to_cache,
-    logger,
     prune_outdated_feeds,
 )
 from impuls.tasks import TruncateCalendars, merge
@@ -140,168 +137,6 @@ class TestIntermediateFeed(TestCase):
         self.assertEqual(feeds[2].version, "v4")
 
 
-class TestResolvedVersions(TestCase):
-    def test_log_result_zero(self) -> None:
-        r = _ResolvedVersions()  # type: ignore
-        with self.assertLogs(logger, logging.INFO) as logs:
-            r.log_result()
-        self.assertListEqual(
-            logs.output,
-            [
-                "INFO:MultiFile:0 cached input feeds are stale",
-                "INFO:MultiFile:0 cached input feeds are up-to-date",
-                "INFO:MultiFile:0 input feeds need to be downloaded",
-            ],
-        )
-
-    def test_log_result_one(self) -> None:
-        r = _ResolvedVersions(
-            [IntermediateFeed(LocalResource(Path()), "v1.txt", "v1", Date(2023, 4, 1))],
-            [IntermediateFeed(LocalResource(Path()), "v2.txt", "v2", Date(2023, 5, 1))],
-            [IntermediateFeed(MockResource(), "v3.txt", "v3", Date(2023, 6, 1))],
-        )
-        with self.assertLogs(logger, logging.INFO) as logs:
-            r.log_result()
-        self.assertListEqual(
-            logs.output,
-            [
-                "INFO:MultiFile:1 cached input feed is stale:\n\tv1.txt",
-                "INFO:MultiFile:1 cached input feed is up-to-date:\n\tv2.txt",
-                "INFO:MultiFile:1 input feed needs to be downloaded:\n\tv3.txt",
-            ],
-        )
-
-    def test_log_result_many(self) -> None:
-        r = _ResolvedVersions(
-            [
-                IntermediateFeed(LocalResource(Path()), "v1.txt", "v1", Date(2023, 4, 1)),
-                IntermediateFeed(LocalResource(Path()), "v2.txt", "v2", Date(2023, 5, 1)),
-            ],
-            [
-                IntermediateFeed(LocalResource(Path()), "v3.txt", "v3", Date(2023, 6, 1)),
-                IntermediateFeed(LocalResource(Path()), "v4.txt", "v4", Date(2023, 7, 1)),
-            ],
-            [
-                IntermediateFeed(MockResource(), "v5.txt", "v5", Date(2023, 8, 1)),
-                IntermediateFeed(MockResource(), "v6.txt", "v6", Date(2023, 9, 1)),
-            ],
-        )
-        with self.assertLogs(logger, logging.INFO) as logs:
-            r.log_result()
-        self.assertListEqual(
-            logs.output,
-            [
-                "INFO:MultiFile:2 cached input feeds are stale:\n\tv1.txt, v2.txt",
-                "INFO:MultiFile:2 cached input feeds are up-to-date:\n\tv3.txt, v4.txt",
-                "INFO:MultiFile:2 input feeds need to be downloaded:\n\tv5.txt, v6.txt",
-            ],
-        )
-
-    def test_remove(self) -> None:
-        d = Path("/tmp/non-existing")
-        r = _ResolvedVersions(
-            [
-                IntermediateFeed(LocalResource(d / "v1.txt"), "v1.txt", "v1", Date(2023, 4, 1)),
-                IntermediateFeed(LocalResource(d / "v2.txt"), "v2.txt", "v2", Date(2023, 5, 1)),
-            ],
-            [IntermediateFeed(LocalResource(d / "v3.txt"), "v3.txt", "v3", Date(2023, 6, 1))],
-            [IntermediateFeed(MockResource(), "v4.txt", "v4", Date(2023, 7, 1))],
-        )
-        with patch("impuls.multi_file._remove_from_cache") as remove_mock:
-            r.remove(d)
-
-        self.assertEqual(remove_mock.call_count, 2)
-
-        self.assertEqual(remove_mock.mock_calls[0].args[0], d)
-        self.assertIsInstance(remove_mock.mock_calls[0].args[1], IntermediateFeed)
-        self.assertEqual(remove_mock.mock_calls[0].args[1].version, "v1")
-
-        self.assertEqual(remove_mock.mock_calls[1].args[0], d)
-        self.assertIsInstance(remove_mock.mock_calls[1].args[1], IntermediateFeed)
-        self.assertEqual(remove_mock.mock_calls[1].args[1].version, "v2")
-
-    def test_fetch(self) -> None:
-        with MockFile(directory=True) as d:
-            r = _ResolvedVersions(
-                [IntermediateFeed(LocalResource(d / "v1.txt"), "v1.txt", "v1", Date(2023, 4, 1))],
-                [IntermediateFeed(LocalResource(d / "v2.txt"), "v2.txt", "v2", Date(2023, 5, 1))],
-                [
-                    IntermediateFeed(MockResource(b"foo"), "v3.txt", "v3", Date(2023, 6, 1)),
-                    IntermediateFeed(MockResource(b"bar"), "v4.txt", "v4", Date(2023, 7, 1)),
-                ],
-            )
-            local_versions = r.fetch(d)
-
-            self.assertEqual(len(local_versions), 2)
-
-            self.assertEqual(local_versions[0].version, "v3")
-            self.assertEqual(local_versions[0].resource.path, d / "v3.txt")
-            self.assertEqual(local_versions[0].resource.path.read_bytes(), b"foo")
-
-            self.assertEqual(local_versions[1].version, "v4")
-            self.assertEqual(local_versions[1].resource.path, d / "v4.txt")
-            self.assertEqual(local_versions[1].resource.path.read_bytes(), b"bar")
-
-    def test_from(self) -> None:
-        with MockFile(directory=True) as d:
-            cached_no_longer_needed = IntermediateFeed(
-                resource=LocalResource(d / "v1.txt"),
-                resource_name="v1.txt",
-                version="v1",
-                start_date=Date(2023, 4, 1),
-            )
-            cached_no_longer_needed.resource.last_modified = datetime(2023, 3, 28)
-
-            cached_up_to_date = IntermediateFeed(
-                resource=LocalResource(d / "v2.txt"),
-                resource_name="v2.txt",
-                version="v2",
-                start_date=Date(2023, 4, 14),
-            )
-            cached_up_to_date.resource.last_modified = datetime(2023, 3, 30)
-
-            cached_stale = IntermediateFeed(
-                resource=LocalResource(d / "v3.txt"),
-                resource_name="v3.txt",
-                version="v3",
-                start_date=Date(2023, 5, 1),
-            )
-            cached_stale.resource.last_modified = datetime(2023, 3, 30)
-
-            needed_already_cached = IntermediateFeed(
-                resource=MockResource(),
-                resource_name="v2.txt",
-                version="v2",
-                start_date=Date(2023, 4, 14),
-            )
-            needed_already_cached.resource.last_modified = datetime(2023, 3, 30)
-
-            needed_cached_stale = IntermediateFeed(
-                resource=MockResource(),
-                resource_name="v3.txt",
-                version="v3",
-                start_date=Date(2023, 5, 1),
-            )
-            needed_cached_stale.resource.last_modified = datetime(2023, 4, 5)
-
-            needed_not_cached = IntermediateFeed(
-                resource=MockResource(),
-                resource_name="v4.txt",
-                version="v4",
-                start_date=Date(2023, 5, 7),
-            )
-            needed_not_cached.resource.last_modified = datetime(2023, 4, 5)
-
-            resolved = _ResolvedVersions[MockResource].from_(
-                [needed_already_cached, needed_cached_stale, needed_not_cached],
-                [cached_no_longer_needed, cached_up_to_date, cached_stale],
-            )
-
-            self.assertSetEqual({i.version for i in resolved.to_remove}, {"v1", "v3"})
-            self.assertSetEqual({i.version for i in resolved.up_to_date}, {"v2"})
-            self.assertSetEqual({i.version for i in resolved.to_fetch}, {"v3", "v4"})
-
-
 class TestCache(TestCase):
     def setUp(self) -> None:
         super().setUp()
@@ -394,7 +229,7 @@ class TestCache(TestCase):
             version="v1",
             start_date=Date(2023, 4, 1),
         )
-        out_feed = _save_to_cache(self.d, in_feed)
+        out_feed, _ = _save_to_cache(self.d, in_feed)
 
         self.assertEqual(out_feed.resource.path, self.d / "v1.txt")
         self.assertEqual(out_feed.resource.path.read_bytes(), b"Foo\n")
@@ -446,21 +281,21 @@ def mock_feed(version: str) -> IntermediateFeed[MockResource]:
     match version:
         case "v1":
             return IntermediateFeed(
-                resource=MockResource(last_modified=datetime(2023, 3, 28, tzinfo=timezone.utc)),
+                resource=MockResource(),
                 resource_name="v1.txt",
                 version="v1",
                 start_date=Date(2023, 4, 1),
             )
         case "v2":
             return IntermediateFeed(
-                resource=MockResource(last_modified=datetime(2023, 3, 30, tzinfo=timezone.utc)),
+                resource=MockResource(),
                 resource_name="v2.txt",
                 version="v2",
                 start_date=Date(2023, 4, 14),
             )
         case "v3":
             return IntermediateFeed(
-                resource=MockResource(last_modified=datetime(2023, 4, 5, tzinfo=timezone.utc)),
+                resource=MockResource(),
                 resource_name="v3.txt",
                 version="v3",
                 start_date=Date(2023, 5, 1),
@@ -470,8 +305,11 @@ def mock_feed(version: str) -> IntermediateFeed[MockResource]:
 
 
 class MockIntermediateFeedProvider(IntermediateFeedProvider[MockResource]):
+    def __init__(self, r: list[IntermediateFeed[MockResource]] | None = None) -> None:
+        self.r = r or [mock_feed("v2"), mock_feed("v3")]
+
     def needed(self) -> list[IntermediateFeed[MockResource]]:
-        return [mock_feed("v2"), mock_feed("v3")]
+        return self.r
 
 
 class DummyTask(Task):
@@ -503,13 +341,28 @@ class TestMultiFile(TestCase):
         super().tearDown()
         self.workspace.cleanup()
 
+    @staticmethod
+    def mock_last_modified_time(version: str) -> datetime:
+        match version:
+            case "v1":
+                return datetime(2023, 3, 28, tzinfo=timezone.utc)
+            case "v2":
+                return datetime(2023, 3, 30, tzinfo=timezone.utc)
+            case "v3":
+                return datetime(2023, 4, 5, tzinfo=timezone.utc)
+            case _:
+                raise ValueError(f"invalid mock feed version: {version!r}")
+
     def mock_input(self, version: str, last_modified: datetime | None = None) -> None:
+        last_modified = last_modified or self.mock_last_modified_time(version)
+        fetch_time = last_modified + timedelta(hours=8)
+
         p = self.multi_file.intermediate_inputs_path()
         (p / f"{version}.txt").touch()
         with (p / f"{version}.txt.metadata").open(mode="w") as f:
             metadata = mock_feed(version).as_cached_feed_metadata()
-            if last_modified:
-                metadata["last_modified"] = last_modified.timestamp()
+            metadata["last_modified"] = last_modified.timestamp()
+            metadata["fetch_time"] = fetch_time.timestamp()
             json.dump(metadata, f)
 
     def mock_db(self, version: str, last_modified: datetime | None = None) -> None:
@@ -517,7 +370,7 @@ class TestMultiFile(TestCase):
         f = p / f"{version}.db"
         f.touch()
 
-        t = (last_modified or mock_feed(version).resource.last_modified).timestamp()
+        t = (last_modified or self.mock_last_modified_time(version)).timestamp()
         os.utime(f, (t, t))
 
     def check_intermediate_pipeline(self, p: Pipeline, version: str) -> None:
@@ -619,6 +472,16 @@ class TestMultiFile(TestCase):
     def test_overwrites_cached_db_if_fetched(self) -> None:
         # NOTE: This test is particularly nasty, simulating a situation
         #       when the input resource has changed after a fetch, but before generating a db
+        v2_resource = (
+            cast(
+                MockIntermediateFeedProvider,
+                self.multi_file.intermediate_provider,
+            )
+            .r[0]
+            .resource
+        )
+        v2_resource.persistent_last_modified = datetime(2023, 3, 30, tzinfo=timezone.utc)
+
         self.mock_input("v2", datetime(2023, 3, 29, tzinfo=timezone.utc))
         self.mock_db("v2", datetime(2023, 3, 31, tzinfo=timezone.utc))
 

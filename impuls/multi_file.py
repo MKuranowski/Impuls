@@ -23,7 +23,6 @@ from .resource import (
 from .task import Task
 from .tasks import TruncateCalendars, merge
 from .tools.temporal import date_range
-from .tools.types import Self
 
 ResourceT = TypeVar("ResourceT", bound=Resource)
 ResourceT_co = TypeVar("ResourceT_co", bound=Resource, covariant=True)
@@ -66,11 +65,11 @@ class CachedFeedMetadata(TypedDict):
 
 
 @dataclass(frozen=True)
-class IntermediateFeed(Generic[ResourceT]):
+class IntermediateFeed(Generic[ResourceT_co]):
     """IntermediateFeed represents self-contained schedules for a set period of time -
     a single version of timetables."""
 
-    resource: ResourceT
+    resource: ResourceT_co
     """resources represents arbitrary data containing schedule data by a
     :py:class:`~impuls.Resource`. This resource's last_modified time must be filled in by the
     :py:class:`~impuls.multi_file.IntermediateFeedProvider` - and must be available before the
@@ -131,9 +130,6 @@ class IntermediateFeedProvider(Protocol[ResourceT]):
     all files required to form a coherent and continuous dataset, and returning a list
     of :py:class:`~impuls.multi_file.IntermediateFeed` with the same :py:class:`~impuls.Resource`
     type.
-
-    The IntermediateFeedProvider is also responsible for filling in the
-    :py:attr:`~impuls.Resource.last_modified` field of generated feeds' resources.
     """
 
     def needed(self) -> list[IntermediateFeed[ResourceT]]: ...
@@ -280,53 +276,109 @@ class MultiFile(Generic[ResourceT_co]):
         Raises :py:exc:`~impuls.errors.InputNotModified` if the intermediate inputs have not
         changed, barring other options like from_cache or force_run.
         """
-        intermediate_inputs_path = self.intermediate_inputs_path()
 
+        # 1. Load up additional resources
         if self.additional_resources:
             resources = self._prepare_resources()
         else:
             resources = dict[str, ManagedResource]()
 
-        # 1. Figure out which intermediate feeds are needed
-        versions = self._resolve_versions()
-        versions.log_result()
+        cached = {i.version: i for i in _load_cached(self.intermediate_inputs_path())}
+        local: list[IntermediateFeed[LocalResource]]
+        updated: set[str]
 
-        # 2. Remove stale and no-longer-needed cached intermediate inputs and databases
-        versions.remove(intermediate_inputs_path)
+        if not self.options.from_cache:
+            # If not `from_cache`:
+            # 2a. Get needed files from intermediate_feed_provider
+            logger.info("Listing needed input files")
+            needed = {i.version: i for i in self.intermediate_provider.needed()}
 
-        # 3. Fetch missing feed inputs
-        local_fetched = versions.fetch(intermediate_inputs_path)
-        local = versions.up_to_date + local_fetched
-        local.sort(key=attrgetter("start_date"))
+            # 3a. Remove unneeded files from intermediate_inputs_path
+            self._remove_unneeded_cached_inputs(needed, cached)
 
-        # 3. Prepare intermediate pipelines for missing local feeds
-        intermediates = self._prepare_intermediate_pipelines(
-            local,
-            resources,
-            force={i.version for i in versions.to_fetch},
-        )
+            # 4a. Load last_modified and fetch_time from intermediate_inputs_path/*.metadata
+            self._set_metadata_on_needed_files(needed, cached)
 
-        # 4. If there were no changes at all and not force_run - raise InputNotModified
-        if not intermediates and not self.options.force_run and not self.options.from_cache:
+            # 5a. Run conditional fetches on all intermediate inputs
+            local, updated = self._download_needed_inputs(needed, cached)
+
+        else:
+            # Otherwise (`from_cache`):
+            # 2b. Create substitute IntermediateFeed[LocalResource] based on cached inputs
+            logger.info("Loading cached input files")
+            local = sorted(cached.values(), key=attrgetter("start_date"))
+            updated = set()
+
+        # 6. Prepare intermediate pipelines
+        intermediates = self._prepare_intermediate_pipelines(local, resources, updated)
+        if not intermediates and not self.options.from_cache:
             raise InputNotModified
 
-        # 5. Prepare final pipeline for merging intermediate feeds
+        # 7. Create the final pipeline
         final = self._prepare_final_pipeline(local, resources)
 
         return Pipelines(intermediates, final)
 
-    def _resolve_versions(self) -> "_ResolvedVersions[ResourceT_co]":
-        # If from_cache - resolve only based on locally cached files
-        if self.options.from_cache:
-            # NOTE: No changes to cached inputs will be made - no need to invalidate the cache
-            logger.warning("Using cached intermediate feeds")
-            cached = _load_cached(self.intermediate_inputs_path())
-            return _ResolvedVersions(up_to_date=cached)
+    def _remove_unneeded_cached_inputs(
+        self,
+        needed: dict[str, IntermediateFeed[ResourceT_co]],
+        cached: dict[str, IntermediateFeed[LocalResource]],
+    ) -> None:
+        to_remove: list[str] = [i for i in cached if i not in needed]
+        for version in to_remove:
+            feed = cached.pop(version)
+            logger.info("Removing %s (file no longer needed)", feed.resource_name)
+            _remove_from_cache(self.intermediate_inputs_path(), feed)
 
-        logger.info("Checking needed intermediate feeds")
-        needed = self.intermediate_provider.needed()
-        cached = _load_cached(self.intermediate_inputs_path())
-        return _ResolvedVersions[ResourceT_co].from_(needed, cached)
+    def _set_metadata_on_needed_files(
+        self,
+        needed: dict[str, IntermediateFeed[ResourceT_co]],
+        cached: dict[str, IntermediateFeed[LocalResource]],
+    ) -> None:
+        for needed_feed in needed.values():
+            if cached_feed := cached.get(needed_feed.version):
+                if needed_feed.resource_name != cached_feed.resource_name:
+                    raise ValueError(
+                        f"The resource name for feed version {needed_feed.version!r} "
+                        f"has changed from {needed_feed.resource_name!r} to "
+                        f"{cached_feed.resource_name!r}. This breaks input cache and is therefore "
+                        " not allowed. Remove the intermediate_inputs directory manually to force "
+                        " a fresh run."
+                    )
+
+                needed_feed.resource.last_modified = cached_feed.resource.last_modified
+                needed_feed.resource.fetch_time = cached_feed.resource.fetch_time
+
+    def _download_needed_inputs(
+        self,
+        needed: dict[str, IntermediateFeed[ResourceT_co]],
+        cached: dict[str, IntermediateFeed[LocalResource]],
+    ) -> tuple[list[IntermediateFeed[LocalResource]], set[str]]:
+        local: list[IntermediateFeed[LocalResource]] = []
+        changed: set[str] = set()
+
+        for version, remote_feed in needed.items():
+            if version in cached:
+                conditional = True
+                logger.info(
+                    "Refreshing %s (downloading if it has changed)",
+                    remote_feed.resource_name,
+                )
+            else:
+                conditional = False
+                logger.info("Downloading %s", remote_feed.resource_name)
+
+            local_feed, has_changed = _save_to_cache(
+                self.intermediate_inputs_path(),
+                remote_feed,
+                conditional,
+            )
+            local.append(local_feed)
+            if has_changed:
+                changed.add(version)
+
+        local.sort(key=attrgetter("start_date"))
+        return local, changed
 
     def _prepare_intermediate_pipelines(
         self,
@@ -357,9 +409,10 @@ class MultiFile(Generic[ResourceT_co]):
         # unless force_run (in this case those dbs are ignored anyway)
         if not self.options.force_run:
             logger.info(
-                "%d cached intermediate database%s up to date",
+                "%d cached intermediate database%s up to date:\n\t%s",
                 len(versions_up_to_date),
                 " is" if len(versions_up_to_date) == 1 else "s are",
+                ", ".join(sorted(versions_up_to_date)),
             )
 
         # Figure out which feeds need to be processed - there's no need to create pipeline
@@ -370,9 +423,10 @@ class MultiFile(Generic[ResourceT_co]):
             if self.options.force_run or feed.version not in versions_up_to_date
         ]
         logger.info(
-            "%d intermediate pipeline%s need to be created",
+            "%d intermediate pipeline%s need to be created:\n\t%s",
             len(feeds_to_create),
             "" if len(feeds_to_create) == 1 else "s",
+            ", ".join(sorted(feed.version for feed in feeds_to_create)),
         )
 
         # Prepare intermediate pipelines
@@ -486,114 +540,6 @@ class MultiFile(Generic[ResourceT_co]):
         return p
 
 
-@dataclass
-class _ResolvedVersions(Generic[ResourceT]):
-    """ResolvedVersions groups both cached and external versions
-    by the action that needs to be taken"""
-
-    to_remove: list[IntermediateFeed[LocalResource]] = field(default_factory=list)
-    """Subset of cached feeds which are no longer needed (version no longer needed) or
-    stale (corresponding needed feed has a later last_modified).
-    """
-
-    up_to_date: list[IntermediateFeed[LocalResource]] = field(default_factory=list)
-    """Subset of cached feeds which are needed and up-to-date."""
-
-    to_fetch: list[IntermediateFeed[ResourceT]] = field(default_factory=list)
-    """Subset of needed feeds which need to be pulled and processed."""
-
-    @classmethod
-    def from_(
-        cls,
-        needed: list[IntermediateFeed[ResourceT]],
-        cached: list[IntermediateFeed[LocalResource]],
-    ) -> Self:
-        """Resolves versions based on all needed and all cached feeds."""
-        needed_modification_times = {i.version: i.resource.last_modified for i in needed}
-
-        to_remove = [
-            i
-            for i in cached
-            if i.version not in needed_modification_times
-            or needed_modification_times[i.version] > i.resource.last_modified
-        ]
-        to_remove_versions = {i.version for i in to_remove}
-
-        up_to_date = [i for i in cached if i.version not in to_remove_versions]
-        up_to_date_versions = {i.version for i in up_to_date}
-
-        to_fetch = [i for i in needed if i.version not in up_to_date_versions]
-
-        return cls(to_remove, up_to_date, to_fetch)
-
-    def log_result(self) -> None:
-        """Logs the result of version resolution"""
-        to_remove_str = ", ".join(sorted(i.resource_name for i in self.to_remove))
-        if len(self.to_remove) == 0:
-            logger.info("0 cached input feeds are stale")
-        elif len(self.to_remove) == 1:
-            logger.info("1 cached input feed is stale:\n\t%s", to_remove_str)
-        else:
-            logger.info(
-                "%d cached input feeds are stale:\n\t%s",
-                len(self.to_remove),
-                to_remove_str,
-            )
-
-        up_to_date_str = ", ".join(sorted(i.resource_name for i in self.up_to_date))
-        if len(self.up_to_date) == 0:
-            logger.info("0 cached input feeds are up-to-date")
-        elif len(self.up_to_date) == 1:
-            logger.info("1 cached input feed is up-to-date:\n\t%s", up_to_date_str)
-        else:
-            logger.info(
-                "%d cached input feeds are up-to-date:\n\t%s",
-                len(self.up_to_date),
-                up_to_date_str,
-            )
-
-        to_fetch_str = ", ".join(sorted(i.resource_name for i in self.to_fetch))
-        if len(self.to_fetch) == 0:
-            logger.info("0 input feeds need to be downloaded")
-        elif len(self.to_fetch) == 1:
-            logger.info("1 input feed needs to be downloaded:\n\t%s", to_fetch_str)
-        else:
-            logger.info(
-                "%d input feeds need to be downloaded:\n\t%s",
-                len(self.to_fetch),
-                to_fetch_str,
-            )
-
-    def remove(self, intermediate_inputs_path: Path) -> None:
-        """Removes all to_remove feeds"""
-        if self.to_remove:
-            logger.info(
-                "Removing %d stale/unnecessary intermediate input%s",
-                len(self.to_remove),
-                "s" if len(self.to_remove) > 1 else "",
-            )
-
-        for feed in self.to_remove:
-            logger.debug("Removing %s", feed.resource_name)
-            _remove_from_cache(intermediate_inputs_path, feed)
-
-    def fetch(self, intermediate_inputs_path: Path) -> list[IntermediateFeed[LocalResource]]:
-        """Fetches all to_fetch feeds"""
-        if self.to_fetch:
-            logger.info(
-                "Downloading %d intermediate input%s",
-                len(self.to_fetch),
-                "s" if len(self.to_fetch) > 1 else "",
-            )
-
-        local_fetched_feeds = list[IntermediateFeed[LocalResource]]()
-        for feed in self.to_fetch:
-            logger.debug("Downloading %s", feed.resource_name)
-            local_feed = _save_to_cache(intermediate_inputs_path, feed)
-            local_fetched_feeds.append(local_feed)
-        return local_fetched_feeds
-
-
 def _load_cached(intermediate_inputs_path: Path) -> list[IntermediateFeed[LocalResource]]:
     """Loads all known cached intermediate inputs.
     Any unrecognized files will be removed and logged."""
@@ -644,13 +590,18 @@ def _load_cached(intermediate_inputs_path: Path) -> list[IntermediateFeed[LocalR
 def _save_to_cache(
     intermediate_inputs_path: Path,
     feed: IntermediateFeed[ResourceT],
-) -> IntermediateFeed[LocalResource]:
-    """Downloads the intermediate input into its cache"""
+    conditional: bool = True,
+) -> tuple[IntermediateFeed[LocalResource], bool]:
+    """Downloads the intermediate input into its cache."""
     # TODO: Check if the resource name can be used as a filename
 
     # Fetch the resource
     target_path = intermediate_inputs_path / feed.resource_name
-    _download_resource(feed.resource, target_path, conditional=False)
+    changed = True
+    try:
+        _download_resource(feed.resource, target_path, conditional)
+    except InputNotModified:
+        changed = False
 
     # Save its metadata
     metadata_path = intermediate_inputs_path / f"{feed.resource_name}.metadata"
@@ -659,7 +610,7 @@ def _save_to_cache(
         json.dump(metadata, f)
 
     # Convert the feed to one using a LocalResource instead
-    return feed.as_local_resource(target_path)
+    return feed.as_local_resource(target_path), changed
 
 
 def _remove_from_cache(
