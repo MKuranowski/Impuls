@@ -115,7 +115,7 @@ custom_target(
         # The following inputs are actually passed to zig build-lib
         'impuls/extern/vendor/sqlite3.c',
         'impuls/extern/zig/lib.zig',
-        # The rest only server as a trigger for meson to rebuild the library
+        # The rest only serve as a trigger for meson to rebuild the library
         'impuls/extern/zig/gtfs/conversion.zig',
         'impuls/extern/zig/gtfs/conversion_from_gtfs.zig',
         'impuls/extern/zig/gtfs/conversion_to_gtfs.zig',

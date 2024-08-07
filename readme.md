@@ -11,7 +11,7 @@ The data is stored in an sqlite3 database (in-memory by default) with a very lig
 wrapper to map Impuls's internal model into SQL and GTFS.
 
 Impuls has first-class support for pulling in data from external sources, using its
-_resource_ mechanizm. Resources are cached before the data is processed, which saves
+_resource_ mechanism. Resources are cached before the data is processed, which saves
 bandwidth if some of the input data has not changed, or even allows to stop the
 processing early if none of the resources have been modified.
 
