@@ -51,7 +51,7 @@ class ColoredFormatter(logging.Formatter):
 
 def initialize(verbose: bool) -> None:
     """Resets logging handlers to ensure only a single, logging.StreamHandler using Impuls's
-    custom ColoredFormatter outputs onto the terminal (via stderr).
+    custom :py:class:`~impuls.tools.logsColoredFormatter` outputs onto the terminal (via stderr).
     Any other registered logging.Handlers printing to stdout or stderr are removed.
     """
     root_logger = logging.getLogger()

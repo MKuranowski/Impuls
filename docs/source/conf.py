@@ -23,7 +23,7 @@ extensions = ["sphinx.ext.autodoc"]
 autodoc_default_options = {
     "members": True,
     "undoc-members": True,
-    "special-members": "__iter__,__next__,__enter__,__exit__,__contains__",
+    "special-members": "__iter__,__next__,__enter__,__exit__,__contains__,__call__",
     "show-inheritance": True,
 }
 autodoc_member_order = "groupwise"

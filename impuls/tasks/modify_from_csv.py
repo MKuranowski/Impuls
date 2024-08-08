@@ -26,12 +26,10 @@ class ModifyFromCSV(Task):
 
     See ModifyXXXFromCSV for table-specific options.
 
-    Parameters:
-
-    * ``resource``: name of the resource with data (in CSV).
-    * ``must_curate_all``: if True, then this task will fail if some entities weren't curated.
-        Defaults to `False`.
-    * ``silent``: if True, doesn't warn every time an entity from CSV isn't found in the DB.
+    :param str resource: name of the resource with data (in CSV).
+    :param bool must_curate_all: if True, then this task will fail if some entities weren't
+      curated. Defaults to `False`.
+    :param bool silent: if True, doesn't warn every time an entity from CSV isn't found in the DB.
     """
 
     resource: str
@@ -207,12 +205,10 @@ class ModifyStopsFromCSV(ModifyFromCSV):
     * ``wheelchair_boarding``
     * ``platform_code``
 
-    Parameters:
-
-    * ``resource``: name of the resource with data (in CSV).
-    * ``must_curate_all``: if True, then this task will fail if some entities weren't curated.
-        Defaults to `False`.
-    * ``silent``: if True, doesn't warn every time an entity from CSV isn't found in the DB.
+    :param str resource: name of the resource with data (in CSV).
+    :param bool must_curate_all: if True, then this task will fail if some entities weren't
+      curated. Defaults to `False`.
+    :param bool silent: if True, doesn't warn every time an entity from CSV isn't found in the DB.
     """
 
     @staticmethod
@@ -260,12 +256,10 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
     * ``route_text_color``
     * ``route_sort_order``
 
-    Parameters:
-
-    * ``resource``: name of the resource with data (in CSV).
-    * ``must_curate_all``: if True, then this task will fail if some entities weren't curated.
-        Defaults to `False`.
-    * ``silent``: if True, doesn't warn every time an entity from CSV isn't found in the DB.
+    :param str resource: name of the resource with data (in CSV).
+    :param bool must_curate_all: if True, then this task will fail if some entities weren't
+      curated. Defaults to `False`.
+    :param bool silent: if True, doesn't warn every time an entity from CSV isn't found in the DB.
     """
 
     @staticmethod

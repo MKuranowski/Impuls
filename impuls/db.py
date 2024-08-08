@@ -145,17 +145,13 @@ class DBConnection:
     This is a thin wrapper around sqlite3.Connection that uses ImpulsBase interface
     to provide a dumb ORM engine.
 
-    ############
-    Transactions
-    ############
+    **Transactions**
 
     The database is run in an auto-commit mode - the user is fully responsible for
     managing transactions: unless .begin() is used,
     statements implicitly begin and commit a transaction.
 
-    #################
-    ORM substitutions
-    #################
+    **ORM substitutions**
 
     Typed queries work by substituting 3 keywords in the passed SQL:
 
@@ -175,17 +171,12 @@ class DBConnection:
     ``UPDATE calendar_exceptions SET calendar_id = ?, date = ?, exception_type = ?
     WHERE calendar_id = ? AND date = ?;``
 
-    ****************************
-    Note on SQL Injection safety
-    ****************************
+    .. warning::
+        This class assumes that LiteralStrings returned by the entities' sql_* methods
+        are safe to directly use in sql statements. It is the programmer's responsibility
+        to ensure so.
 
-    This class assumes that LiteralStrings returned by the entities' sql_* methods
-    are safe to directly use in sql statements. It is the programmer's responsibility
-    to ensure so.
-
-    ##############
-    Closing the DB
-    ##############
+    **Closing the DB**
 
     DBConnection's close() method releases resources held by the DBConnection.
     Any unclosed transactions are **not** closed.
@@ -194,12 +185,10 @@ class DBConnection:
     will be automatically closed upon exit from the with block.
     (Note that this behavior is different to sqlite3.Connection)
 
-    ####################
-    New sqlite functions
-    ####################
+    **New SQL functions**
 
     For convenience several additional SQL function are provided,
-    apart from those described at https://www.sqlite.org/lang_corefunc.html.
+    apart from those described at https://www.sqlite.org/lang_corefunc.html:
 
     * ``unicode_lower`` - equivalent to Python's str.lower
     * ``unicode_upper`` - equivalent to Python's str.upper
