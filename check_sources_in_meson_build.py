@@ -62,7 +62,7 @@ def find_declared_zig_sources(meson_build: mparser.CodeBlockNode) -> set[str]:
 
 
 def find_actual_sources() -> set[str]:
-    sources = set[str]()
+    sources = {"impuls/py.typed"}
     for ext in SOURCE_EXTENSIONS:
         sources.update(str(f) for f in Path("impuls").glob(f"**/*.{ext}"))
     return sources
