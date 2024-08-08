@@ -6,8 +6,8 @@ build-backend = "mesonpy"
 name = "impuls"
 version = "0.6.0"
 readme = "readme.md"
-requires-python = ">=3.10"
-dependencies = ["requests", "pyyaml", "typing_extensions"]
+requires-python = "~=3.10"
+dependencies = ["requests ~= 2.32", "pyyaml ~= 6.0", "typing_extensions ~= 4.1"]
 authors = [{name = "Mikołaj Kuranowski", email = "mkuranowski@gmail.com"}]
 
 [tool.black]

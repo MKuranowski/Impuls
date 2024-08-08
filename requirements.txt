@@ -1,3 +1,3 @@
-requests
-pyyaml
-typing_extensions
+requests ~= 2.32
+pyyaml ~= 6.0
+typing_extensions ~= 4.1
