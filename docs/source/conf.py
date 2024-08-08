@@ -27,7 +27,7 @@ autodoc_default_options = {
     "show-inheritance": True,
 }
 autodoc_member_order = "groupwise"
-autodoc_mock_imports = ["impuls.extern.libextern"]
+autodoc_mock_imports = ["impuls.extern", "impuls.extern.libextern"]
 
 templates_path = ["_templates"]
 exclude_patterns = []
