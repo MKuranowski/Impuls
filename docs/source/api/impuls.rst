@@ -1,0 +1,4 @@
+﻿impuls
+======
+
+.. automodule:: impuls

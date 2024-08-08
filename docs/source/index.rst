@@ -53,4 +53,4 @@ Table of Contents
 
     db_schema
     example
-    api
+    api/index

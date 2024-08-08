@@ -13,7 +13,7 @@ author = "Mikołaj Kuranowski"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.autosummary"]
+extensions = ["sphinx.ext.autodoc"]
 autodoc_default_options = {
     "members": True,
     "undoc-members": True,

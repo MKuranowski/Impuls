@@ -3,8 +3,8 @@ API Reference
 
 All of the following modules are accessible when importing the top-level package via ``import impuls``.
 
-.. autosummary::
-    :toctree: api
+.. toctree::
+    :maxdepth: 1
 
     impuls
     impuls.db

@@ -3,7 +3,7 @@ Example Usage
 
 Impuls contains multiple various bits and pieces to help process transit
 data, and it it not entirely obvious how to use this library from the
-:doc:`/api`. Following through this tutorial should give you a good idea
+:doc:`/api/index`. Following through this tutorial should give you a good idea
 on how to use Impuls.
 
 This tutorial assumes you are more-or-less familiar with `Python <https://www.python.org/>`_,
