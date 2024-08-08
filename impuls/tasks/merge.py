@@ -420,7 +420,7 @@ class Merge(Task):
 
         self.logger.debug("Joining Fare Rules")
         # NOTE: merge_routes should have updated route_id
-        # NOTE: to avoid collisions, transfer_id must not be copied -
+        # NOTE: to avoid collisions, fare_rule_id must not be copied -
         #       SQLite will automatically generate new ones (thanks to INTEGER PRIMARY KEY)
         columns = "route_id, origin_id, destination_id, contains_id"
         db.raw_execute(

@@ -44,7 +44,8 @@ class FareAttribute(Entity):
             currency_type TEXT NOT NULL CHECK (currency_type LIKE '___'),
             payment_method INTEGER NOT NULL CHECK (payment_method IN (0, 1)),
             transfers INTEGER DEFAULT NULL CHECK (transfers IN (0, 1, 2)),
-            agency_id TEXT NOT NULL REFERENCES agencies(agency_id),
+            agency_id TEXT NOT NULL REFERENCES agencies(agency_id)
+                ON DELETE CASCADE ON UPDATE CASCADE,
             transfer_duration INTEGER DEFAULT NULL CHECK (transfer_duration > 0)
         ) STRICT;"""
 

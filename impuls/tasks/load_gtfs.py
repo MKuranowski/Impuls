@@ -20,6 +20,7 @@ ALLOWED_FILES = {
     "stop_times.txt",
     "frequencies.txt",
     "transfers.txt",
+    "translations.txt",
 }
 
 
@@ -27,9 +28,12 @@ class LoadGTFS(Task):
     """LoadGTFS attempts to load GTFS data from a ZIP archive.
 
     The loader only supports a subset of the GTFS schema. Due to implementation details, some
-    invalid values may be accepted and some valid values may be rejected (e.g. stops.txt
-    location_types 3, 4, and 5). Furthermore, parent_station may only refer to stop_ids defined
-    in earlier lines.
+    invalid values may be accepted and some valid values may be rejected. In particular:
+
+    * stops.txt location_types 3, 4, and 5 will cause an error,
+    * parent_station may only refer to stop_ids defined in earlier lines,
+    * agency_id in fare_attributes.txt is required if it's present in agency.txt,
+      even if there's only one agency defined in the dataset.
     """
 
     resource: str

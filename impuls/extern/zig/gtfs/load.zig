@@ -16,6 +16,7 @@ const tables = t.tables;
 pub fn load(logger: Logger, db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8) !void {
     var db = try sqlite3.Connection.init(db_path, .{});
     defer db.deinit();
+    try db.exec("PRAGMA foreign_keys=1");
 
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
@@ -274,7 +275,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         fn executeInsert(self: Self) !void {
             self.insert.stepUntilDone() catch |err| {
                 self.logger.err(
-                    "{s}:{d}: {}: {s}\n",
+                    "{s}:{d}: {}: {s}",
                     .{ table.gtfs_name, self.record.line_no, err, self.insert.errMsg() },
                 );
                 return err;
