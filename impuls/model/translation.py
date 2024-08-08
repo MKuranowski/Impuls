@@ -20,7 +20,7 @@ class Translation(Entity):
     :py:attr:`record_id` and :py:attr:`field_value` must not be provided simultaneously.
     If :py:attr:`record_sub_id` is not empty, :py:attr:`record_id` must not be empty as well.
 
-    Translation entities are translated as-is to and from GTFS, and thus all of the selectors
+    Translation entities are copied as-is to and from GTFS, and thus all of the selectors
     must use their GTFS equivalents. Due to the very generic nature of these entities, not all
     requirements are strictly enforced.
     """  # noqa: E501
@@ -41,7 +41,7 @@ class Translation(Entity):
 
     field_name: str
     """field_name defines the GTFS column name for which the translation applies.
-    For example, to translate :py:attr:`Trip.headsign <impuls.model.Trip.headsign>,
+    For example, to translate :py:attr:`Trip.headsign <impuls.model.Trip.headsign>`,
     ``table_name`` must be set to ``trips`` and ``field_name`` must be set to ``trip_headsign``.
     """
 
@@ -67,9 +67,9 @@ class Translation(Entity):
     * :py:attr:`StopTime.trip_id <impuls.model.StopTime.trip_id>`.
 
     An alternative way to select strings to be translated is through the :py:attr:`field_value`
-    attribute. Exactly one of :py:attr:`field_value` or record_id must be defined - both fields
-    can't be empty and both fields can be simultaneously non-empty (unless the selected table is
-    ``feed_info``)
+    attribute. Unless the selected table is ``feed_info``, exactly one of :py:attr:`field_value`
+    or record_id must be defined - both fields can't be empty and both fields can be
+    simultaneously non-empty.
 
     If the selected table is ``stop_times`` and record_id is not empty,
     :py:attr:`record_sub_id` must also be non-empty.
@@ -79,8 +79,8 @@ class Translation(Entity):
     """Secondary part of the primary key of the appropriate record from :py:attr:`table_name`.
 
     This is only used for stop times, and must be a reference to
-    :py:attr:`StopTime.stop_sequence <impuls.model.StopTime.stop_sequence>`. This must not be used
-    for any other tables or when using :py:attr:`field_value`.
+    :py:attr:`StopTime.stop_sequence <impuls.model.StopTime.stop_sequence>`. record_sub_id
+    must not be used for any other tables or when using :py:attr:`field_value`.
     """
 
     field_value: str = ""
