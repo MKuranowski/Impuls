@@ -423,9 +423,10 @@ class MultiFile(Generic[ResourceT_co]):
             if self.options.force_run or feed.version not in versions_up_to_date
         ]
         logger.info(
-            "%d intermediate pipeline%s need to be created:\n\t%s",
+            "%d intermediate pipeline%s need%s to be created:\n\t%s",
             len(feeds_to_create),
             "" if len(feeds_to_create) == 1 else "s",
+            "s" if len(feeds_to_create) > 1 else "",
             ", ".join(sorted(feed.version for feed in feeds_to_create)),
         )
 
