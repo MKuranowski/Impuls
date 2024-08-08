@@ -44,6 +44,7 @@ class _GTFSHeaders(ctypes.Structure):
         ("transfers", c_char_p_p),
         ("fare_attributes", c_char_p_p),
         ("fare_rules", c_char_p_p),
+        ("translations", c_char_p_p),
     ]
 
 

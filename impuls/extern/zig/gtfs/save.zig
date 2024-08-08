@@ -44,6 +44,7 @@ pub const Headers = extern struct {
     transfers: ?c_char_p_p = null,
     fare_attributes: ?c_char_p_p = null,
     fare_rules: ?c_char_p_p = null,
+    translations: ?c_char_p_p = null,
 };
 
 pub fn save(

@@ -15,6 +15,7 @@ from .shape_point import ShapePoint
 from .stop import Stop
 from .stop_time import StopTime
 from .transfer import Transfer
+from .translation import Translation
 from .trip import Trip
 
 __all__ = [
@@ -36,6 +37,7 @@ __all__ = [
     "StopTime",
     "TimePoint",
     "Transfer",
+    "Translation",
     "Trip",
 ]
 
@@ -56,6 +58,7 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     StopTime,
     Frequency,
     Transfer,
+    Translation,
 ]
 """List of all :py:class:`Entity` classes which belong to the Impuls data model.
 The list is ordered to allow marshalling without KEY violations, e.g. :py:class:`Trip` is

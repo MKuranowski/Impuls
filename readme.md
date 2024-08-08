@@ -27,7 +27,7 @@ TODO Before 1.0.0 release
     and signatures where autodoc fails (@contextmanager, ignored `~`)
 - [ ] Setup Read the Docs
 - [x] Setup automatic wheel (cross-)compilation
-- [ ] Add translations to the model
+- [x] Add translations to the model
 - [x] Automatically set up `App.name` to the class name
 - [x] Make tools.polish_calendar_exceptions use the resource mechanism
 - [x] Make `impuls.Resource` an abstract class, instead of an interface

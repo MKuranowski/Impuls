@@ -22,6 +22,7 @@ py.install_sources(
     'impuls/model/stop.py',
     'impuls/model/stop_time.py',
     'impuls/model/transfer.py',
+    'impuls/model/translation.py',
     'impuls/model/trip.py',
     'impuls/tasks/__init__.py',
     'impuls/tasks/add_entity.py',

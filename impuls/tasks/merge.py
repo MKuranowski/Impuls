@@ -129,6 +129,22 @@ class Merge(Task):
       :py:attr:`distance_between_similar_stops_m` (default 10 meters) of each other.
       Other attributes of the first encountered instance are kept. If the comparison attributes
       do not match, the incoming id will have a numeric suffix added.
+    * :py:class:`~impuls.model.Translation` merging depends on the selector:
+
+      * all ``feed_info`` translations are completely ignored, due to the too complex logic
+        of :py:class:`~impuls.model.FeedInfo` merging;
+      * :py:attr:`~impuls.model.Translation.field_value` based translations are always merged -
+        attributes of the first encountered instance are kept;
+      * :py:attr:`~impuls.model.Translation.record_id` based ``agency`` and ``attributions``
+        translations are always merged - attributes of the first encountered instance are kept;
+      * :py:attr:`~impuls.model.Translation.record_id` based ``stops`` and ``routes`` translations
+        are merged - attributes of the first encountered instances are kept). Any id changes caused
+        by :py:class:`~impuls.model.Stop` and :py:class:`~impuls.model.Route` merging also apply
+        to the :py:attr:`~impuls.model.Translation.record_id`;
+      * :py:attr:`~impuls.model.Translation.record_id` based ``trips`` and ``stop_times``
+        translations are never merged - incoming :py:attr:`~impuls.model.Translation.record_id`
+        is always prefixed by the :py:attr:`DatabaseToMerge.prefix` and :py:attr:`separator`.
+
     * :py:class:`~impuls.model.FeedInfo` is treated specially:
 
       * If it exists in the current (runtime) database, it is kept as-is,
@@ -286,6 +302,7 @@ class Merge(Task):
         self.merge_stop_times(db)
         self.merge_frequencies(db)
         self.merge_transfers(db)
+        self.merge_translations(db)
         self.collect_incoming_feed_info(db)
 
     def merge_agencies(self, db: DBConnection) -> None:
@@ -304,6 +321,11 @@ class Merge(Task):
         self.logger.debug("Joining Routes")
         db.raw_execute_many(
             "UPDATE incoming.routes SET route_id = ? WHERE route_id = ?",
+            resolution.ids_to_change,
+        )
+        db.raw_execute_many(
+            "UPDATE incoming.translations SET record_id = ? WHERE "
+            "TABLE_NAME = 'routes' AND record_id = ?",
             resolution.ids_to_change,
         )
         # At this point, only to-be-merged routes have the same ids - it's safe to ignore conflicts
@@ -345,6 +367,11 @@ class Merge(Task):
         self.logger.debug("Joining Stops")
         db.raw_execute_many(
             "UPDATE incoming.stops SET stop_id = ? WHERE stop_id = ?",
+            resolution.ids_to_change,
+        )
+        db.raw_execute_many(
+            "UPDATE incoming.translations SET record_id = ? WHERE "
+            "TABLE_NAME = 'stops' AND record_id = ?",
             resolution.ids_to_change,
         )
         # At this point, only to-be-merged stops have the same ids - it's safe to ignore conflicts
@@ -454,6 +481,11 @@ class Merge(Task):
             "UPDATE incoming.trips SET block_id = ? || ? || block_id WHERE block_id IS NOT NULL",
             (incoming_prefix, self.separator),
         )
+        db.raw_execute(
+            "UPDATE incoming.translations SET record_id = ? || ? || record_id "
+            "WHERE record_id != '' AND table_name IN ('trips', 'stop_times')",
+            (incoming_prefix, self.separator),
+        )
         db.raw_execute("INSERT OR ABORT INTO trips SELECT * FROM incoming.trips")
 
     def merge_stop_times(self, db: DBConnection) -> None:
@@ -483,6 +515,25 @@ class Merge(Task):
         )
         db.raw_execute(
             f"INSERT OR ABORT INTO transfers ({columns}) SELECT {columns} FROM incoming.transfers"
+        )
+
+    def merge_translations(self, db: DBConnection) -> None:
+        self.logger.debug("Joining Translations")
+
+        # NOTE: merge_routes should have updated record_id of route translations
+        # NOTE: merge_stops should have updated record_id of stops translations
+        # NOTE: merge_trips should have updated record_id of trip and stop_time translations
+
+        db.raw_execute("DELETE FROM incoming.translations WHERE table_name = 'feed_info'")
+
+        # NOTE: to avoid collisions, translation_id must not be copied -
+        #       SQLite will automatically generate new ones (thanks to INTEGER PRIMARY KEY)
+        columns = (
+            "table_name, field_name, language, translation, record_id, record_sub_id, field_value"
+        )
+        db.raw_execute(
+            f"INSERT OR IGNORE INTO translations ({columns}) SELECT {columns} "
+            "FROM incoming.translations"
         )
 
     def collect_incoming_feed_info(self, db: DBConnection) -> None:

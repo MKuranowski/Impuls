@@ -355,6 +355,19 @@ pub const tables = [_]Table{
             Column{ .name = "min_transfer_time", .from_gtfs = from_gtfs.optionalInt },
         },
     },
+    Table{
+        .gtfs_name = "translations.txt",
+        .sql_name = "translations",
+        .columns = &[_]Column{
+            Column{ .name = "table_name" },
+            Column{ .name = "field_name" },
+            Column{ .name = "language" },
+            Column{ .name = "translation" },
+            Column{ .name = "record_id" },
+            Column{ .name = "record_sub_id" },
+            Column{ .name = "field_value" },
+        },
+    },
 };
 
 test "gtfs.table.Table.columnNames" {
