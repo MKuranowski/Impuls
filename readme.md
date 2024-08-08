@@ -1,6 +1,11 @@
 Impuls
 ======
 
+[GitHub](https://github.com/MKuranowski/impuls) |
+[Documentation](https://impuls.readthedocs.io/) |
+[Issue Tracker](https://github.com/MKuranowski/impuls/issues) |
+[PyPI](https://pypi.org/project/impuls/)
+
 Impuls is a framework for processing static public transportation data.
 The internal model used is very close to GTFS.
 
@@ -19,20 +24,6 @@ A module for dealing with versioned, or _multi-file_ sources is also provided. I
 for easy and very flexible processing of schedules provided in discrete versions into
 a single coherent file.
 
-TODO Before 1.0.0 release
--------------------------
-
-- [x] Generate documentation with Sphinx
-- [x] Docs - move away from autosummary and manually curate module pages,
-    and signatures where autodoc fails (@contextmanager, ignored `~`)
-- [ ] Setup Read the Docs
-- [x] Setup automatic wheel (cross-)compilation
-- [x] Add translations to the model
-- [x] Automatically set up `App.name` to the class name
-- [x] Make tools.polish_calendar_exceptions use the resource mechanism
-- [x] Make `impuls.Resource` an abstract class, instead of an interface
-- [x] Remove pointless `@final` from tasks and other classes
-
 Installation and compilation
 ----------------------------
 
@@ -41,13 +32,6 @@ in zig and bundled alongside the shared library. To compile and install the libr
 first ensure that [zig](https://ziglang.org/learn/getting-started/) is installed, then
 run the following, preferably inside of a
 [virtual environment](https://docs.python.org/3/library/venv.html):
-
-```
-pip install git+ssh://git@github.com/MKuranowski/Impuls
-```
-
-<details>
-<summary>Instructions once the library is published on PyPI:</summary>
 
 Impuls is mainly written in python, however a performance-critical part of this library is written
 in zig and bundled alongside the shared library. To install the library run the following,
@@ -60,13 +44,14 @@ pip install impuls
 Pre-built binaries are available for most platforms, to build from source
 [zig](https://ziglang.org/learn/getting-started/) needs to be installed.
 
-</details>
-
 The `LoadBusManMDB` task additionally requires [mdbtools](https://github.com/mdbtools/mdbtools)
 to be installed. This package is available in most package managers.
 
 Examples
 --------
+
+See <https://impuls.readthedocs.io/en/stable/example.html> for a tutorial and a more detailed
+walkthrough over Impuls features.
 
 The `examples` directory contains 4 example configurations, processing data
 from four sources into a GTFS file. If you wish to run them, consult with the
@@ -236,3 +221,5 @@ See `python build_wheels.py --help` for all available options. To debug failed b
 `python build_wheels.py --verbose --jobs 1 FAILED_CONFIG_NAME`.
 
 See [CONFIGURATION in build_wheels.py](/build_wheels.py#L32) for available configurations.
+
+To build the source distribution, run `python -m build -so dist`.

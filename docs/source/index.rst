@@ -1,6 +1,11 @@
 Impuls
 ======
 
+`GitHub <https://github.com/MKuranowski/impuls>`_ |
+`Documentation <https://impuls.readthedocs.io/>`_ |
+`Issue Tracker <https://github.com/MKuranowski/impuls/issues>`_ |
+`PyPI <https://pypi.org/project/impuls/>`_
+
 Impuls is a framework for processing static public transportation data.
 The internal model used is very close to GTFS.
 
