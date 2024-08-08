@@ -1,3 +1,6 @@
+# © Copyright 2022-2024 Mikołaj Kuranowski
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from . import merge
 from .add_entity import AddEntity
 from .exec_sql import ExecuteSQL

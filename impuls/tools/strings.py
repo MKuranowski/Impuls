@@ -1,3 +1,6 @@
+# © Copyright 2022-2024 Mikołaj Kuranowski
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import re
 
 ILLEGAL_PORTABLE_NAMES: frozenset[str] = frozenset(

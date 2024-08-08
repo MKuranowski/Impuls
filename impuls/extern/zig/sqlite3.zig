@@ -1,3 +1,6 @@
+// © Copyright 2022-2024 Mikołaj Kuranowski
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 const std = @import("std");
 const c = @cImport({
     @cInclude("sqlite3.h");

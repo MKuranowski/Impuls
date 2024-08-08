@@ -1,3 +1,6 @@
+# © Copyright 2022-2024 Mikołaj Kuranowski
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

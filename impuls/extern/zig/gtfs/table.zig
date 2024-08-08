@@ -1,3 +1,6 @@
+// © Copyright 2022-2024 Mikołaj Kuranowski
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 const c = @import("./conversion.zig");
 const from_gtfs = @import("./conversion_from_gtfs.zig");
 const std = @import("std");

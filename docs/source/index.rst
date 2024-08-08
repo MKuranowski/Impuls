@@ -54,3 +54,4 @@ Table of Contents
     db_schema
     example
     api/index
+    license

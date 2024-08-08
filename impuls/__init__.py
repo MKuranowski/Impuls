@@ -1,3 +1,6 @@
+# © Copyright 2022-2024 Mikołaj Kuranowski
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from . import db, errors, model, multi_file, resource, tasks, tools
 from .app import App
 from .pipeline import Pipeline, PipelineOptions, Task, TaskRuntime

@@ -1,3 +1,6 @@
+# © Copyright 2022-2024 Mikołaj Kuranowski
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from ..db import DBConnection
 from ..errors import DataError
 from ..model import Calendar, CalendarException, Date
