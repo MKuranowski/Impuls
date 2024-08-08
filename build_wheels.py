@@ -138,7 +138,10 @@ class Builder:
             check=True,
             text=True,
         )
-        return old_name.with_name(result.stdout.strip())
+        output_lines = result.stdout.splitlines()
+        output_filename = output_lines[-1]
+        assert output_filename.endswith(".whl")
+        return old_name.with_name(output_filename)
 
     def build(self, output_dir: Path) -> bool:
         with TemporaryDirectory(prefix="impuls-build-wheels") as temp_dir_name:
