@@ -54,10 +54,12 @@ CONFIGURATIONS = {
     #     MESON_CROSS_FILES_DIR / "riscv64-linux-gnu.ini",
     #     "manylinux2014_riscv64.manylinux_2_17_riscv64",
     # ),
-    "riscv64-linux-musl": Configuration(
-        MESON_CROSS_FILES_DIR / "riscv64-linux-musl.ini",
-        "musllinux_1_1_riscv64",
-    ),
+    # riscv64-linux-musl is rejected by PyPI with 400 Bad Request due to 'musllinux_1_1_riscv64'
+    # being an unsupported platform tag :^(
+    # "riscv64-linux-musl": Configuration(
+    #     MESON_CROSS_FILES_DIR / "riscv64-linux-musl.ini",
+    #     "musllinux_1_1_riscv64",
+    # ),
     "x86_64-linux-gnu": Configuration(
         MESON_CROSS_FILES_DIR / "x86_64-linux-gnu.ini",
         "manylinux2014_x86_64.manylinux_2_17_x86_64",
