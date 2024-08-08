@@ -57,6 +57,7 @@ py.install_sources(
     'impuls/multi_file.py',
     'impuls/options.py',
     'impuls/pipeline.py',
+    'impuls/py.typed',
     'impuls/resource.py',
     'impuls/task.py',
     preserve_path: true,
