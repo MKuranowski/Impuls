@@ -3,5 +3,5 @@ They are bundled with the source code of impuls to enable seamless cross-compila
 
 ### sqlite3.c & sqlite3.h
 
-Source: [SQLite amalgamation, version 3.45.1](https://sqlite.org/download.html).
+Source: [SQLite amalgamation, version 3.46.0](https://sqlite.org/download.html).
 [Those files are in the public domain](https://www.sqlite.org/copyright.html).
