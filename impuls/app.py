@@ -4,8 +4,11 @@
 from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
+from sys import exit
+from traceback import print_exception
 from typing import final
 
+from .errors import InputNotModified
 from .multi_file import MultiFile
 from .options import PipelineOptions
 from .pipeline import Pipeline
@@ -58,7 +61,8 @@ class App(ABC):
 
         * ``-f`` / ``--force-run``,
         * ``-c`` / ``--from-cache``,
-        * ``-v`` / ``--verbose``.
+        * ``-v`` / ``--verbose``,
+        * ``-I`` / ``--input-not-modified-exit-code``.
 
         The first two options are used to create :py:class:`~impuls.PipelineOptions`,
         while the last one is used when setting up logging.
@@ -99,6 +103,13 @@ class App(ABC):
             action="store_true",
             help="show DEBUG logging messages",
         )
+        parser.add_argument(
+            "-I",
+            "--input-not-modified-exit-code",
+            type=int,
+            default=2,
+            help="exit code to use when InputNotModified was raised",
+        )
         return parser
 
     @final
@@ -123,8 +134,14 @@ class App(ABC):
         to_run = self.prepare(args, options)
 
         self.before_run()
-        if isinstance(to_run, MultiFile):
-            to_run.prepare().run()
-        else:
-            to_run.run()
+
+        try:
+            if isinstance(to_run, MultiFile):
+                to_run.prepare().run()
+            else:
+                to_run.run()
+        except InputNotModified as e:
+            print_exception(e)
+            exit(args.input_not_modified_exit_code)
+
         self.after_run()

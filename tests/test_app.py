@@ -1,7 +1,10 @@
 from argparse import ArgumentParser, Namespace
+from io import StringIO
 from unittest import TestCase
+from unittest.mock import patch
 
 from impuls import App, Pipeline, PipelineOptions, Task, TaskRuntime
+from impuls.errors import InputNotModified
 
 
 class DummyTask(Task):
@@ -11,6 +14,15 @@ class DummyTask(Task):
 
     def execute(self, r: TaskRuntime) -> None:
         self.executed_count += 1
+
+
+class ExceptionRaisingTask(Task):
+    def __init__(self, e: Exception) -> None:
+        super().__init__()
+        self.e = e
+
+    def execute(self, r: TaskRuntime) -> None:
+        raise self.e
 
 
 class TestApp(TestCase):
@@ -57,3 +69,38 @@ class TestApp(TestCase):
         app.run(["42", "--bar", "a", "b"])
         self.assertEqual(app.foo, 42)
         self.assertEqual(app.bar, ["a", "b"])
+
+    def test_passes_exceptions(self) -> None:
+        class DummyApp(App):
+            def prepare(self, args: Namespace, options: PipelineOptions) -> Pipeline:
+                return Pipeline([ExceptionRaisingTask(ValueError("foo"))], options=options)
+
+        app = DummyApp()
+        with self.assertRaises(ValueError):
+            app.run([])
+
+    def test_input_not_modified(self) -> None:
+        class DummyApp(App):
+            def prepare(self, args: Namespace, options: PipelineOptions) -> Pipeline:
+                return Pipeline([ExceptionRaisingTask(InputNotModified())], options=options)
+
+        app = DummyApp()
+        stderr = StringIO()
+        with patch("sys.stderr", stderr), self.assertRaises(SystemExit) as c:
+            app.run([])
+
+        self.assertEqual(c.exception.code, 2)
+
+        stderr_content = stderr.getvalue()
+        self.assertIn("Traceback", stderr_content)
+        self.assertIn("InputNotModified", stderr_content)
+
+    def test_input_not_modified_custom_code(self) -> None:
+        class DummyApp(App):
+            def prepare(self, args: Namespace, options: PipelineOptions) -> Pipeline:
+                return Pipeline([ExceptionRaisingTask(InputNotModified())], options=options)
+
+        app = DummyApp()
+        with self.assertRaises(SystemExit) as c:
+            app.run(["-I", "42"])
+        self.assertEqual(c.exception.code, 42)
