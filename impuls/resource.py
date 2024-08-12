@@ -668,6 +668,8 @@ def cache_resources(
     managed_resources: dict[str, ManagedResource] = {}
 
     for name, res in r.items():
+        logger.info("Refreshing %s (downloading if it has changed)", name)
+
         # TODO: Check if the resource name can be used as a filename
         cached_path = _cache_path_of_resource(res, name, workspace)
         metadata_path = workspace / (name + ".metadata")
@@ -681,6 +683,8 @@ def cache_resources(
                 _download_resource(res, cached_path)
             except InputNotModified:
                 this_was_modified = False
+
+        logger.debug("%s was %s", name, "modified" if this_was_modified else "not modified")
 
         _write_metadata(res, metadata_path)
         managed_resources[name] = ManagedResource(cached_path, res.last_modified, res.fetch_time)
@@ -730,6 +734,8 @@ def ensure_resources_cached(
     def ensure_cached(arg: tuple[str, Resource]) -> tuple[str, ManagedResource]:
         name, res = arg
         return _ensure_resource_cached(res, name, workspace)
+
+    logger.info("Checking resources")
 
     managed_resources = dict(
         MultipleDataErrors.catch_all(
