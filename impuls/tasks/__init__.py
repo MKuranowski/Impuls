@@ -6,6 +6,7 @@ from .add_entity import AddEntity
 from .exec_sql import ExecuteSQL
 from .generate_trip_headsign import GenerateTripHeadsign
 from .load_busman import LoadBusManMDB
+from .load_db import LoadDB
 from .load_gtfs import LoadGTFS
 from .modify_from_csv import ModifyRoutesFromCSV, ModifyStopsFromCSV
 from .remove_unused_entities import RemoveUnusedEntities
@@ -18,6 +19,7 @@ __all__ = [
     "ExecuteSQL",
     "GenerateTripHeadsign",
     "LoadBusManMDB",
+    "LoadDB",
     "LoadGTFS",
     "ModifyRoutesFromCSV",
     "ModifyStopsFromCSV",
