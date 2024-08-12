@@ -32,6 +32,7 @@ py.install_sources(
     'impuls/tasks/exec_sql.py',
     'impuls/tasks/generate_trip_headsign.py',
     'impuls/tasks/load_busman.py',
+    'impuls/tasks/load_db.py',
     'impuls/tasks/load_gtfs.py',
     'impuls/tasks/merge.py',
     'impuls/tasks/modify_from_csv.py',
