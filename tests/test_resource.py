@@ -263,24 +263,32 @@ class TestResourceCaching(unittest.TestCase):
         impuls.resource._read_metadata(r, FIXTURES_DIR / "resource_metadata.json")
         self.assertEqual(r.last_modified, datetime.fromisoformat("2023-04-01T10:00:00+00:00"))
         self.assertEqual(r.fetch_time, datetime.fromisoformat("2023-04-01T10:08:12+00:00"))
+        self.assertEqual(r.extra_metadata, {"foo": "bar"})
 
     def test_read_metadata_missing(self) -> None:
         r = MockResource()
         impuls.resource._read_metadata(r, FIXTURES_DIR / "resource_metadata_non_existing.json")
         self.assertEqual(r.last_modified, DATETIME_MIN_UTC)
         self.assertEqual(r.fetch_time, DATETIME_MIN_UTC)
+        self.assertIsNone(r.extra_metadata)
 
     def test_write_metadata(self) -> None:
         with MockFile() as f:
             r = MockResource(
                 last_modified=datetime.fromisoformat("2023-04-01T10:00:00+00:00"),
                 fetch_time=datetime.fromisoformat("2023-04-01T10:08:12+00:00"),
+                extra_metadata={"foo": "bar"},
             )
             impuls.resource._write_metadata(r, f)
 
             with f.open() as handle:
                 self.assertDictEqual(
-                    json.load(handle), {"last_modified": 1680343200.0, "fetch_time": 1680343692.0}
+                    json.load(handle),
+                    {
+                        "last_modified": 1680343200.0,
+                        "fetch_time": 1680343692.0,
+                        "extra": {"foo": "bar"},
+                    },
                 )
 
     def test_download_resource(self) -> None:

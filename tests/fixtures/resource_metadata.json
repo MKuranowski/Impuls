@@ -1,4 +1,7 @@
 {
     "last_modified": 1680343200.0,
-    "fetch_time": 1680343692.0
+    "fetch_time": 1680343692.0,
+    "extra": {
+        "foo": "bar"
+    }
 }

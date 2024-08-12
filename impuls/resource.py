@@ -61,6 +61,9 @@ class Resource(ABC):
     (which stores those two properties) and :py:class:`impuls.resource.WrappedResource` (which
     delegates the calls to another Resource). When creating a new type of resource, inherit from
     either of those two classes instead.
+
+    Extra attributes can be preserved across runs by overriding the :py:meth:`save_extra_metadata`
+    and :py:meth:`load_extra_metadata` methods.
     """
 
     @property
@@ -101,6 +104,19 @@ class Resource(ABC):
         must not be updated.
         """
         ...
+
+    def save_extra_metadata(self) -> dict[str, Any] | None:
+        """Serializes any extra metadata into JSON to be preserved across runs.
+
+        If an empty dictionary or None is returned, extra metadata is not saved.
+        """
+        return None
+
+    def load_extra_metadata(self, metadata: dict[str, Any]) -> None:
+        """Invoked by Impuls resource mechanism to load extra metadata returned by
+        :py:meth:`save_extra_metadata`. Not called if a resource has no extra metadata.
+        """
+        pass
 
 
 class ConcreteResource(Resource):
@@ -572,6 +588,8 @@ def _read_metadata(r: Resource, metadata_path: Path) -> None:
             metadata = json.load(f)
             r.last_modified = datetime.fromtimestamp(metadata["last_modified"], timezone.utc)
             r.fetch_time = datetime.fromtimestamp(metadata["fetch_time"], timezone.utc)
+            if extra_metadata := metadata.get("extra"):
+                r.load_extra_metadata(extra_metadata)
     except FileNotFoundError:
         r.last_modified = DATETIME_MIN_UTC
         r.fetch_time = DATETIME_MIN_UTC
@@ -580,14 +598,16 @@ def _read_metadata(r: Resource, metadata_path: Path) -> None:
 def _write_metadata(r: Resource, metadata_path: Path) -> None:
     """_write_metadata_of saves resource last_modified and fetch_time attributes
     into metadata_path, for it to be later read with _read_metadata."""
+    metadata: dict[str, Any] = {
+        "last_modified": r.last_modified.timestamp(),
+        "fetch_time": r.fetch_time.timestamp(),
+    }
+
+    if extra_metadata := r.save_extra_metadata():
+        metadata["extra"] = extra_metadata
+
     with metadata_path.open("w", encoding="ascii") as f:
-        json.dump(
-            {
-                "last_modified": r.last_modified.timestamp(),
-                "fetch_time": r.fetch_time.timestamp(),
-            },
-            f,
-        )
+        json.dump(metadata, f)
 
 
 def _download_resource(r: Resource, to: Path, conditional: bool = True) -> None:

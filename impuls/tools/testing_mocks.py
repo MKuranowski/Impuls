@@ -157,6 +157,7 @@ class MockResource(ConcreteResource):
     content: bytes
     clock: DatetimeNowLike
     persistent_last_modified: datetime | None
+    extra_metadata: dict[str, Any] | None
 
     def __init__(
         self,
@@ -165,6 +166,7 @@ class MockResource(ConcreteResource):
         last_modified: datetime = DATETIME_MIN_UTC,
         clock: DatetimeNowLike = datetime.now,
         persist_last_modified: bool = False,
+        extra_metadata: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.last_modified = last_modified
@@ -173,6 +175,7 @@ class MockResource(ConcreteResource):
         self.content = content
         self.clock = clock
         self.persistent_last_modified = fetch_time if persist_last_modified else None
+        self.extra_metadata = extra_metadata
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         # cache_resources overwrites last_modified of the Resource.
@@ -191,6 +194,12 @@ class MockResource(ConcreteResource):
 
     def refresh(self) -> None:
         self.last_modified = self.clock(timezone.utc)
+
+    def save_extra_metadata(self) -> dict[str, Any] | None:
+        return self.extra_metadata
+
+    def load_extra_metadata(self, metadata: dict[str, Any]) -> None:
+        self.extra_metadata = metadata
 
 
 class MockFile:
