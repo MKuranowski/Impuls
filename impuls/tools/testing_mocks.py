@@ -103,11 +103,15 @@ class MockHTTPResponse:
     """
 
     def __init__(
-        self, status_code: int, content: bytes = b"", headers: Optional[Mapping[str, str]] = {}
+        self,
+        status_code: int,
+        content: bytes = b"",
+        headers: Optional[Mapping[str, str]] = {},
     ) -> None:
         self.status_code = status_code
         self.content = content
         self.headers = headers or {}
+        self.url = ""
 
     def __enter__(self) -> "MockHTTPResponse":
         """

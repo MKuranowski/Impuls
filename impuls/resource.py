@@ -252,6 +252,7 @@ class HTTPResource(ConcreteResource):
 
     request: requests.Request
     session: requests.Session
+    etag: Optional[str] | None
 
     def __init__(
         self,
@@ -261,6 +262,7 @@ class HTTPResource(ConcreteResource):
         super().__init__()
         self.request = request
         self.session = session or requests.Session()
+        self.etag = None
 
     @classmethod
     def get(
@@ -303,29 +305,41 @@ class HTTPResource(ConcreteResource):
             requests.Request("POST", url, params=params, headers=headers, data=data, json=json),
         )
 
+    def save_extra_metadata(self) -> dict[str, Any] | None:
+        return {"etag": self.etag} if self.etag is not None else None
+
+    def load_extra_metadata(self, metadata: dict[str, Any]) -> None:
+        self.etag = metadata.get("etag", None)
+
     def _do_request(self) -> requests.Response:
         return self.session.send(self.request.prepare(), stream=True)
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         # Set the conditional request headers
-        if conditional and self.last_modified != DATETIME_MIN_UTC:
+        if conditional and self.etag is not None:
+            self.request.headers.pop("If-Modified-Since", None)
+            self.request.headers["If-None-Match"] = self.etag
+        elif conditional and self.last_modified != DATETIME_MIN_UTC:
+            self.request.headers.pop("If-None-Match", None)
             self.request.headers["If-Modified-Since"] = format_datetime(
                 self.last_modified.astimezone(timezone.utc),
                 usegmt=True,
             )
         else:
             self.request.headers.pop("If-Modified-Since", None)
-        self.request.headers.pop("If-None-Match", None)
+            self.request.headers.pop("If-None-Match", None)
 
         # Perform the request
         with self._do_request() as resp:
             # Stop conditional requests
             if resp.status_code == 304:
+                assert conditional, "304 response are only possible with conditional requests"
                 raise InputNotModified
 
             resp.raise_for_status()
 
             self.fetch_time = datetime.now(timezone.utc)
+            self.etag = resp.headers.get("ETag")
             if last_modified_str := resp.headers.get("Last-Modified"):
                 self.last_modified = parsedate_to_datetime(last_modified_str)
                 assert self.last_modified.tzinfo is timezone.utc

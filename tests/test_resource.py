@@ -136,6 +136,36 @@ class TestHTTPResource(AbstractTestResource.Template):
             super().test()
 
 
+class TestHTTPEtagResource(AbstractTestResource.Template):
+    def setUp(self) -> None:
+        self.counter = 1
+        self.r = HTTPResource.get("https://localhost/hello")
+
+    def get_resource(self) -> Resource:
+        return self.r
+
+    def refresh_resource(self) -> None:
+        self.counter += 1
+
+    def prepare_mock_do_request(self) -> Callable[[HTTPResource], MockHTTPResponse]:
+        def mock_do_response(r: HTTPResource) -> MockHTTPResponse:
+            if_none_match: str = r.request.headers.get("If-None-Match", "")
+            if if_none_match and int(if_none_match[1:-1]) == self.counter:
+                return MockHTTPResponse(304)
+
+            return MockHTTPResponse(
+                200,
+                self.CONTENT,
+                {"ETag": f'"{self.counter}"'},
+            )
+
+        return mock_do_response
+
+    def test(self) -> None:
+        with patch("impuls.resource.HTTPResource._do_request", self.prepare_mock_do_request()):
+            super().test()
+
+
 class TestTimeLimitedResource(AbstractTestResource.Template):
     def setUp(self) -> None:
         self.mocked_dt = MockDatetimeNow(
