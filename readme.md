@@ -12,7 +12,7 @@ The internal model used is very close to GTFS.
 The core entity for processing is called a _pipeline_, which is composed of multiple
 _tasks_ that do the actual processing work.
 
-The data is stored in an sqlite3 database (in-memory by default) with a very lightweight
+The data is stored in an sqlite3 database with a very lightweight
 wrapper to map Impuls's internal model into SQL and GTFS.
 
 Impuls has first-class support for pulling in data from external sources, using its
@@ -41,7 +41,7 @@ preferably inside of a [virtual environment](https://docs.python.org/3/library/v
 pip install impuls
 ```
 
-Pre-built binaries are available for most platforms, to build from source
+Pre-built binaries are available for most platforms. To build from source
 [zig](https://ziglang.org/learn/getting-started/) needs to be installed.
 
 The `LoadBusManMDB` task additionally requires [mdbtools](https://github.com/mdbtools/mdbtools)
@@ -167,7 +167,7 @@ Development
 
 Impuls uses [meson-python](https://meson-python.readthedocs.io/en/latest/index.html). The
 project layout is quite unorthodox, as Impuls in neither a pure-python module, nor a project
-with a bog-standard C/C++ extension. Instead the zig code is compiled into a shared library
+with a bog-standard C/C++ extension. Instead, the zig code is compiled into a shared library
 which is bundled alongside the python module.
 
 Zig allows super easy cross-compilation, while using a shared library allows a single wheel
@@ -207,7 +207,7 @@ the build backend to properly detect whether libextern needs to be recompiled.
 
 ### Building wheels
 
-Zig has been choses for its excellent cross-compilation support. Thanks to this, building
+Zig has been chosen for its excellent cross-compilation support. Thanks to this, building
 all wheels for a release does not require tools like [cibuildwheel](https://github.com/pypa/cibuildwheel),
 virtual machines, or even any containers. As long as Zig is installed, all wheels can be
 build on that machine.

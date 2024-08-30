@@ -90,7 +90,7 @@ class Builder:
         wheels = list(dir.glob("*.whl"))
         if len(wheels) != 1:
             raise ValueError(
-                f'{len(wheels)} were created by "python -m build", expected exactly 1',
+                f'{len(wheels)} wheels were created by "python -m build", expected exactly 1',
             )
         return wheels[0]
 
