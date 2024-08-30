@@ -60,6 +60,7 @@ py.install_sources(
     'impuls/pipeline.py',
     'impuls/py.typed',
     'impuls/resource.py',
+    'impuls/selector.py',
     'impuls/task.py',
     preserve_path: true,
 )

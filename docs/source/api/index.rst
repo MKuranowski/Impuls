@@ -12,6 +12,7 @@ All of the following modules are accessible when importing the top-level package
     impuls.model
     impuls.multi_file
     impuls.resource
+    impuls.selector
     impuls.tasks
     impuls.tasks.merge
     impuls.tasks.modify_from_csv
