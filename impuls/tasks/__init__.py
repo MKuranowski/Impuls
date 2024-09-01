@@ -12,6 +12,7 @@ from .modify_from_csv import ModifyRoutesFromCSV, ModifyStopsFromCSV
 from .remove_unused_entities import RemoveUnusedEntities
 from .save_db import SaveDB
 from .save_gtfs import SaveGTFS
+from .split_trip_legs import SplitTripLegs
 from .truncate_calendars import TruncateCalendars
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     "RemoveUnusedEntities",
     "SaveDB",
     "SaveGTFS",
+    "SplitTripLegs",
     "TruncateCalendars",
     "merge",
 ]

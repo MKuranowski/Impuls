@@ -39,6 +39,7 @@ py.install_sources(
     'impuls/tasks/remove_unused_entities.py',
     'impuls/tasks/save_db.py',
     'impuls/tasks/save_gtfs.py',
+    'impuls/tasks/split_trip_legs.py',
     'impuls/tasks/truncate_calendars.py',
     'impuls/tools/__init__.py',
     'impuls/tools/color.py',
