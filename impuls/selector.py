@@ -3,7 +3,9 @@
 
 from collections.abc import Container, Iterable
 from dataclasses import dataclass
-from typing import LiteralString, cast
+from typing import cast
+
+from typing_extensions import LiteralString
 
 from .db import DBConnection
 from .model import Route
