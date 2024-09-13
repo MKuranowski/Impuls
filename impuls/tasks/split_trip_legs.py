@@ -45,6 +45,7 @@ class SplitTripLegs(Task):
         route_selector: selector.Routes = selector.Routes(type=Route.Type.RAIL),
         replacement_bus_short_name_pattern: re.Pattern[str] | None = None,
     ) -> None:
+        super().__init__()
         self.route_selector = route_selector
         self.replacement_bus_short_name_pattern = replacement_bus_short_name_pattern
         self.added_routes = set()
