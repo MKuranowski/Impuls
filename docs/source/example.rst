@@ -698,7 +698,7 @@ so we need to cleverly ensure that the primary one is used. The task can be impl
             # Warn on unused stops
             r.db.raw_execute_many("DELETE FROM stops WHERE stop_id = ?", ((k,) for k in to_import))
             for id, name in to_import.items():
-                self.logger.warn("No data for station %s (%s)", id, name)
+                self.logger.warning("No data for station %s (%s)", id, name)
 
 The basic conversion of PKP Intercity data is done! We can close it all of with by exporting the
 schedules as GTFS, which gives the following list of tasks::
