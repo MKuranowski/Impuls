@@ -23,6 +23,8 @@ const ArrayListUnmanaged = std.ArrayListUnmanaged;
 /// 6. DQUOTE present in a `non-escaped` field is not treated as an error, rather the DQUOTE octet
 ///    is appended to the field. Encodings `"Foo ""Bar"" Baz"` and `Foo "Bar" Baz` are equivalent
 ///    and parse the same as the string literal `"Foo \"Bar\" Baz"`.
+/// 7. Initial 0xEF 0xBB 0xBF (UTF-8 encoding of U+FEFF, the "byte order mark") will be consumed,
+///    unless Reader is created with `initWithoutBom` or `readerWithoutBom`.
 ///
 /// `ReaderType` can by any type with a `fn readByte(self) Error || error{EndOfStream} ! u8`
 /// method. For performance reasons, it is recommended to use a io.BufferedReader().reader().
@@ -36,10 +38,14 @@ pub fn Reader(comptime ReaderType: type) type {
         terminator: Terminator = Terminator{ .crlf = {} },
 
         line_no: u32 = 1,
-        state: State = .before_record,
+        state: State = .eat_bom_1,
 
         pub fn init(r: ReaderType) Self {
             return Self{ .r = r };
+        }
+
+        pub fn initWithoutBom(r: ReaderType) Self {
+            return Self{ .r = r, .state = .before_record };
         }
 
         pub fn next(self: *Self, record: *Record) !bool {
@@ -60,6 +66,36 @@ pub fn Reader(comptime ReaderType: type) type {
                         return err;
                     }
                 };
+
+                if (self.state == .eat_bom_1) {
+                    if (b == 0xEF) {
+                        self.state = .eat_bom_2;
+                        continue;
+                    } else {
+                        self.state = .before_record;
+                        // fallthrough
+                    }
+                }
+
+                if (self.state == .eat_bom_2) {
+                    if (b == 0xBB) {
+                        self.state = .eat_bom_3;
+                        continue;
+                    } else {
+                        self.state = .before_record;
+                        // fallthrough
+                    }
+                }
+
+                if (self.state == .eat_bom_3) {
+                    if (b == 0xBF) {
+                        self.state = .before_record;
+                        continue;
+                    } else {
+                        self.state = .before_record;
+                        // fallthrough
+                    }
+                }
 
                 if (self.state == .after_unquoted_cr) {
                     if (b == '\n') {
@@ -142,6 +178,12 @@ pub fn Reader(comptime ReaderType: type) type {
 /// See Reader documentation for details.
 pub fn reader(r: anytype) Reader(@TypeOf(r)) {
     return Reader(@TypeOf(r)).init(r);
+}
+
+/// reader returns an initialized Reader over a given io.Reader instance.
+/// See Reader documentation for details.
+pub fn readerWithoutBom(r: anytype) Reader(@TypeOf(r)) {
+    return Reader(@TypeOf(r)).initWithoutBom(r);
 }
 
 /// Writers writes [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180#section-2) CSV files.
@@ -367,6 +409,9 @@ const State = enum {
     in_quoted_field,
     quote_in_quoted,
     after_unquoted_cr,
+    eat_bom_1,
+    eat_bom_2,
+    eat_bom_3,
 };
 
 test "csv.reading.basic" {
@@ -457,6 +502,36 @@ test "csv.reading_with_custom_dialect" {
     try std.testing.expectEqual(@as(usize, 2), record.len());
     try std.testing.expectEqualStrings("\"no quote handling", record.get(0));
     try std.testing.expectEqualStrings("\"so this is another field", record.get(1));
+}
+
+test "csv.reading_eats_bom" {
+    const data = "\xEF\xBB\xBFname,value";
+    var stream = io.fixedBufferStream(data);
+    var r = reader(stream.reader());
+
+    var record = Record.init(std.testing.allocator);
+    defer record.deinit();
+
+    try std.testing.expect(try r.next(&record));
+    try std.testing.expectEqualStrings("name", record.get(0));
+    try std.testing.expectEqualStrings("value", record.get(1));
+
+    try std.testing.expect(!try r.next(&record));
+}
+
+test "csv.reading_doesnt_eat_bom" {
+    const data = "\xEF\xBB\xBFname,value";
+    var stream = io.fixedBufferStream(data);
+    var r = readerWithoutBom(stream.reader());
+
+    var record = Record.init(std.testing.allocator);
+    defer record.deinit();
+
+    try std.testing.expect(try r.next(&record));
+    try std.testing.expectEqualStrings("\xEF\xBB\xBFname", record.get(0));
+    try std.testing.expectEqualStrings("value", record.get(1));
+
+    try std.testing.expect(!try r.next(&record));
 }
 
 test "csv.writing" {
