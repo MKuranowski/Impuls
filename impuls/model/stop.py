@@ -55,8 +55,6 @@ class Stop(Entity):
 
     wheelchair_boarding: Optional[bool] = field(default=None, repr=False)
     platform_code: str = field(default="", repr=False)
-    pkpplk_code: str = field(default="", repr=False)
-    ibnr_code: str = field(default="", repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -74,9 +72,7 @@ class Stop(Entity):
             location_type INTEGER NOT NULL DEFAULT 0 CHECK (location_type IN (0, 1, 2)),
             parent_station TEXT REFERENCES stops(stop_id) ON DELETE CASCADE ON UPDATE CASCADE,
             wheelchair_boarding INTEGER DEFAULT NULL CHECK (wheelchair_boarding IN (0, 1)),
-            platform_code TEXT NOT NULL DEFAULT '',
-            pkpplk_code TEXT NOT NULL DEFAULT '',
-            ibnr_code TEXT NOT NULL DEFAULT ''
+            platform_code TEXT NOT NULL DEFAULT ''
         ) STRICT;
         CREATE INDEX idx_stops_zone ON stops(zone_id);
         CREATE INDEX idx_stops_parent_station ON stops(parent_station);"""
@@ -85,12 +81,12 @@ class Stop(Entity):
     def sql_columns() -> LiteralString:
         return (
             "(stop_id, name, lat, lon, code, zone_id, location_type, parent_station, "
-            "wheelchair_boarding, platform_code, pkpplk_code, ibnr_code)"
+            "wheelchair_boarding, platform_code)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -100,8 +96,7 @@ class Stop(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "stop_id = ?, name = ?, lat = ?, lon = ?, code = ?, zone_id = ?, location_type = ?, "
-            "parent_station = ?, wheelchair_boarding = ?, platform_code = ?, pkpplk_code = ?, "
-            "ibnr_code = ?"
+            "parent_station = ?, wheelchair_boarding = ?, platform_code = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -116,8 +111,6 @@ class Stop(Entity):
             self.parent_station or None,
             int(self.wheelchair_boarding) if self.wheelchair_boarding is not None else None,
             self.platform_code,
-            self.pkpplk_code,
-            self.ibnr_code,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -137,7 +130,5 @@ class Stop(Entity):
             .optional_field("parent_station", str, lambda x: x or "")
             .nullable_field("wheelchair_boarding", bool)
             .field("platform_code", str)
-            .field("pkpplk_code", str)
-            .field("ibnr_code", str)
             .kwargs()
         )
