@@ -17,7 +17,6 @@ class TestStopTime(AbstractTestEntity.Template[StopTime]):
             drop_off_type=StopTime.PassengerExchange.ON_REQUEST,
             stop_headsign="",
             shape_dist_traveled=None,
-            original_stop_id="",
             platform="A",
         )
 
@@ -27,7 +26,7 @@ class TestStopTime(AbstractTestEntity.Template[StopTime]):
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),
-            ("T0", "S0", 5, 36600, 36630, 3, 3, "", None, "", "A"),
+            ("T0", "S0", 5, 36600, 36630, 3, 3, "", None, "A"),
         )
 
     def test_sql_marshall_past_midnight(self) -> None:
@@ -37,7 +36,7 @@ class TestStopTime(AbstractTestEntity.Template[StopTime]):
 
         self.assertTupleEqual(
             st.sql_marshall(),
-            ("T0", "S0", 5, 90600, 90630, 3, 3, "", None, "", "A"),
+            ("T0", "S0", 5, 90600, 90630, 3, 3, "", None, "A"),
         )
 
     def test_sql_marshall_shape_dist_traveled(self) -> None:
@@ -46,14 +45,14 @@ class TestStopTime(AbstractTestEntity.Template[StopTime]):
 
         self.assertTupleEqual(
             st.sql_marshall(),
-            ("T0", "S0", 5, 36600, 36630, 3, 3, "", 5.1, "", "A"),
+            ("T0", "S0", 5, 36600, 36630, 3, 3, "", 5.1, "A"),
         )
 
     def test_sql_primary_key(self) -> None:
         self.assertTupleEqual(self.get_entity().sql_primary_key(), ("T0", 5))
 
     def test_sql_unmarshall(self) -> None:
-        st = StopTime.sql_unmarshall(("T0", "S0", 5, 36600, 36630, 3, 3, "", None, "", "A"))
+        st = StopTime.sql_unmarshall(("T0", "S0", 5, 36600, 36630, 3, 3, "", None, "A"))
 
         self.assertEqual(st.trip_id, "T0")
         self.assertEqual(st.stop_id, "S0")
@@ -64,14 +63,13 @@ class TestStopTime(AbstractTestEntity.Template[StopTime]):
         self.assertEqual(st.drop_off_type, StopTime.PassengerExchange.ON_REQUEST)
         self.assertEqual(st.stop_headsign, "")
         self.assertEqual(st.shape_dist_traveled, None)
-        self.assertEqual(st.original_stop_id, "")
         self.assertEqual(st.platform, "A")
 
     def test_sql_unmarshall_past_midnight(self) -> None:
-        st = StopTime.sql_unmarshall(("T0", "S0", 5, 90600, 90630, 3, 3, "", None, "", "A"))
+        st = StopTime.sql_unmarshall(("T0", "S0", 5, 90600, 90630, 3, 3, "", None, "A"))
         self.assertEqual(st.arrival_time, TimePoint(hours=25, minutes=10, seconds=0))
         self.assertEqual(st.departure_time, TimePoint(hours=25, minutes=10, seconds=30))
 
     def test_sql_unmarshall_shape_dist_traveled(self) -> None:
-        st = StopTime.sql_unmarshall(("T0", "S0", 5, 36600, 36630, 3, 3, "", 5.1, "", "A"))
+        st = StopTime.sql_unmarshall(("T0", "S0", 5, 36600, 36630, 3, 3, "", 5.1, "A"))
         self.assertEqual(st.shape_dist_traveled, 5.1)
