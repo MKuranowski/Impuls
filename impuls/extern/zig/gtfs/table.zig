@@ -329,7 +329,6 @@ pub const tables = [_]Table{
             Column{ .name = "drop_off_type", .from_gtfs = from_gtfs.intFallbackZero },
             Column{ .name = "stop_headsign" },
             Column{ .name = "shape_dist_traveled", .from_gtfs = from_gtfs.optionalFloat },
-            Column{ .name = "original_stop_id" },
             Column{ .name = "platform" },
         },
     },

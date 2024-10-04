@@ -280,7 +280,6 @@ class ImportZTM(impuls.Task):
                 departure_time=time,
                 pickup_type=pickup_type,
                 drop_off_type=drop_off_type,
-                original_stop_id=st.stop_id,
             )
 
     def generate_calendar_exceptions(

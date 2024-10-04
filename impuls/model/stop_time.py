@@ -41,7 +41,6 @@ class StopTime(Entity):
     drop_off_type: PassengerExchange = field(default=PassengerExchange.SCHEDULED_STOP, repr=False)
     stop_headsign: str = field(default="", repr=False)
     shape_dist_traveled: Optional[float] = field(default=None, repr=False)
-    original_stop_id: str = field(default="", repr=False)
     platform: str = field(default="", repr=False)
 
     @staticmethod
@@ -60,7 +59,6 @@ class StopTime(Entity):
             drop_off_type INTEGER NOT NULL DEFAULT 0 CHECK (drop_off_type IN (0, 1, 2, 3)),
             stop_headsign TEXT NOT NULL DEFAULT '',
             shape_dist_traveled REAL DEFAULT NULL,
-            original_stop_id TEXT NOT NULL DEFAULT '',
             platform TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (trip_id, stop_sequence)
         ) STRICT;
@@ -70,12 +68,12 @@ class StopTime(Entity):
     def sql_columns() -> LiteralString:
         return (
             "(trip_id, stop_id, stop_sequence, arrival_time, departure_time, pickup_type, "
-            "drop_off_type, stop_headsign, shape_dist_traveled, original_stop_id, platform)"
+            "drop_off_type, stop_headsign, shape_dist_traveled, platform)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -86,7 +84,7 @@ class StopTime(Entity):
         return (
             "trip_id = ?, stop_id = ?, stop_sequence = ?, arrival_time = ?, departure_time = ?, "
             "pickup_type = ?, drop_off_type = ?, stop_headsign = ?, shape_dist_traveled = ?, "
-            "original_stop_id = ?, platform = ?"
+            "platform = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -100,7 +98,6 @@ class StopTime(Entity):
             self.drop_off_type.value,
             self.stop_headsign,
             self.shape_dist_traveled,
-            self.original_stop_id,
             self.platform,
         )
 
@@ -120,7 +117,6 @@ class StopTime(Entity):
             .field("drop_off_type", int, cls.PassengerExchange)
             .field("stop_headsign", str)
             .nullable_field("shape_dist_traveled", float)
-            .field("original_stop_id", str)
             .field("platform", str)
             .kwargs()
         )
