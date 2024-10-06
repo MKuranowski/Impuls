@@ -11,13 +11,14 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import TimePoint
 
 
 @final
 @dataclass
-class StopTime(Entity):
+class StopTime(Entity, ExtraFieldsMixin):
     """StopTime represents a stoppage/passage of a :py:class:`Trip` at/through a :py:class:`Stop`.
 
     Equivalent to `GTFS's stop_times.txt entries <https://gtfs.org/schedule/reference/#stop_timestxt>`_.
@@ -42,6 +43,7 @@ class StopTime(Entity):
     stop_headsign: str = field(default="", repr=False)
     shape_dist_traveled: Optional[float] = field(default=None, repr=False)
     platform: str = field(default="", repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -60,6 +62,7 @@ class StopTime(Entity):
             stop_headsign TEXT NOT NULL DEFAULT '',
             shape_dist_traveled REAL DEFAULT NULL,
             platform TEXT NOT NULL DEFAULT '',
+            extra_fields_json TEXT DEFAULT NULL,
             PRIMARY KEY (trip_id, stop_sequence)
         ) STRICT;
         CREATE INDEX idx_stop_times_stop_id ON stop_times(stop_id);"""
@@ -68,12 +71,12 @@ class StopTime(Entity):
     def sql_columns() -> LiteralString:
         return (
             "(trip_id, stop_id, stop_sequence, arrival_time, departure_time, pickup_type, "
-            "drop_off_type, stop_headsign, shape_dist_traveled, platform)"
+            "drop_off_type, stop_headsign, shape_dist_traveled, platform, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -84,7 +87,7 @@ class StopTime(Entity):
         return (
             "trip_id = ?, stop_id = ?, stop_sequence = ?, arrival_time = ?, departure_time = ?, "
             "pickup_type = ?, drop_off_type = ?, stop_headsign = ?, shape_dist_traveled = ?, "
-            "platform = ?"
+            "platform = ?, extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -99,6 +102,7 @@ class StopTime(Entity):
             self.stop_headsign,
             self.shape_dist_traveled,
             self.platform,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -118,5 +122,6 @@ class StopTime(Entity):
             .field("stop_headsign", str)
             .nullable_field("shape_dist_traveled", float)
             .field("platform", str)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

@@ -11,12 +11,13 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class Transfer(Entity):
+class Transfer(Entity, ExtraFieldsMixin):
     """Transfer represent special rules for transferring between vehicles on the network.
 
     Equivalent to `GTFS's transfers.txt entries <https://gtfs.org/schedule/reference/#transferstxt>`_.
@@ -36,6 +37,7 @@ class Transfer(Entity):
     to_trip_id: str = ""
     type: Type = Type.RECOMMENDED
     min_transfer_time: Optional[int] = field(default=None, repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     id: int = field(default=0, repr=False)
     """This field is ignored on :py:meth:`DBConnection.create` -
@@ -66,7 +68,8 @@ class Transfer(Entity):
             to_trip_id TEXT DEFAULT NULL REFERENCES trips(trip_id)
                 ON DELETE CASCADE ON UPDATE CASCADE,
             transfer_type INTEGER NOT NULL DEFAULT 0 CHECK (transfer_type IN (0, 1, 2, 3)),
-            min_transfer_time INTEGER DEFAULT NULL CHECK (min_transfer_time > 0)
+            min_transfer_time INTEGER DEFAULT NULL CHECK (min_transfer_time > 0),
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;
         CREATE INDEX idx_transfers_to_stop_id ON transfers(to_stop_id);
         CREATE INDEX idx_transfers_from_route_id ON transfers(from_route_id);
@@ -77,13 +80,13 @@ class Transfer(Entity):
     @staticmethod
     def sql_columns() -> LiteralString:
         return (
-            "(from_stop_id, to_stop_id, from_route_id, to_route_id, "
-            "from_trip_id, to_trip_id, transfer_type, min_transfer_time)"
+            "(from_stop_id, to_stop_id, from_route_id, to_route_id, from_trip_id, to_trip_id, "
+            "transfer_type, min_transfer_time, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -93,7 +96,8 @@ class Transfer(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "from_stop_id = ?, to_stop_id = ?, from_route_id = ?, to_route_id = ?, "
-            "from_trip_id = ?, to_trip_id = ?, transfer_type = ?, min_transfer_time = ?"
+            "from_trip_id = ?, to_trip_id = ?, transfer_type = ?, min_transfer_time = ?, "
+            "extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -106,6 +110,7 @@ class Transfer(Entity):
             self.to_trip_id or None,
             self.type.value,
             self.min_transfer_time,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -124,5 +129,6 @@ class Transfer(Entity):
             .optional_field("to_trip_id", str, lambda x: x or "")
             .field("type", int, cls.Type)
             .nullable_field("min_transfer_time", int)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

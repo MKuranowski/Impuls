@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -12,13 +12,14 @@ from typing_extensions import LiteralString
 from ..tools.temporal import date_range
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import Date
 
 
 @final
 @dataclass
-class Calendar(Entity):
+class Calendar(Entity, ExtraFieldsMixin):
     """Calendar defines a set of dates on which :py:class:`Trip` instances operate.
 
     Equivalent to `GTFS's calendar.txt entries <https://gtfs.org/schedule/reference/#calendartxt>`_.
@@ -40,6 +41,7 @@ class Calendar(Entity):
     start_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
     end_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
     desc: str = field(default="", repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -58,19 +60,20 @@ class Calendar(Entity):
             sunday INTEGER NOT NULL DEFAULT 0 CHECK (monday IN (0, 1)),
             start_date TEXT NOT NULL DEFAULT '1111-11-11' CHECK (start_date LIKE '____-__-__'),
             end_date TEXT NOT NULL DEFAULT '1111-11-11' CHECK (end_date LIKE '____-__-__'),
-            desc TEXT NOT NULL DEFAULT ''
+            desc TEXT NOT NULL DEFAULT '',
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;"""
 
     @staticmethod
     def sql_columns() -> LiteralString:
         return (
             "(calendar_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, "
-            "start_date, end_date, desc)"
+            "start_date, end_date, desc, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -80,7 +83,8 @@ class Calendar(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "calendar_id = ?, monday = ?, tuesday = ?, wednesday = ?, thursday = ?, "
-            "friday = ?, saturday = ?, sunday = ?, start_date = ?, end_date = ?, desc = ?"
+            "friday = ?, saturday = ?, sunday = ?, start_date = ?, end_date = ?, desc = ?, "
+            "extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -96,6 +100,7 @@ class Calendar(Entity):
             str(self.start_date),
             str(self.end_date),
             self.desc,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -116,6 +121,7 @@ class Calendar(Entity):
             .field("start_date", str, Date.from_ymd_str)
             .field("end_date", str, Date.from_ymd_str)
             .field("desc", str)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )
 

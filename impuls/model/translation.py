@@ -2,18 +2,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from dataclasses import dataclass, field
-from typing import Literal, Sequence, final
+from typing import Literal, Optional, Sequence, final
 
 from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class Translation(Entity):
+class Translation(Entity, ExtraFieldsMixin):
     """Translation instances provide a way to translate user-facing text, URLs, emails and phone
     numbers in consumer apps to better serve multi-lingual regions or regions where some riders
     are not expected to be able to understand and read the local language.
@@ -94,6 +95,8 @@ class Translation(Entity):
     can't be empty and both fields can be simultaneously non-empty.
     """
 
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
+
     id: int = field(default=0, repr=False)
     """This field is ignored on :py:meth:`impuls.DBConnection.create` -
     SQLite automatically generates an ID.
@@ -119,6 +122,7 @@ class Translation(Entity):
             record_id TEXT NOT NULL DEFAULT '',
             record_sub_id TEXT NOT NULL DEFAULT '',
             field_value TEXT NOT NULL DEFAULT '',
+            extra_fields_json TEXT DEFAULT NULL,
             UNIQUE (table_name, field_name, language, record_id, record_sub_id, field_value),
             -- field_value and record_id can't be defined at the same time:
             CHECK (field_value = '' OR record_id = ''),
@@ -131,12 +135,12 @@ class Translation(Entity):
     def sql_columns() -> LiteralString:
         return (
             "(table_name, field_name, language, translation, record_id, record_sub_id, "
-            "field_value)"
+            "field_value, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -146,7 +150,7 @@ class Translation(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "table_name = ?, field_name = ?, language = ?, translation = ?, record_id = ?, "
-            "record_sub_id = ?, field_value = ?"
+            "record_sub_id = ?, field_value = ?, extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -158,6 +162,7 @@ class Translation(Entity):
             self.record_id,
             self.record_sub_id,
             self.field_value,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -175,5 +180,6 @@ class Translation(Entity):
             .field("record_id", str)
             .field("record_sub_id", str)
             .field("field_value", str)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

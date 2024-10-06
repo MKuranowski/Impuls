@@ -11,12 +11,13 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class FareAttribute(Entity):
+class FareAttribute(Entity, ExtraFieldsMixin):
     """FareAttributes define a single logical fare class. Due to the way :py:class:`FareRule`
     is applied, there may be multiple FareAttributes representing the same "ticket".
 
@@ -34,6 +35,7 @@ class FareAttribute(Entity):
     transfers: Optional[int]
     agency_id: str = field(repr=False)
     transfer_duration: Optional[int] = field(default=None)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -49,19 +51,20 @@ class FareAttribute(Entity):
             transfers INTEGER DEFAULT NULL CHECK (transfers IN (0, 1, 2)),
             agency_id TEXT NOT NULL REFERENCES agencies(agency_id)
                 ON DELETE CASCADE ON UPDATE CASCADE,
-            transfer_duration INTEGER DEFAULT NULL CHECK (transfer_duration > 0)
+            transfer_duration INTEGER DEFAULT NULL CHECK (transfer_duration > 0),
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;"""
 
     @staticmethod
     def sql_columns() -> LiteralString:
         return (
             "(fare_id, price, currency_type, payment_method, transfers, agency_id, "
-            "transfer_duration)"
+            "transfer_duration, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -71,7 +74,7 @@ class FareAttribute(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "fare_id = ?, price = ?, currency_type = ?, payment_method = ?, transfers = ?, "
-            "agency_id = ?, transfer_duration = ?"
+            "agency_id = ?, transfer_duration = ?, extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -83,6 +86,7 @@ class FareAttribute(Entity):
             self.transfers,
             self.agency_id,
             self.transfer_duration,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -99,5 +103,6 @@ class FareAttribute(Entity):
             .nullable_field("transfers", int)
             .field("agency_id", str)
             .nullable_field("transfer_duration", int)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

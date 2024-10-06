@@ -15,6 +15,7 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
             contact_email="",
             contact_url="",
             start_date=Date(2020, 2, 29),
+            extra_fields_json=r"{}",
         )
 
     def get_type(self) -> Type[FeedInfo]:
@@ -23,7 +24,18 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),
-            (0, "Foo", "https://example.com/", "en", "2020-02-29b", "", "", "2020-02-29", None),
+            (
+                0,
+                "Foo",
+                "https://example.com/",
+                "en",
+                "2020-02-29b",
+                "",
+                "",
+                "2020-02-29",
+                None,
+                r"{}",
+            ),
         )
 
     def test_sql_primary_key(self) -> None:
@@ -41,6 +53,7 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
                 "",
                 "2020-02-29",
                 None,
+                r"{}",
             )
         )
 
@@ -52,3 +65,4 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
         self.assertEqual(fi.contact_url, "")
         self.assertEqual(fi.start_date, Date(2020, 2, 29))
         self.assertIsNone(fi.end_date)
+        self.assertEqual(fi.extra_fields_json, r"{}")

@@ -17,6 +17,7 @@ class TestAttribution(AbstractTestEntity.Template[Attribution]):
             url="https://example.com/",
             email="",
             phone="",
+            extra_fields_json=None,
         )
 
     def get_type(self) -> Type[Attribution]:
@@ -25,14 +26,16 @@ class TestAttribution(AbstractTestEntity.Template[Attribution]):
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),
-            ("0", "Foo", 1, 0, 1, 1, "https://example.com/", "", ""),
+            ("0", "Foo", 1, 0, 1, 1, "https://example.com/", "", "", None),
         )
 
     def test_sql_primary_key(self) -> None:
         self.assertTupleEqual(self.get_entity().sql_primary_key(), ("0",))
 
     def test_sql_unmarshall(self) -> None:
-        a = Attribution.sql_unmarshall(("0", "Foo", 1, 0, 1, 1, "https://example.com/", "", ""))
+        a = Attribution.sql_unmarshall(
+            ("0", "Foo", 1, 0, 1, 1, "https://example.com/", "", "", None),
+        )
 
         self.assertEqual(a.id, "0")
         self.assertEqual(a.organization_name, "Foo")
@@ -43,3 +46,4 @@ class TestAttribution(AbstractTestEntity.Template[Attribution]):
         self.assertEqual(a.url, "https://example.com/")
         self.assertEqual(a.email, "")
         self.assertEqual(a.phone, "")
+        self.assertIsNone(a.extra_fields_json)

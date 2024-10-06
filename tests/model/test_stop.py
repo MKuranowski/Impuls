@@ -18,6 +18,7 @@ class TestStop(AbstractTestEntity.Template[Stop]):
             parent_station="",
             wheelchair_boarding=True,
             platform_code="",
+            extra_fields_json=None,
         )
 
     def get_type(self) -> Type[Stop]:
@@ -26,7 +27,7 @@ class TestStop(AbstractTestEntity.Template[Stop]):
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),
-            ("0", "Foo", 50.847, 4.383, "S0", "", 0, None, 1, ""),
+            ("0", "Foo", 50.847, 4.383, "S0", "", 0, None, 1, "", None),
         )
 
     def test_sql_marshall_parent_station(self) -> None:
@@ -35,14 +36,14 @@ class TestStop(AbstractTestEntity.Template[Stop]):
 
         self.assertTupleEqual(
             s.sql_marshall(),
-            ("0", "Foo", 50.847, 4.383, "S0", "", 0, "1", 1, ""),
+            ("0", "Foo", 50.847, 4.383, "S0", "", 0, "1", 1, "", None),
         )
 
     def test_sql_primary_key(self) -> None:
         self.assertTupleEqual(self.get_entity().sql_primary_key(), ("0",))
 
     def test_sql_unmarshall(self) -> None:
-        s = Stop.sql_unmarshall(("0", "Foo", 50.847, 4.383, "S0", "", 0, None, 1, ""))
+        s = Stop.sql_unmarshall(("0", "Foo", 50.847, 4.383, "S0", "", 0, None, 1, "", None))
 
         self.assertEqual(s.id, "0")
         self.assertEqual(s.name, "Foo")
@@ -54,7 +55,8 @@ class TestStop(AbstractTestEntity.Template[Stop]):
         self.assertEqual(s.parent_station, "")
         self.assertEqual(s.wheelchair_boarding, True)
         self.assertEqual(s.platform_code, "")
+        self.assertIsNone(s.extra_fields_json)
 
     def test_sql_unmarshall_parent_station(self) -> None:
-        s = Stop.sql_unmarshall(("0", "Foo", 50.847, 4.383, "S0", "", 0, "1", 1, ""))
+        s = Stop.sql_unmarshall(("0", "Foo", 50.847, 4.383, "S0", "", 0, "1", 1, "", None))
         self.assertEqual(s.parent_station, "1")

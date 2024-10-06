@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from dataclasses import dataclass, field
-from typing import Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -10,12 +10,13 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class Agency(Entity):
+class Agency(Entity, ExtraFieldsMixin):
     """Agency represents the entity/public body/company responsible for high-level management
     (especially fares) of a public transportation network.
 
@@ -36,6 +37,7 @@ class Agency(Entity):
     lang: str = field(default="", repr=False)
     phone: str = field(default="", repr=False)
     fare_url: str = field(default="", repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -50,16 +52,17 @@ class Agency(Entity):
             timezone TEXT NOT NULL,
             lang TEXT NOT NULL DEFAULT '',
             phone TEXT NOT NULL DEFAULT '',
-            fare_url TEXT NOT NULL DEFAULT ''
+            fare_url TEXT NOT NULL DEFAULT '',
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;"""
 
     @staticmethod
     def sql_columns() -> LiteralString:
-        return "(agency_id, name, url, timezone, lang, phone, fare_url)"
+        return "(agency_id, name, url, timezone, lang, phone, fare_url, extra_fields_json)"
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -67,10 +70,22 @@ class Agency(Entity):
 
     @staticmethod
     def sql_set_clause() -> LiteralString:
-        return "agency_id = ?, name = ?, url = ?, timezone = ?, lang = ?, phone = ?, fare_url = ?"
+        return (
+            "agency_id = ?, name = ?, url = ?, timezone = ?, lang = ?, phone = ?, fare_url = ?, "
+            "extra_fields_json = ?"
+        )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
-        return (self.id, self.name, self.url, self.timezone, self.lang, self.phone, self.fare_url)
+        return (
+            self.id,
+            self.name,
+            self.url,
+            self.timezone,
+            self.lang,
+            self.phone,
+            self.fare_url,
+            self.extra_fields_json,
+        )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
         return (self.id,)
@@ -86,5 +101,6 @@ class Agency(Entity):
             .field("lang", str)
             .field("phone", str)
             .field("fare_url", str)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )
