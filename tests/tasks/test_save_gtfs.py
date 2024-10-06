@@ -2,7 +2,7 @@ from io import TextIOWrapper
 from typing import IO, AnyStr
 from zipfile import ZipFile
 
-from impuls.model import Calendar, Date
+from impuls.model import Agency, Calendar, Date
 from impuls.tasks import SaveGTFS
 from impuls.tools.testing_mocks import MockFile
 
@@ -194,6 +194,62 @@ class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
                 self.assertEqual(header, ",".join(t.headers["calendar"]))
                 self.assertEqual(record, "0,0,0,0,0,0,0,0,11111111,11111111")
                 self.assertEqual(count, 1)
+
+
+class TestSaveGTFSWithExtraFields(AbstractTestTask.Template):
+    db_name = None
+
+    def test(self) -> None:
+        self.runtime.db.create_many(
+            Agency,
+            (
+                Agency(
+                    "0",
+                    "Foo",
+                    "https://foo.example.com",
+                    "UTC",
+                    extra_fields_json=r'{"agency_email":"foo@example.com","main_agency":"1"}',
+                ),
+                Agency(
+                    "1",
+                    "Bar",
+                    "https://bar.example.com",
+                    "UTC",
+                    extra_fields_json=r'{"agency_email":"bar@example.com"}',
+                ),
+                Agency("2", "Baz", "https://baz.example.com", "UTC"),
+            ),
+        )
+
+        with MockFile() as gtfs_path:
+            t = SaveGTFS(
+                headers={
+                    "agency": (
+                        "agency_id",
+                        "agency_name",
+                        "agency_timezone",
+                        "agency_url",
+                        "agency_email",
+                    ),
+                },
+                target=gtfs_path,
+            )
+
+            t.execute(self.runtime)
+
+            with ZipFile(gtfs_path, mode="r") as gtfs:
+                with gtfs.open("agency.txt", "r") as f:
+                    content = TextIOWrapper(f, "utf-8", newline="").readlines()
+
+            self.assertListEqual(
+                content,
+                [
+                    "agency_id,agency_name,agency_timezone,agency_url,agency_email\r\n",
+                    "0,Foo,UTC,https://foo.example.com,foo@example.com\r\n",
+                    "1,Bar,UTC,https://bar.example.com,bar@example.com\r\n",
+                    "2,Baz,UTC,https://baz.example.com,\r\n",
+                ],
+            )
 
 
 def header_first_record_and_record_count(z: ZipFile, f: str) -> tuple[str, str, int]:
