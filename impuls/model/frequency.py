@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from dataclasses import dataclass, field
-from typing import Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -10,13 +10,14 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 from .meta.utility_types import TimePoint
 
 
 @final
 @dataclass
-class Frequency(Entity):
+class Frequency(Entity, ExtraFieldsMixin):
     """Frequency instances provide an alternative way of defining multiple trips
     in bulk. When a :py:class:`Trip` has at least one :py:class:`Frequency`, that trips
     :py:class:`StopTime` absolute times are ignored, instead multiple trips using the relative
@@ -30,6 +31,7 @@ class Frequency(Entity):
     end_time: TimePoint = field(repr=False)
     headway: int
     exact_times: bool = field(default=False, repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -43,16 +45,17 @@ class Frequency(Entity):
             end_time INTEGER NOT NULL,
             headway INTEGER NOT NULL CHECK (headway > 0),
             exact_times INTEGER DEFAULT 0 CHECK (exact_times IN (0, 1)),
+            extra_fields_json TEXT DEFAULT NULL,
             PRIMARY KEY (trip_id, start_time)
         ) STRICT;"""
 
     @staticmethod
     def sql_columns() -> LiteralString:
-        return "(trip_id, start_time, end_time, headway, exact_times)"
+        return "(trip_id, start_time, end_time, headway, exact_times, extra_fields_json)"
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -60,7 +63,10 @@ class Frequency(Entity):
 
     @staticmethod
     def sql_set_clause() -> LiteralString:
-        return "trip_id = ?, start_time = ?, end_time = ?, headway = ?, exact_times = ?"
+        return (
+            "trip_id = ?, start_time = ?, end_time = ?, headway = ?, exact_times = ?, "
+            "extra_fields_json = ?"
+        )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
@@ -69,6 +75,7 @@ class Frequency(Entity):
             int(self.end_time.total_seconds()),
             self.headway,
             int(self.exact_times),
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -83,5 +90,6 @@ class Frequency(Entity):
             .field("end_time", int, lambda x: TimePoint(seconds=x))
             .field("headway", int)
             .field("exact_times", bool)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

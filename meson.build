@@ -9,6 +9,7 @@ py.install_sources(
     'impuls/extern/__init__.py',
     'impuls/model/meta/__init__.py',
     'impuls/model/meta/entity.py',
+    'impuls/model/meta/extra_fields_mixin.py',
     'impuls/model/meta/sql_builder.py',
     'impuls/model/meta/utility_types.py',
     'impuls/model/__init__.py',

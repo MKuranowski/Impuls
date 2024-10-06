@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from dataclasses import dataclass, field
-from typing import Sequence
+from typing import Optional, Sequence
 from typing import Type as TypeOf
 from typing import final
 
@@ -10,12 +10,13 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class Attribution(Entity):
+class Attribution(Entity, ExtraFieldsMixin):
     """Attribution represents a copyright or any other attribution which must be attached
     to the dataset.
 
@@ -31,6 +32,7 @@ class Attribution(Entity):
     url: str = field(default="", repr=False)
     email: str = field(default="", repr=False)
     phone: str = field(default="", repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -47,19 +49,20 @@ class Attribution(Entity):
             is_data_source INTEGER NOT NULL CHECK (is_data_source IN (0, 1)),
             url TEXT NOT NULL DEFAULT '',
             email TEXT NOT NULL DEFAULT '',
-            phone TEXT NOT NULL DEFAULT ''
+            phone TEXT NOT NULL DEFAULT '',
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;"""
 
     @staticmethod
     def sql_columns() -> LiteralString:
         return (
             "(attribution_id, organization_name, is_producer, is_operator, is_authority, "
-            "is_data_source, url, email, phone)"
+            "is_data_source, url, email, phone, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -69,7 +72,8 @@ class Attribution(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "attribution_id = ?, organization_name = ?, is_producer = ?, is_operator = ?, "
-            "is_authority = ?, is_data_source = ?, url = ?, email = ?, phone = ?"
+            "is_authority = ?, is_data_source = ?, url = ?, email = ?, phone = ?, "
+            "extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -83,6 +87,7 @@ class Attribution(Entity):
             self.url,
             self.email,
             self.phone,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -101,5 +106,6 @@ class Attribution(Entity):
             .field("url", str)
             .field("email", str)
             .field("phone", str)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

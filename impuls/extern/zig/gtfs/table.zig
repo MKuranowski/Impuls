@@ -28,6 +28,14 @@ pub const Table = struct {
     /// parent_implication, if present, describes the existance of parent objects in GTFS
     parent_implication: ?ParentImplication = null,
 
+    /// has_extra_fields_json is set to true if there is the SQL table has an additional
+    /// "extra_fields_json" TEXT column with a JSON object mapping extra GTFS fields to its
+    /// string values.
+    ///
+    /// The "extra_fields_json" colum is never present in the `columns`, `columnNames` and
+    /// `placeholders`.
+    has_extra_fields_json: bool = false,
+
     /// columnNames returns a "column_a, column_b, column_c" string with the SQL column names
     /// of the table.
     pub fn columnNames(comptime self: Table) []const u8 {
@@ -86,7 +94,7 @@ pub const ParentImplication = struct {
     /// sql_key names the primary key of the sql_table.
     sql_key: []const u8,
 
-    /// gtfs_key names the
+    /// gtfs_key names the foreign key column in the GTFS table.
     gtfs_key: []const u8,
 };
 
@@ -128,6 +136,7 @@ pub const tables = [_]Table{
             Column{ .name = "phone", .gtfs_name = "agency_phone" },
             Column{ .name = "fare_url", .gtfs_name = "agency_fare_url" },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "attributions.txt",
@@ -143,6 +152,7 @@ pub const tables = [_]Table{
             Column{ .name = "email", .gtfs_name = "attribution_email" },
             Column{ .name = "phone", .gtfs_name = "attribution_phone" },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "calendar.txt",
@@ -161,6 +171,7 @@ pub const tables = [_]Table{
             Column{ .name = "end_date", .from_gtfs = from_gtfs.date, .to_gtfs = to_gtfs.date },
             Column{ .name = "desc", .gtfs_name = "service_desc" },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "calendar_dates.txt",
@@ -204,6 +215,7 @@ pub const tables = [_]Table{
                 .to_gtfs = to_gtfs.date,
             },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "routes.txt",
@@ -219,6 +231,7 @@ pub const tables = [_]Table{
             Column{ .name = "text_color", .gtfs_name = "route_text_color" },
             Column{ .name = "sort_order", .gtfs_name = "route_sort_order", .from_gtfs = from_gtfs.optionalInt },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "stops.txt",
@@ -240,6 +253,7 @@ pub const tables = [_]Table{
             },
             Column{ .name = "platform_code" },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "fare_attributes.txt",
@@ -253,6 +267,7 @@ pub const tables = [_]Table{
             Column{ .name = "agency_id", .from_gtfs = from_gtfs.agencyId },
             Column{ .name = "transfer_duration", .from_gtfs = from_gtfs.optionalInt },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "fare_rules.txt",
@@ -314,6 +329,7 @@ pub const tables = [_]Table{
                 .to_gtfs = to_gtfs.maybeWithZeroUnknown,
             },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "stop_times.txt",
@@ -331,6 +347,7 @@ pub const tables = [_]Table{
             Column{ .name = "shape_dist_traveled", .from_gtfs = from_gtfs.optionalFloat },
             Column{ .name = "platform" },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "frequencies.txt",
@@ -342,6 +359,7 @@ pub const tables = [_]Table{
             Column{ .name = "headway", .gtfs_name = "headway_secs", .from_gtfs = from_gtfs.int },
             Column{ .name = "exact_times", .from_gtfs = from_gtfs.intFallbackZero },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "transfers.txt",
@@ -356,6 +374,7 @@ pub const tables = [_]Table{
             Column{ .name = "transfer_type", .from_gtfs = from_gtfs.int },
             Column{ .name = "min_transfer_time", .from_gtfs = from_gtfs.optionalInt },
         },
+        .has_extra_fields_json = true,
     },
     Table{
         .gtfs_name = "translations.txt",
@@ -369,6 +388,7 @@ pub const tables = [_]Table{
             Column{ .name = "record_sub_id" },
             Column{ .name = "field_value" },
         },
+        .has_extra_fields_json = true,
     },
 };
 

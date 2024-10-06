@@ -34,6 +34,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
                     "pl",
                     "",
                     "",
+                    None,
                 ),
             ],
         )
@@ -73,6 +74,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
                     "990099",
                     "FFFFFF",
                     None,
+                    None,
                 ),
                 (
                     "ZA1",
@@ -83,6 +85,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
                     "990099",
                     "FFFFFF",
                     None,
+                    None,
                 ),
                 (
                     "ZA12",
@@ -92,6 +95,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
                     3,
                     "990099",
                     "FFFFFF",
+                    None,
                     None,
                 ),
             ],
@@ -183,6 +187,7 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
                     "pl",
                     "",
                     "",
+                    None,
                 ),
             ],
         )
@@ -222,6 +227,7 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
                     "990099",
                     "FFFFFF",
                     None,
+                    None,
                 ),
                 (
                     "ZA1",
@@ -232,6 +238,7 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
                     "990099",
                     "FFFFFF",
                     None,
+                    None,
                 ),
                 (
                     "ZA12",
@@ -241,6 +248,7 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
                     3,
                     "990099",
                     "FFFFFF",
+                    None,
                     None,
                 ),
             ],
@@ -367,7 +375,9 @@ class TestMergeRoutes(AbstractTestTask.Template):
         task.execute(runtime)
 
         routes = list(self.runtime.db.raw_execute("SELECT * FROM routes"))
-        self.assertListEqual(routes, [("1", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None)])
+        self.assertListEqual(
+            routes, [("1", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None, None)]
+        )
 
     def test_similar_ids_different_hash(self) -> None:
         r1 = Route(
@@ -413,8 +423,8 @@ class TestMergeRoutes(AbstractTestTask.Template):
         self.assertListEqual(
             routes,
             [
-                ("1", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None),
-                ("1:1", "0", "1", "Spam - Eggs", 0, "BB0000", "FFFFFF", None),
+                ("1", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None, None),
+                ("1:1", "0", "1", "Spam - Eggs", 0, "BB0000", "FFFFFF", None, None),
             ],
         )
 
@@ -462,8 +472,8 @@ class TestMergeRoutes(AbstractTestTask.Template):
         self.assertListEqual(
             routes,
             [
-                ("1", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None),
-                ("A", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None),
+                ("1", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None, None),
+                ("A", "0", "A", "Foo - Bar", 3, "000088", "FFFFFF", None, None),
             ],
         )
 

@@ -11,12 +11,13 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class Trip(Entity):
+class Trip(Entity, ExtraFieldsMixin):
     """Trips represent a single journey made by a vehicle, belonging to
     a specific :py:class:`Route` and :py:class:`Calendar`, grouping multiple
     :py:class:`StopTime` objects.
@@ -51,6 +52,7 @@ class Trip(Entity):
     wheelchair_accessible: Optional[bool] = field(default=None, repr=False)
     bikes_allowed: Optional[bool] = field(default=None, repr=False)
     exceptional: Optional[bool] = field(default=None, repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -71,7 +73,8 @@ class Trip(Entity):
                 ON DELETE CASCADE ON UPDATE CASCADE,
             wheelchair_accessible INTEGER DEFAULT NULL CHECK (wheelchair_accessible IN (0, 1)),
             bikes_allowed INTEGER DEFAULT NULL CHECK (bikes_allowed IN (0, 1)),
-            exceptional INTEGER DEFAULT NULL CHECK (exceptional IN (0, 1))
+            exceptional INTEGER DEFAULT NULL CHECK (exceptional IN (0, 1)),
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;
         CREATE INDEX idx_trips_route_id ON trips(route_id);
         CREATE INDEX idx_trips_calendar_id ON trips(calendar_id);
@@ -82,12 +85,12 @@ class Trip(Entity):
     def sql_columns() -> LiteralString:
         return (
             "(trip_id, route_id, calendar_id, headsign, short_name, direction, block_id, "
-            "shape_id, wheelchair_accessible, bikes_allowed, exceptional)"
+            "shape_id, wheelchair_accessible, bikes_allowed, exceptional, extra_fields_json)"
         )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -98,7 +101,7 @@ class Trip(Entity):
         return (
             "trip_id = ?, route_id = ?, calendar_id = ?, headsign = ?, short_name = ?, "
             "direction = ?, block_id = ?, shape_id = ?, wheelchair_accessible = ?, "
-            "bikes_allowed = ?, exceptional = ?"
+            "bikes_allowed = ?, exceptional = ?, extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -114,6 +117,7 @@ class Trip(Entity):
             int(self.wheelchair_accessible) if self.wheelchair_accessible is not None else None,
             int(self.bikes_allowed) if self.bikes_allowed is not None else None,
             int(self.exceptional) if self.exceptional is not None else None,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -134,5 +138,6 @@ class Trip(Entity):
             .nullable_field("wheelchair_accessible", bool)
             .nullable_field("bikes_allowed", bool)
             .nullable_field("exceptional", bool)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

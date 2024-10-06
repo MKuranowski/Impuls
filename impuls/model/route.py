@@ -11,12 +11,13 @@ from typing_extensions import LiteralString
 
 from ..tools.types import Self, SQLNativeType
 from .meta.entity import Entity
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.sql_builder import DataclassSQLBuilder
 
 
 @final
 @dataclass
-class Route(Entity):
+class Route(Entity, ExtraFieldsMixin):
     """Route instances group multiple trips operated by one :py:class:`Agency` under
     a single, common identifier.
 
@@ -53,6 +54,7 @@ class Route(Entity):
     color: str = field(default="", repr=False)
     text_color: str = field(default="", repr=False)
     sort_order: Optional[int] = field(default=None, repr=False)
+    extra_fields_json: Optional[str] = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -71,17 +73,21 @@ class Route(Entity):
             )),
             color TEXT NOT NULL DEFAULT '',
             text_color TEXT NOT NULL DEFAULT '',
-            sort_order INTEGER
+            sort_order INTEGER,
+            extra_fields_json TEXT DEFAULT NULL
         ) STRICT;
         CREATE INDEX idx_routes_agency_id ON routes(agency_id);"""
 
     @staticmethod
     def sql_columns() -> LiteralString:
-        return "(route_id, agency_id, short_name, long_name, type, color, text_color, sort_order)"
+        return (
+            "(route_id, agency_id, short_name, long_name, type, color, text_color, sort_order, "
+            "extra_fields_json)"
+        )
 
     @staticmethod
     def sql_placeholder() -> LiteralString:
-        return "(?, ?, ?, ?, ?, ?, ?, ?)"
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
     @staticmethod
     def sql_where_clause() -> LiteralString:
@@ -91,7 +97,7 @@ class Route(Entity):
     def sql_set_clause() -> LiteralString:
         return (
             "route_id = ?, agency_id = ?, short_name = ?, long_name = ?, type = ?, "
-            "color = ?, text_color = ?, sort_order = ?"
+            "color = ?, text_color = ?, sort_order = ?, extra_fields_json = ?"
         )
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
@@ -104,6 +110,7 @@ class Route(Entity):
             self.color,
             self.text_color,
             self.sort_order,
+            self.extra_fields_json,
         )
 
     def sql_primary_key(self) -> tuple[SQLNativeType, ...]:
@@ -121,5 +128,6 @@ class Route(Entity):
             .field("color", str)
             .field("text_color", str)
             .nullable_field("sort_order", int)
+            .nullable_field("extra_fields_json", str)
             .kwargs()
         )

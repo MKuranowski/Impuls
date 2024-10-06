@@ -15,6 +15,7 @@ class TestAgency(AbstractTestEntity.Template[Agency]):
             lang="en",
             phone="",
             fare_url="",
+            extra_fields_json=r'{"agency_email":"foo@example.com"}',
         )
 
     def get_type(self) -> Type[Agency]:
@@ -23,7 +24,16 @@ class TestAgency(AbstractTestEntity.Template[Agency]):
     def test_sql_marshall(self) -> None:
         self.assertTupleEqual(
             self.get_entity().sql_marshall(),
-            ("0", "Foo", "https://example.com/", "Europe/Brussels", "en", "", ""),
+            (
+                "0",
+                "Foo",
+                "https://example.com/",
+                "Europe/Brussels",
+                "en",
+                "",
+                "",
+                r'{"agency_email":"foo@example.com"}',
+            ),
         )
 
     def test_sql_primary_key(self) -> None:
@@ -39,6 +49,7 @@ class TestAgency(AbstractTestEntity.Template[Agency]):
                 "en",
                 "",
                 "",
+                r'{"agency_email":"foo@example.com"}',
             )
         )
 
@@ -49,3 +60,5 @@ class TestAgency(AbstractTestEntity.Template[Agency]):
         self.assertEqual(a.lang, "en")
         self.assertEqual(a.phone, "")
         self.assertEqual(a.fare_url, "")
+        self.assertEqual(a.extra_fields_json, r'{"agency_email":"foo@example.com"}')
+        self.assertDictEqual(a.get_extra_fields(), {"agency_email": "foo@example.com"})
