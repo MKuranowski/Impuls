@@ -63,6 +63,7 @@ pub const Table = struct {
     /// gtfsColumnNamesToIndices creates a std.StaticStringMap mapping GTFS column names
     /// to indices into Table.columns.
     pub fn gtfsColumnNamesToIndices(comptime self: Table) StaticStringMap(usize) {
+        @setEvalBranchQuota(10_000);
         comptime var kvs: [self.columns.len]struct { []const u8, usize } = undefined;
         inline for (self.columns, 0..) |col, i| {
             kvs[i] = .{ col.gtfsName(), i };
@@ -119,6 +120,21 @@ pub const Column = struct {
     pub inline fn gtfsName(self: Column) [:0]const u8 {
         return if (self.gtfs_name) |gtfs_name| gtfs_name else self.name;
     }
+};
+
+/// Column describes how to map GTFS and SQL columns.
+pub const ColumnMapping = union(enum) {
+    /// standard represents a normal Column, present in the `Table.columns`
+    /// under the provided index. Custom conversions may apply.
+    standard: usize,
+
+    /// extra represents an extra Column, present in `extra_fields_json`
+    /// under the provided key. Used only if `Table.has_extra_fields_json` is set.
+    extra: []const u8,
+
+    /// none represents a Column which can't be found in an SQL record.
+    /// Used only if `Table.has_extra_fields_json` is not set.
+    none,
 };
 
 /// tables lists all known Table mappings between GTFS and Impuls models.

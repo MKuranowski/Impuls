@@ -1,3 +1,4 @@
+from operator import attrgetter
 from pathlib import Path
 
 from impuls import LocalResource
@@ -31,6 +32,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
         "wkd-calendar-dates-only.zip": LocalResource(FIXTURES / "wkd-calendar-dates-only.zip"),
         "wkd-missing-routes.zip": LocalResource(FIXTURES / "wkd-missing-routes.zip"),
         "wkd-no-agency-id.zip": LocalResource(FIXTURES / "wkd-no-agency-id.zip"),
+        "wkd-extra-fields.zip": LocalResource(FIXTURES / "wkd-extra-fields.zip"),
     }
 
     def test(self) -> None:
@@ -90,3 +92,59 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         # The generated id is 2, as the first record is on the 2nd line
         self.runtime.db.retrieve_must(Attribution, "2")
+
+    def test_extra_fields_false(self) -> None:
+        t = LoadGTFS("wkd-extra-fields.zip", extra_fields=False)
+        t.execute(self.runtime)
+
+        agencies = sorted(
+            self.runtime.db.retrieve_all(Agency),
+            key=attrgetter("id"),
+        )
+        self.assertEqual(len(agencies), 1)
+        agency = agencies[0]
+        self.assertEqual(agency.id, "0")
+        self.assertIsNone(agency.extra_fields_json)
+
+        routes = sorted(
+            self.runtime.db.retrieve_all(Route),
+            key=attrgetter("id"),
+        )
+        self.assertEqual(len(routes), 3)
+        route = routes[0]
+        self.assertEqual(route.id, "A1")
+        self.assertIsNone(route.extra_fields_json)
+        route = routes[1]
+        self.assertEqual(route.id, "ZA1")
+        self.assertIsNone(route.extra_fields_json)
+        route = routes[2]
+        self.assertEqual(route.id, "ZA12")
+        self.assertIsNone(route.extra_fields_json)
+
+    def test_extra_fields_true(self) -> None:
+        t = LoadGTFS("wkd-extra-fields.zip", extra_fields=True)
+        t.execute(self.runtime)
+
+        agencies = sorted(
+            self.runtime.db.retrieve_all(Agency),
+            key=attrgetter("id"),
+        )
+        self.assertEqual(len(agencies), 1)
+        agency = agencies[0]
+        self.assertEqual(agency.id, "0")
+        self.assertDictEqual(agency.get_extra_fields(), {"agency_email": "wkd@example.com"})
+
+        routes = sorted(
+            self.runtime.db.retrieve_all(Route),
+            key=attrgetter("id"),
+        )
+        self.assertEqual(len(routes), 3)
+        route = routes[0]
+        self.assertEqual(route.id, "A1")
+        self.assertDictEqual(route.get_extra_fields(), {"route_is_temporary": "0"})
+        route = routes[1]
+        self.assertEqual(route.id, "ZA1")
+        self.assertDictEqual(route.get_extra_fields(), {"route_is_temporary": "1"})
+        route = routes[2]
+        self.assertEqual(route.id, "ZA12")
+        self.assertDictEqual(route.get_extra_fields(), {"route_is_temporary": "1"})

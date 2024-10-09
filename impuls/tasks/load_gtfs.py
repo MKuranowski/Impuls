@@ -37,13 +37,20 @@ class LoadGTFS(Task):
     * parent_station may only refer to stop_ids defined in earlier lines,
     * agency_id in fare_attributes.txt is required if it's present in agency.txt,
       even if there's only one agency defined in the dataset.
+
+    The additional parameter, ``extra_fields``, controls how unrecognized columns
+    are processed. Default (``False``) is to ignore them. If set to ``True``, extra columns
+    will be encoded to a string-to-string JSON object and placed in the ``extra_fields_json``
+    column, if that is available.
     """
 
     resource: str
+    extra_fields: bool
 
-    def __init__(self, resource: str) -> None:
+    def __init__(self, resource: str, extra_fields: bool = False) -> None:
         super().__init__()
         self.resource = resource
+        self.extra_fields = extra_fields
 
     def execute(self, r: TaskRuntime) -> None:
         gtfs_path = r.resources[self.resource].stored_at
@@ -53,7 +60,7 @@ class LoadGTFS(Task):
 
             self.logger.info("Loading %s", self.resource)
             with r.db.released() as db_path:
-                extern.load_gtfs(db_path, gtfs_dir)
+                extern.load_gtfs(db_path, gtfs_dir, self.extra_fields)
 
     def extract_gtfs_to(self, zip_path: StrPath, dir_path: StrPath) -> None:
         with ZipFile(zip_path, mode="r") as zip:

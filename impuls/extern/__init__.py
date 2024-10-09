@@ -59,18 +59,19 @@ def _log_handler(level: int, msg: bytes) -> None:
     logger.log(level, msg.decode("utf-8"))
 
 
-lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p]
+lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, c_bool]
 lib.load_gtfs.restype = c_int
 
 lib.save_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
 lib.save_gtfs.restype = c_int
 
 
-def load_gtfs(db_path: StrPath, gtfs_dir_path: StrPath) -> None:
+def load_gtfs(db_path: StrPath, gtfs_dir_path: StrPath, extra_fields: bool = False) -> None:
     status: int = lib.load_gtfs(
         _log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
+        extra_fields,
     )
     if status:
         raise RuntimeError(f"extern load_gtfs failed with {status}")
