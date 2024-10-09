@@ -7,6 +7,7 @@ from .agency import Agency
 from .attribution import Attribution
 from .calendar import Calendar
 from .calendar_exception import CalendarException
+from .extra_table_row import ExtraTableRow
 from .fare_attribute import FareAttribute
 from .fare_rule import FareRule
 from .feed_info import FeedInfo
@@ -28,6 +29,7 @@ __all__ = [
     "Calendar",
     "CalendarException",
     "Date",
+    "ExtraTableRow",
     "FareAttribute",
     "FareRule",
     "FeedInfo",
@@ -62,6 +64,7 @@ ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
     Frequency,
     Transfer,
     Translation,
+    ExtraTableRow,
 ]
 """List of all :py:class:`Entity` classes which belong to the Impuls data model.
 The list is ordered to allow marshalling without KEY violations, e.g. :py:class:`Trip` is

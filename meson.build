@@ -17,6 +17,7 @@ py.install_sources(
     'impuls/model/attribution.py',
     'impuls/model/calendar_exception.py',
     'impuls/model/calendar.py',
+    'impuls/model/extra_table_row.py',
     'impuls/model/fare_attribute.py',
     'impuls/model/fare_rule.py',
     'impuls/model/feed_info.py',
