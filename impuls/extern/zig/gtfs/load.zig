@@ -9,6 +9,7 @@ const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
 
 const Allocator = std.mem.Allocator;
+const ColumnMapping = t.ColumnMapping;
 const ColumnValue = @import("./conversion.zig").ColumnValue;
 const fs = std.fs;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
@@ -16,7 +17,12 @@ const Logger = logging.Logger;
 const Table = t.Table;
 const tables = t.tables;
 
-pub fn load(logger: Logger, db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8) !void {
+pub fn load(
+    logger: Logger,
+    db_path: [*:0]const u8,
+    gtfs_dir_path: [*:0]const u8,
+    extra_fields: bool,
+) !void {
     var db = try sqlite3.Connection.init(db_path, .{});
     defer db.deinit();
     try db.exec("PRAGMA foreign_keys=1");
@@ -29,7 +35,14 @@ pub fn load(logger: Logger, db_path: [*:0]const u8, gtfs_dir_path: [*:0]const u8
     const allocator = gpa.allocator();
 
     inline for (tables) |table| {
-        try loadTable(logger, db, gtfs_dir, allocator, table);
+        try loadTable(
+            logger,
+            db,
+            gtfs_dir,
+            allocator,
+            extra_fields,
+            table,
+        );
     }
 }
 
@@ -38,6 +51,7 @@ fn loadTable(
     db: sqlite3.Connection,
     gtfs_dir: fs.Dir,
     allocator: Allocator,
+    extra_fields: bool,
     comptime table: Table,
 ) !void {
     var file = gtfs_dir.openFileZ(table.gtfs_name, .{}) catch |err| {
@@ -55,7 +69,13 @@ fn loadTable(
     logger.debug("Loading " ++ table.gtfs_name, .{});
 
     const Loader = comptime TableLoader(table, @TypeOf(buffer).Reader);
-    var loader = try Loader.init(logger, db, buffer.reader(), allocator);
+    var loader = try Loader.init(
+        logger,
+        db,
+        buffer.reader(),
+        allocator,
+        extra_fields,
+    );
     defer loader.deinit();
 
     try db.exec("BEGIN");
@@ -66,6 +86,7 @@ fn loadTable(
 
 /// TableLoader loads GTFS data from the provided reader into an SQL table.
 fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
+    const ColumnBuffer = std.BoundedArray(ColumnMapping, 32);
     const has_pi = comptime table.parent_implication != null;
     const gtfs_column_name_to_index = comptime table.gtfsColumnNamesToIndices();
 
@@ -81,14 +102,20 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// record stores the recently-read row from the GTFS file.
         record: csv.Record,
 
-        /// header maps table column indices into GTFS record indices.
-        header: [table.columns.len]?usize = .{@as(?usize, null)} ** table.columns.len,
+        /// record stores the header row from the GTFS file.
+        header_record: csv.Record,
 
-        /// header_len contains the expected number of fields in every GTFS record.
-        header_len: usize = 0,
+        /// header maps table column indices into GTFS record indices.
+        header: ColumnBuffer = .{},
 
         /// insert is the compiled INSERT INTO ... SQL statement
         insert: sqlite3.Statement,
+
+        /// has_extra_fields is set to true if there's an extra parameter in the INSERT
+        /// statement corresponding to the `extra_fields_json`. That parameter is always
+        /// after all of the `table.columns` parameters, that is its one-based index is
+        /// `table.columns.len + 1`.
+        has_extra_fields: bool = false,
 
         /// pi_gtfs_key_column contains the GTFS column index of the implied parent ID.
         pi_gtfs_key_column: if (has_pi) usize else void,
@@ -99,16 +126,27 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
 
         /// init creates a TableLoader for a given DB connection and CSV file.
         /// Necessary INSERT statements are compiled.
-        fn init(logger: Logger, db: sqlite3.Connection, reader: ReaderType, allocator: Allocator) !Self {
+        fn init(
+            logger: Logger,
+            db: sqlite3.Connection,
+            reader: ReaderType,
+            allocator: Allocator,
+            load_extra_fields: bool,
+        ) !Self {
             const csv_reader = csv.reader(reader);
             var csv_record = csv.Record.init(allocator);
             errdefer csv_record.deinit();
+            var csv_header_record = csv.Record.init(allocator);
+            errdefer csv_header_record.deinit();
 
-            const table_column_names = comptime table.columnNames();
-            const table_placeholders = comptime table.placeholders();
-            var insert = db.prepare(
-                "INSERT INTO " ++ table.sql_name ++ " (" ++ table_column_names ++ ") VALUES (" ++ table_placeholders ++ ")",
-            ) catch |err| {
+            const column_names = comptime table.columnNames();
+            const placeholders = comptime table.placeholders();
+            const has_extra_fields = load_extra_fields and table.has_extra_fields_json;
+            const insert_sql = if (has_extra_fields)
+                comptime "INSERT INTO " ++ table.sql_name ++ " (" ++ column_names ++ ", extra_fields_json) VALUES (" ++ placeholders ++ ", ?)"
+            else
+                comptime "INSERT INTO " ++ table.sql_name ++ " (" ++ column_names ++ ") VALUES (" ++ placeholders ++ ")";
+            var insert = db.prepare(insert_sql) catch |err| {
                 logger.err(
                     "{s}: failed to compile INSERT INTO: {s}",
                     .{ table.gtfs_name, db.errMsg() },
@@ -132,18 +170,22 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                     .logger = logger,
                     .reader = csv_reader,
                     .record = csv_record,
+                    .header_record = csv_header_record,
                     .insert = insert,
                     .pi_gtfs_key_column = 0,
                     .parent_insert = parent_insert,
+                    .has_extra_fields = has_extra_fields,
                 };
             } else {
                 return Self{
                     .logger = logger,
                     .reader = csv_reader,
                     .record = csv_record,
+                    .header_record = csv_header_record,
                     .insert = insert,
                     .pi_gtfs_key_column = {},
                     .parent_insert = {},
+                    .has_extra_fields = has_extra_fields,
                 };
             }
         }
@@ -153,6 +195,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             if (has_pi) self.parent_insert.deinit();
             self.insert.deinit();
             self.record.deinit();
+            self.header_record.deinit();
         }
 
         /// load actually loads data from the GTFS table to the SQL table.
@@ -167,18 +210,20 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         }
 
         /// loadHeader loads a record from the GTFS table and processes it as the header row.
-        /// Initializes `header_len`, `header` and `pi_gtfs_key_column`.
+        /// Initializes `header_record`, `header` and `pi_gtfs_key_column`.
         ///
         /// Returns false is there is no header row.
         fn loadHeader(self: *Self) !bool {
-            if (!try self.reader.next(&self.record)) return false;
-
-            self.header_len = self.record.len();
+            if (!try self.reader.next(&self.header_record)) return false;
             var has_pi_gtfs_column = false;
 
-            for (self.record.slice(), 0..) |gtfs_col_name, gtfs_col_idx| {
+            for (self.header_record.slice(), 0..) |gtfs_col_name, gtfs_col_idx| {
                 if (gtfs_column_name_to_index.get(gtfs_col_name.items)) |table_col_idx| {
-                    self.header[table_col_idx] = gtfs_col_idx;
+                    try self.header.append(.{ .standard = table_col_idx });
+                } else if (self.has_extra_fields) {
+                    try self.header.append(.{ .extra = gtfs_col_name.items });
+                } else {
+                    try self.header.append(.{ .none = {} });
                 }
 
                 if (has_pi and std.mem.eql(u8, gtfs_col_name.items, table.parent_implication.?.gtfs_key)) {
@@ -195,6 +240,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 return error.MissingRequiredColumn;
             }
 
+            self.record.line_no = self.header_record.line_no;
             return true;
         }
 
@@ -203,8 +249,9 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             try self.ensureRecordHasEnoughColumns();
             if (has_pi) try self.loadParentRecord();
             var args = try self.prepareInsertArguments();
+            defer args.deinit();
             try self.insert.reset();
-            try self.bindInsertArguments(&args);
+            try args.bind(self.insert, self.has_extra_fields);
             try self.executeInsert();
             try self.insert.clearBindings();
         }
@@ -212,10 +259,10 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// ensureRecordHasEnoughColumns raises an error if the number of fields inside of the
         /// current record is different than the number of fields inside of the header.
         fn ensureRecordHasEnoughColumns(self: Self) !void {
-            if (self.record.len() != self.header_len) {
+            if (self.record.len() != self.header_record.len()) {
                 self.logger.err(
                     "{s}:{d}: expected {d} columns, got {d}",
-                    .{ table.gtfs_name, self.record.line_no, self.header_len, self.record.len() },
+                    .{ table.gtfs_name, self.record.line_no, self.header_record.len(), self.record.len() },
                 );
                 return error.MisalignedCSV;
             }
@@ -239,20 +286,39 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             try self.parent_insert.clearBindings();
         }
 
-        /// prepareInsertArguments tries to parse the current GTFS record into
-        /// a list of SQL column values.
+        /// prepareInsertArguments tries to parse the current GTFS record into `InsertArguments`.
         ///
         /// Apart from raising an error on invalid GTFS data, a more human-readable, detailed
         /// message is logged.
         ///
-        /// Not that, due to lifetime constraints, once the arguments are binded,
-        /// they must live until a call to clearBindings. Therefore, it's not possible
-        /// to do `for (table.columns) |col| self.insert.bind(col.from_gtfs(...))`.
-        fn prepareInsertArguments(self: Self) ![table.columns.len]ColumnValue {
-            var arguments: [table.columns.len]ColumnValue = undefined;
-            inline for (table.columns, 0..) |col, i| {
-                const raw_value: []const u8 = if (self.header[i]) |j| self.record.get(j) else "";
-                arguments[i] = col.from_gtfs(raw_value, self.record.line_no) catch |err| {
+        /// Note that, due to lifetime constraints, the returned InsertArguments can't be moved
+        /// in memory.
+        fn prepareInsertArguments(self: Self) !InsertArguments(table.columns.len) {
+            var arguments: InsertArguments(table.columns.len) = .{};
+            errdefer arguments.deinit();
+            if (self.has_extra_fields) {
+                arguments.arena = std.heap.ArenaAllocator.init(self.record.allocator);
+            }
+
+            var sql_to_gtfs_idx = [_]?usize{null} ** table.columns.len;
+
+            for (self.header.slice(), 0..) |column_mapping, gtfs_idx| {
+                const raw_value = self.record.get(gtfs_idx);
+                switch (column_mapping) {
+                    .standard => |sql_idx| {
+                        sql_to_gtfs_idx[sql_idx] = gtfs_idx;
+                    },
+                    .extra => |extra_column_name| {
+                        try arguments.set_extra_arg(extra_column_name, raw_value);
+                    },
+                    .none => {},
+                }
+            }
+
+            for (table.columns, 0..) |col, sql_idx| {
+                const gtfs_idx = sql_to_gtfs_idx[sql_idx];
+                const gtfs_value: []const u8 = if (gtfs_idx) |i| self.record.get(i) else "";
+                arguments.standard[sql_idx] = col.from_gtfs(gtfs_value, self.record.line_no) catch |err| {
                     self.logger.err(
                         "{s}:{d}:{s}: {}",
                         .{ table.gtfs_name, self.record.line_no, col.gtfsName(), err },
@@ -260,17 +326,8 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                     return err;
                 };
             }
-            return arguments;
-        }
 
-        /// bindInsertArguments tries to bind the provided SQL values to the insert statement.
-        ///
-        /// Note that the arguments must be passed by reference - in order to prevent ColumnValues
-        /// being moved around in memory, to satisfy sqlite3's lifetime requirements for strings.
-        fn bindInsertArguments(self: Self, args: *const [table.columns.len]ColumnValue) !void {
-            for (args, 1..) |*arg, i| {
-                try arg.bind(self.insert, @intCast(i));
-            }
+            return arguments;
         }
 
         /// executeInsert tries to execute the SQL INSERT statement. Apart from raising an error
@@ -283,6 +340,65 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 );
                 return err;
             };
+        }
+    };
+}
+
+/// InsertArguments represents arguments to an INSERT statement.
+fn InsertArguments(comptime table_columns: usize) type {
+    return struct {
+        const Self = @This();
+
+        /// arena is used to allocate space for `extra` and `extra_serialized`.
+        /// May be left as `null` if those fields are not used.
+        arena: ?std.heap.ArenaAllocator = null,
+
+        /// standard represents values to be bound to the first `table_columns`.
+        /// By default, all vaules are set to Null.
+        standard: [table_columns]ColumnValue = [_]ColumnValue{.Null} ** table_columns,
+
+        /// extra is a storage container for extra fields, to be used
+        /// for an optional last argument. The map is allocated using `arena`.
+        extra: std.json.ArrayHashMap([]const u8) = .{},
+
+        /// extra_serialized contains a JSON representation of `extra`.
+        /// Allocated using `arena` automatically in `bind` and `bindExtraArguments`.
+        extra_serialized: ?[]const u8 = null,
+
+        fn deinit(self: *Self) void {
+            if (self.arena) |a| a.deinit();
+        }
+
+        fn set_extra_arg(self: *Self, k: []const u8, v: []const u8) !void {
+            try self.extra.map.put(self.arena.?.allocator(), k, v);
+        }
+
+        fn bind(self: *Self, stmt: sqlite3.Statement, has_extra_fields: bool) !void {
+            try self.bindStandardArguments(stmt);
+            if (has_extra_fields) try self.bindExtraArguments(stmt);
+        }
+
+        fn bindStandardArguments(self: *Self, stmt: sqlite3.Statement) !void {
+            for (&self.standard, 1..) |*column_value, i| {
+                try column_value.bind(stmt, @intCast(i));
+            }
+        }
+
+        fn bindExtraArguments(self: *Self, stmt: sqlite3.Statement) !void {
+            try self.ensureExtraSerialized();
+            try stmt.bind(@intCast(table_columns + 1), self.extra_serialized);
+        }
+
+        fn ensureExtraSerialized(self: *Self) !void {
+            if (self.extra.map.count() > 0) {
+                self.extra_serialized = try std.json.stringifyAlloc(
+                    self.arena.?.allocator(),
+                    self.extra,
+                    .{ .escape_unicode = true },
+                );
+            } else {
+                self.extra_serialized = null;
+            }
         }
     };
 }
@@ -310,7 +426,13 @@ test "gtfs.load.simple" {
     };
 
     const Loader = TableLoader(table, @TypeOf(reader));
-    var loader = try Loader.init(logging.StderrLogger, db, reader, std.testing.allocator);
+    var loader = try Loader.init(
+        logging.StderrLogger,
+        db,
+        reader,
+        std.testing.allocator,
+        false,
+    );
     defer loader.deinit();
 
     try db.exec("BEGIN");
@@ -379,7 +501,7 @@ test "gtfs.load.with_parent_implication" {
     };
 
     const Loader = TableLoader(table, @TypeOf(reader));
-    var loader = try Loader.init(logging.StderrLogger, db, reader, std.testing.allocator);
+    var loader = try Loader.init(logging.StderrLogger, db, reader, std.testing.allocator, false);
     defer loader.deinit();
 
     try db.exec("BEGIN");

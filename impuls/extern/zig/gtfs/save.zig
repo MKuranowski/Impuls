@@ -10,6 +10,7 @@ const t = @import("./table.zig");
 
 const Allocator = std.mem.Allocator;
 const Atomic = std.atomic.Value;
+const ColumnMapping = t.ColumnMapping;
 const ColumnValue = c.ColumnValue;
 const fs = std.fs;
 const Logger = logging.Logger;
@@ -98,24 +99,9 @@ pub fn save(
     return if (failed.load(.monotonic)) error.ThreadFailed else {};
 }
 
-/// Column describes how to retrieve a field of a single record
-const Column = union(enum) {
-    /// standard represents a normal Column, present in the `Table.columns`
-    /// under the provided index. Custom conversions may apply.
-    standard: usize,
-
-    /// extra represents an extra Column, present in `extra_fields_json`
-    /// under the provided key. Used only if `Table.has_extra_fields_json` is set.
-    extra: []const u8,
-
-    /// none represents a Column which can't be found in an SQL record.
-    /// Used only if `Table.has_extra_fields_json` is not set.
-    none,
-};
-
 /// TableSaver saves GTFS data from a given SQL table to a writer.
 fn TableSaver(comptime table: Table, comptime io_writer: type) type {
-    const ColumnsBuffer = std.BoundedArray(Column, 32);
+    const ColumnsBuffer = std.BoundedArray(ColumnMapping, 32);
     const column_by_gtfs_name = comptime table.gtfsColumnNamesToIndices();
     const is_calendars = comptime std.mem.eql(u8, table.sql_name, "calendars");
 
@@ -134,8 +120,8 @@ fn TableSaver(comptime table: Table, comptime io_writer: type) type {
         /// writer writes CSV data to a buffered fs.File
         writer: csv.Writer(io_writer),
 
-        /// extra_fields_columns is an index of the extra_fields_column in the SELECT statement,
-        /// if required and present.
+        /// extra_fields_columns is an index of the extra_fields_json column in the SELECT
+        /// statement, if required and present.
         extra_fields_column: ?c_int = null,
 
         /// init creates a TableServer writing GTFS data from a provided database
@@ -145,12 +131,12 @@ fn TableSaver(comptime table: Table, comptime io_writer: type) type {
             var loads_extra_fields = false;
             for (header) |gtfs_column_name| {
                 if (column_by_gtfs_name.get(span(gtfs_column_name))) |column_idx| {
-                    try columns.append(Column{ .standard = column_idx });
+                    try columns.append(.{ .standard = column_idx });
                 } else if (table.has_extra_fields_json) {
                     loads_extra_fields = true;
-                    try columns.append(Column{ .extra = span(gtfs_column_name) });
+                    try columns.append(.{ .extra = span(gtfs_column_name) });
                 } else {
-                    try columns.append(Column{ .none = {} });
+                    try columns.append(.{ .none = {} });
                 }
             }
 

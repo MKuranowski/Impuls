@@ -14,9 +14,10 @@ pub export fn load_gtfs(
     log_handler: LogHandler,
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
+    extra_fields: bool,
 ) c_int {
     const logger = logging.Logger{ .handler = log_handler };
-    gtfs.load(logger, db_path, gtfs_dir_path) catch |err| {
+    gtfs.load(logger, db_path, gtfs_dir_path, extra_fields) catch |err| {
         if (@errorReturnTrace()) |trace| {
             logger.err("gtfs.load: {}\nStack trace: {}", .{ err, trace });
         } else {
