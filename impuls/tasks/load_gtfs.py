@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from tempfile import TemporaryDirectory
+from typing import Sequence
 from zipfile import ZipFile
 
 from .. import extern
@@ -42,15 +43,25 @@ class LoadGTFS(Task):
     are processed. Default (``False``) is to ignore them. If set to ``True``, extra columns
     will be encoded to a string-to-string JSON object and placed in the ``extra_fields_json``
     column, if that is available.
+
+    ``extra_files`` is a list of extra files to be loaded using the generic
+    :py:class:`~impuls.model.ExtraTableRow` schema.
     """
 
     resource: str
     extra_fields: bool
+    extra_files: Sequence[str]
 
-    def __init__(self, resource: str, extra_fields: bool = False) -> None:
+    def __init__(
+        self,
+        resource: str,
+        extra_fields: bool = False,
+        extra_files: Sequence[str] | None = None,
+    ) -> None:
         super().__init__()
         self.resource = resource
         self.extra_fields = extra_fields
+        self.extra_files = extra_files or []
 
     def execute(self, r: TaskRuntime) -> None:
         gtfs_path = r.resources[self.resource].stored_at
@@ -60,12 +71,14 @@ class LoadGTFS(Task):
 
             self.logger.info("Loading %s", self.resource)
             with r.db.released() as db_path:
-                extern.load_gtfs(db_path, gtfs_dir, self.extra_fields)
+                extern.load_gtfs(db_path, gtfs_dir, self.extra_fields, self.extra_files)
 
     def extract_gtfs_to(self, zip_path: StrPath, dir_path: StrPath) -> None:
+        allowed_files = ALLOWED_FILES.union(self.extra_files)
+
         with ZipFile(zip_path, mode="r") as zip:
             for zip_file in zip.infolist():
-                if zip_file.filename not in ALLOWED_FILES:
+                if zip_file.filename not in allowed_files:
                     continue
 
                 self.logger.debug("Extracting %s", zip_file.filename)

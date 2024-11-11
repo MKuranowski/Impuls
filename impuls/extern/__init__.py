@@ -5,7 +5,7 @@ import ctypes
 import logging
 import os
 import sys
-from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_int
+from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_int, c_uint
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -59,19 +59,30 @@ def _log_handler(level: int, msg: bytes) -> None:
     logger.log(level, msg.decode("utf-8"))
 
 
-lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, c_bool]
+lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, c_bool, c_char_p_p, c_uint]
 lib.load_gtfs.restype = c_int
 
 lib.save_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
 lib.save_gtfs.restype = c_int
 
 
-def load_gtfs(db_path: StrPath, gtfs_dir_path: StrPath, extra_fields: bool = False) -> None:
+def load_gtfs(
+    db_path: StrPath,
+    gtfs_dir_path: StrPath,
+    extra_fields: bool = False,
+    extra_files: Sequence[str] = [],
+) -> None:
+    extra_files_encoded = (c_char_p * len(extra_files))()
+    for i, extra_file in enumerate(extra_files):
+        extra_files_encoded[i] = extra_file.encode("utf-8")
+
     status: int = lib.load_gtfs(
         _log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
         extra_fields,
+        extra_files_encoded,
+        len(extra_files),
     )
     if status:
         raise RuntimeError(f"extern load_gtfs failed with {status}")
