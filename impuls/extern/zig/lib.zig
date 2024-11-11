@@ -15,9 +15,12 @@ pub export fn load_gtfs(
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
     extra_fields: bool,
+    extra_files_ptr: [*]const [*:0]const u8,
+    extra_files_len: c_uint,
 ) c_int {
     const logger = logging.Logger{ .handler = log_handler };
-    gtfs.load(logger, db_path, gtfs_dir_path, extra_fields) catch |err| {
+    const extra_files = extra_files_ptr[0..extra_files_len];
+    gtfs.load(logger, db_path, gtfs_dir_path, extra_fields, extra_files) catch |err| {
         if (@errorReturnTrace()) |trace| {
             logger.err("gtfs.load: {}\nStack trace: {}", .{ err, trace });
         } else {

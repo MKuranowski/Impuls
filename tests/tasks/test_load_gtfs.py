@@ -8,6 +8,7 @@ from impuls.model import (
     Calendar,
     CalendarException,
     Date,
+    ExtraTableRow,
     FareAttribute,
     Route,
     ShapePoint,
@@ -33,6 +34,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
         "wkd-missing-routes.zip": LocalResource(FIXTURES / "wkd-missing-routes.zip"),
         "wkd-no-agency-id.zip": LocalResource(FIXTURES / "wkd-no-agency-id.zip"),
         "wkd-extra-fields.zip": LocalResource(FIXTURES / "wkd-extra-fields.zip"),
+        "wkd-extra-files.zip": LocalResource(FIXTURES / "wkd-extra-files.zip"),
     }
 
     def test(self) -> None:
@@ -148,3 +150,97 @@ class TestLoadGTFS(AbstractTestTask.Template):
         route = routes[2]
         self.assertEqual(route.id, "ZA12")
         self.assertDictEqual(route.get_extra_fields(), {"route_is_temporary": "1"})
+
+    def test_extra_files_empty(self) -> None:
+        t = LoadGTFS("wkd-extra-files.zip")
+        t.execute(self.runtime)
+        self.assertEqual(self.runtime.db.count(ExtraTableRow), 0)
+
+    def test_extra_files(self) -> None:
+        t = LoadGTFS("wkd-extra-files.zip", extra_files=["counties.txt", "municipalities.txt"])
+        t.execute(self.runtime)
+
+        rows = list(self.runtime.db.retrieve_all(ExtraTableRow))
+        rows.sort(key=lambda r: (r.table_name, r.row_sort_order))
+
+        self.assertEqual(len(rows), 10)
+
+        row = rows[0]
+        self.assertEqual(row.table_name, "counties.txt")
+        self.assertEqual(row.row_sort_order, 0)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"county_id": "0", "county_name": "m. st. Warszawa"},
+        )
+
+        row = rows[1]
+        self.assertEqual(row.table_name, "counties.txt")
+        self.assertEqual(row.row_sort_order, 1)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"county_id": "1", "county_name": "pruszkowski"},
+        )
+
+        row = rows[2]
+        self.assertEqual(row.table_name, "counties.txt")
+        self.assertEqual(row.row_sort_order, 2)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"county_id": "2", "county_name": "grodziski"},
+        )
+
+        row = rows[3]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 0)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "0", "municipality_name": "Warszawa"},
+        )
+
+        row = rows[4]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 1)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "1", "municipality_name": "Michałowice"},
+        )
+
+        row = rows[5]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 2)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "2", "municipality_name": "Pruszków"},
+        )
+
+        row = rows[6]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 3)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "3", "municipality_name": "Brwinów"},
+        )
+
+        row = rows[7]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 4)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "4", "municipality_name": "Podkowa Leśna"},
+        )
+
+        row = rows[8]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 5)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "5", "municipality_name": "Milanówek"},
+        )
+
+        row = rows[9]
+        self.assertEqual(row.table_name, "municipalities.txt")
+        self.assertEqual(row.row_sort_order, 6)
+        self.assertDictEqual(
+            row.get_fields(),
+            {"municipality_id": "6", "municipality_name": "Grodzisk Mazowiecki"},
+        )
