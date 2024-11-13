@@ -68,10 +68,14 @@ def _log_handler(level: int, msg: bytes) -> None:
     logger.log(level, msg.decode("utf-8"))
 
 
-lib.load_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, c_bool, c_char_p_p, c_uint]
+lib.set_log_handler.argtypes = [_LogHandler]
+lib.set_log_handler.restype = None
+lib.set_log_handler(_log_handler)
+
+lib.load_gtfs.argtypes = [c_char_p, c_char_p, c_bool, c_char_p_p, c_uint]
 lib.load_gtfs.restype = c_int
 
-lib.save_gtfs.argtypes = [_LogHandler, c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
+lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
 lib.save_gtfs.restype = c_int
 
 
@@ -86,7 +90,6 @@ def load_gtfs(
         extra_files_encoded[i] = extra_file.encode("utf-8")
 
     status: int = lib.load_gtfs(
-        _log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
         extra_fields,
@@ -121,7 +124,6 @@ def save_gtfs(
         extern_headers.extra_files_len = len(extra_files)
 
     status: int = lib.save_gtfs(
-        _log_handler,
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
         ctypes.byref(extern_headers),

@@ -3,7 +3,6 @@
 
 const c = @import("./conversion.zig");
 const csv = @import("../csv.zig");
-const logging = @import("../logging.zig");
 const std = @import("std");
 const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
@@ -13,7 +12,6 @@ const Atomic = std.atomic.Value;
 const ColumnMapping = t.ColumnMapping;
 const ColumnValue = c.ColumnValue;
 const fs = std.fs;
-const Logger = logging.Logger;
 const StringHashMapUnmanaged = std.StringArrayHashMapUnmanaged;
 const span = std.mem.span;
 const Table = t.Table;
@@ -62,7 +60,6 @@ pub const Headers = extern struct {
 };
 
 pub fn save(
-    logger: Logger,
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
     headers: *Headers,
@@ -94,7 +91,6 @@ pub fn save(
                 .{},
                 TableSaverFile(table).saveInThread,
                 .{
-                    logger,
                     gtfs_dir,
                     db_path,
                     header,
@@ -114,7 +110,6 @@ pub fn save(
             .{},
             saveExtraTableInThread,
             .{
-                logger,
                 gtfs_dir,
                 db_path,
                 extra_file.file_name,
@@ -283,7 +278,6 @@ fn TableSaver(comptime table: Table, comptime io_writer: type) type {
         /// and sets the failure flag. If save succeedes, failure is left as-is. wg.finish() is
         /// always called on exit.
         fn saveInThread(
-            logger: Logger,
             gtfs_dir: fs.Dir,
             db_path: [*:0]const u8,
             header: c_char_p_p,
@@ -299,16 +293,16 @@ fn TableSaver(comptime table: Table, comptime io_writer: type) type {
                 failure.store(true, .release);
 
                 if (@errorReturnTrace()) |trace| {
-                    logger.err(
+                    std.log.err(
                         "gtfs.save: {s}: {}\nStack trace: {}",
                         .{ table.gtfs_name, err, trace },
                     );
                 } else {
-                    logger.err("gtfs.save: {s}: {}", .{ table.gtfs_name, err });
+                    std.log.err("gtfs.save: {s}: {}", .{ table.gtfs_name, err });
                 }
                 return;
             };
-            logger.debug("Saving " ++ table.gtfs_name ++ " completed", .{});
+            std.log.debug("Saving " ++ table.gtfs_name ++ " completed", .{});
         }
     };
 }
@@ -438,7 +432,6 @@ fn ExtraTableSaver(comptime io_writer: type) type {
 }
 
 fn saveExtraTable(
-    logger: Logger,
     allocator: Allocator,
     gtfs_dir: fs.Dir,
     db_path: [*:0]const u8,
@@ -466,11 +459,10 @@ fn saveExtraTable(
     defer saver.deinit();
     try saver.writeAll();
     try buffer.flush();
-    logger.debug("Saving {s} completed", .{file_name});
+    std.log.debug("Saving {s} completed", .{file_name});
 }
 
 fn saveExtraTableInThread(
-    logger: Logger,
     gtfs_dir: fs.Dir,
     db_path: [*:0]const u8,
     file_name: [*:0]const u8,
@@ -484,7 +476,6 @@ fn saveExtraTableInThread(
     defer wg.finish();
 
     saveExtraTable(
-        logger,
         gpa.allocator(),
         gtfs_dir,
         db_path,
@@ -494,12 +485,12 @@ fn saveExtraTableInThread(
         failure.store(true, .release);
 
         if (@errorReturnTrace()) |trace| {
-            logger.err(
+            std.log.err(
                 "gtfs.save: {s}: {}\nStack trace: {}",
                 .{ file_name, err, trace },
             );
         } else {
-            logger.err("gtfs.save: {s}: {}", .{ file_name, err });
+            std.log.err("gtfs.save: {s}: {}", .{ file_name, err });
         }
         return;
     };

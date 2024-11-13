@@ -3,89 +3,38 @@
 
 const std = @import("std");
 
-pub const Level = struct {
-    pub const NOTSET = 0;
-    pub const DEBUG = 10;
-    pub const INFO = 20;
-    pub const WARNING = 30;
-    pub const ERROR = 40;
-    pub const CRITICAL = 50;
-
-    pub fn describe(level: c_int) []const u8 {
-        if (level >= 50) {
-            return "CRITICAL";
-        } else if (level >= 40) {
-            return "ERROR";
-        } else if (level >= 30) {
-            return "WARNING";
-        } else if (level >= 20) {
-            return "INFO";
-        } else if (level >= 10) {
-            return "DEBUG";
-        }
-        return "not set";
-    }
-};
-
 pub const Handler = *const fn (c_int, [*:0]const u8) callconv(.C) void;
+pub var custom_handler: ?Handler = null;
 
-pub const Logger = struct {
-    handler: Handler,
+pub fn logWithCustomHandler(
+    comptime message_level: std.log.Level,
+    comptime scope: @Type(.EnumLiteral),
+    comptime format: []const u8,
+    args: anytype,
+) void {
+    if (!std.log.logEnabled(message_level, scope)) return;
 
-    pub fn log(self: Logger, level: c_int, comptime fmt: [:0]const u8, args: anytype) void {
-        if (args.len == 0) {
-            self.handler(level, fmt);
-        } else {
-            var buf: [8192]u8 = undefined;
-            const msg = std.fmt.bufPrintZ(&buf, fmt, args) catch |e| blk: {
-                switch (e) {
-                    error.NoSpaceLeft => {
-                        buf[buf.len - 1] = 0;
-                        break :blk buf[0 .. buf.len - 1 :0];
-                    },
-                }
-            };
-            self.handler(level, msg);
-        }
+    if (custom_handler) |handler| {
+        var buf: [8192]u8 = undefined;
+        const msg: [:0]u8 = std.fmt.bufPrintZ(&buf, format, args) catch |err| blk: {
+            switch (err) {
+                error.NoSpaceLeft => {
+                    buf[buf.len - 1] = 0;
+                    break :blk buf[0 .. buf.len - 1 :0];
+                },
+            }
+        };
+        handler(convertLevelToPython(message_level), msg);
+    } else {
+        std.log.defaultLog(message_level, scope, format, args);
     }
-
-    pub inline fn debug(self: Logger, comptime fmt: [:0]const u8, args: anytype) void {
-        self.log(Level.DEBUG, fmt, args);
-    }
-
-    pub inline fn info(self: Logger, comptime fmt: [:0]const u8, args: anytype) void {
-        self.log(Level.INFO, fmt, args);
-    }
-
-    pub inline fn warn(self: Logger, comptime fmt: [:0]const u8, args: anytype) void {
-        self.log(Level.WARNING, fmt, args);
-    }
-
-    pub inline fn err(self: Logger, comptime fmt: [:0]const u8, args: anytype) void {
-        self.log(Level.ERROR, fmt, args);
-    }
-
-    pub inline fn critical(self: Logger, comptime fmt: [:0]const u8, args: anytype) void {
-        self.log(Level.CRITICAL, fmt, args);
-    }
-};
-
-pub fn stderr_handler(level: c_int, msg: [*:0]const u8) callconv(.C) void {
-    const now_sec = std.time.epoch.EpochSeconds{ .secs = @intCast(std.time.timestamp()) };
-    const time = now_sec.getDaySeconds();
-    const date = now_sec.getEpochDay().calculateYearDay();
-    const month_day = date.calculateMonthDay();
-
-    std.debug.print("{d:04}-{d:02}-{d:02}T{d:02}:{d:02}:{d:02} {s} {s}\n", .{
-        date.year,
-        month_day.month.numeric(),
-        month_day.day_index,
-        time.getHoursIntoDay(),
-        time.getMinutesIntoHour(),
-        time.getSecondsIntoMinute(),
-        Level.describe(level),
-        msg,
-    });
 }
 
-pub const StderrLogger = Logger{ .handler = stderr_handler };
+fn convertLevelToPython(level: std.log.Level) c_int {
+    return switch (level) {
+        .debug => 10,
+        .info => 20,
+        .warn => 30,
+        .err => 40,
+    };
+}
