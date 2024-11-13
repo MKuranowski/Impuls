@@ -3,7 +3,6 @@
 
 const c = @import("./conversion.zig");
 const csv = @import("../csv.zig");
-const logging = @import("../logging.zig");
 const std = @import("std");
 const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
@@ -13,12 +12,10 @@ const ColumnMapping = t.ColumnMapping;
 const ColumnValue = @import("./conversion.zig").ColumnValue;
 const fs = std.fs;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
-const Logger = logging.Logger;
 const Table = t.Table;
 const tables = t.tables;
 
 pub fn load(
-    logger: Logger,
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
     extra_fields: bool,
@@ -37,7 +34,6 @@ pub fn load(
 
     inline for (tables) |table| {
         try loadTable(
-            logger,
             db,
             gtfs_dir,
             allocator,
@@ -48,7 +44,6 @@ pub fn load(
 
     for (extra_files) |extra_file| {
         try loadExtraTable(
-            logger,
             db,
             gtfs_dir,
             allocator,
@@ -58,7 +53,6 @@ pub fn load(
 }
 
 fn loadTable(
-    logger: Logger,
     db: sqlite3.Connection,
     gtfs_dir: fs.Dir,
     allocator: Allocator,
@@ -68,7 +62,7 @@ fn loadTable(
     var file = gtfs_dir.openFileZ(table.gtfs_name, .{}) catch |err| {
         if (err == error.FileNotFound) {
             if (table.required) {
-                logger.err("Missing required table " ++ table.gtfs_name, .{});
+                std.log.err("Missing required table " ++ table.gtfs_name, .{});
                 return err;
             } else {
                 return {};
@@ -77,11 +71,10 @@ fn loadTable(
         return err;
     };
     var buffer = std.io.bufferedReaderSize(8192, file.reader());
-    logger.debug("Loading " ++ table.gtfs_name, .{});
+    std.log.debug("Loading " ++ table.gtfs_name, .{});
 
     const Loader = comptime TableLoader(table, @TypeOf(buffer).Reader);
     var loader = try Loader.init(
-        logger,
         db,
         buffer.reader(),
         allocator,
@@ -103,9 +96,6 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
 
     return struct {
         const Self = @This();
-
-        /// logger is used to report on any issues and progress on table loading.
-        logger: Logger,
 
         /// reader reads data from the provided GTFS file.
         reader: csv.Reader(ReaderType),
@@ -138,7 +128,6 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// init creates a TableLoader for a given DB connection and CSV file.
         /// Necessary INSERT statements are compiled.
         fn init(
-            logger: Logger,
             db: sqlite3.Connection,
             reader: ReaderType,
             allocator: Allocator,
@@ -158,7 +147,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             else
                 comptime "INSERT INTO " ++ table.sql_name ++ " (" ++ column_names ++ ") VALUES (" ++ placeholders ++ ")";
             var insert = db.prepare(insert_sql) catch |err| {
-                logger.err(
+                std.log.err(
                     "{s}: failed to compile INSERT INTO: {s}",
                     .{ table.gtfs_name, db.errMsg() },
                 );
@@ -170,7 +159,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 const parent_insert = db.prepare(
                     "INSERT OR IGNORE INTO " ++ table.parent_implication.?.sql_table ++ " (" ++ table.parent_implication.?.sql_key ++ ") VALUES (?)",
                 ) catch |err| {
-                    logger.err(
+                    std.log.err(
                         "{s}: failed to compile INSERT OR IGNORE INTO: {s}",
                         .{ table.gtfs_name, db.errMsg() },
                     );
@@ -178,7 +167,6 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 };
 
                 return Self{
-                    .logger = logger,
                     .reader = csv_reader,
                     .record = csv_record,
                     .header_record = csv_header_record,
@@ -189,7 +177,6 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 };
             } else {
                 return Self{
-                    .logger = logger,
                     .reader = csv_reader,
                     .record = csv_record,
                     .header_record = csv_header_record,
@@ -244,7 +231,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             }
 
             if (has_pi and !has_pi_gtfs_column) {
-                self.logger.err(
+                std.log.err(
                     "{s}:{d}: missing required column: {s}",
                     .{ table.gtfs_name, self.record.line_no, table.parent_implication.?.gtfs_key },
                 );
@@ -271,7 +258,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// current record is different than the number of fields inside of the header.
         fn ensureRecordHasEnoughColumns(self: Self) !void {
             if (self.record.len() != self.header_record.len()) {
-                self.logger.err(
+                std.log.err(
                     "{s}:{d}: expected {d} columns, got {d}",
                     .{ table.gtfs_name, self.record.line_no, self.header_record.len(), self.record.len() },
                 );
@@ -287,7 +274,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
             try self.parent_insert.reset();
             try self.parent_insert.bind(1, key);
             self.parent_insert.stepUntilDone() catch |err| {
-                self.logger.err(
+                std.log.err(
                     "{s}:{d}: {}: {s}",
                     .{ table.gtfs_name, self.record.line_no, err, self.parent_insert.errMsg() },
                 );
@@ -330,7 +317,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
                 const gtfs_idx = sql_to_gtfs_idx[sql_idx];
                 const gtfs_value: []const u8 = if (gtfs_idx) |i| self.record.get(i) else "";
                 arguments.standard[sql_idx] = col.from_gtfs(gtfs_value, self.record.line_no) catch |err| {
-                    self.logger.err(
+                    std.log.err(
                         "{s}:{d}:{s}: {}",
                         .{ table.gtfs_name, self.record.line_no, col.gtfsName(), err },
                     );
@@ -345,7 +332,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// on any issues, a more human-readable, detailed message is logged.
         fn executeInsert(self: Self) !void {
             self.insert.stepUntilDone() catch |err| {
-                self.logger.err(
+                std.log.err(
                     "{s}:{d}: {}: {s}",
                     .{ table.gtfs_name, self.record.line_no, err, self.insert.errMsg() },
                 );
@@ -415,7 +402,6 @@ fn InsertArguments(comptime table_columns: usize) type {
 }
 
 fn loadExtraTable(
-    logger: Logger,
     db: sqlite3.Connection,
     gtfs_dir: fs.Dir,
     allocator: Allocator,
@@ -423,16 +409,15 @@ fn loadExtraTable(
 ) !void {
     var file = gtfs_dir.openFileZ(extra_file, .{}) catch |err| {
         if (err == error.FileNotFound) {
-            logger.warn("Missing extra file: {s}", .{extra_file});
+            std.log.warn("Missing extra file: {s}", .{extra_file});
             return;
         }
         return err;
     };
     var buffer = std.io.bufferedReaderSize(8192, file.reader());
-    logger.debug("Loading {s}", .{extra_file});
+    std.log.debug("Loading {s}", .{extra_file});
 
     var loader = try ExtraTableLoader(@TypeOf(buffer).Reader).init(
-        logger,
         db,
         buffer.reader(),
         std.mem.span(extra_file),
@@ -449,9 +434,6 @@ fn loadExtraTable(
 fn ExtraTableLoader(comptime ReaderType: anytype) type {
     return struct {
         const Self = @This();
-
-        /// logger is used to report on any issues and progress on table loading.
-        logger: Logger,
 
         /// reader reads data from the provided GTFS file.
         reader: csv.Reader(ReaderType),
@@ -478,14 +460,12 @@ fn ExtraTableLoader(comptime ReaderType: anytype) type {
         /// init creates an ExtraTableLoader for a given DB connection and CSV file.
         /// The necessary INSERT statement is compiled.
         inline fn init(
-            logger: Logger,
             db: sqlite3.Connection,
             reader: ReaderType,
             table_name: [:0]const u8,
             allocator: Allocator,
         ) !Self {
             return .{
-                .logger = logger,
                 .reader = csv.reader(reader),
                 .record = csv.Record.init(allocator),
                 .record_map_json = std.ArrayList(u8).init(allocator),
@@ -546,7 +526,7 @@ fn ExtraTableLoader(comptime ReaderType: anytype) type {
         /// current record is different than the number of fields inside of the header.
         fn ensureRecordHasEnoughColumns(self: Self) !void {
             if (self.record.len() != self.header.len()) {
-                self.logger.err(
+                std.log.err(
                     "{s}:{d}: expected {d} columns, got {d}",
                     .{ self.table_name, self.record.line_no, self.header.len(), self.record.len() },
                 );
@@ -606,7 +586,6 @@ test "gtfs.load.simple" {
 
     const Loader = TableLoader(table, @TypeOf(reader));
     var loader = try Loader.init(
-        logging.StderrLogger,
         db,
         reader,
         std.testing.allocator,
@@ -680,7 +659,7 @@ test "gtfs.load.with_parent_implication" {
     };
 
     const Loader = TableLoader(table, @TypeOf(reader));
-    var loader = try Loader.init(logging.StderrLogger, db, reader, std.testing.allocator, false);
+    var loader = try Loader.init(db, reader, std.testing.allocator, false);
     defer loader.deinit();
 
     try db.exec("BEGIN");
@@ -766,7 +745,6 @@ test "gtfs.load.extra" {
     const reader = fbs.reader();
 
     var loader = try ExtraTableLoader(@TypeOf(reader)).init(
-        logging.StderrLogger,
         db,
         reader,
         "foo.txt",
