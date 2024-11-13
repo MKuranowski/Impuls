@@ -1,6 +1,7 @@
 // © Copyright 2022-2024 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+const builtin = @import("builtin");
 const c = @import("./conversion.zig");
 const csv = @import("../csv.zig");
 const std = @import("std");
@@ -65,9 +66,9 @@ pub fn save(
     headers: *Headers,
     emit_empty_calendars: bool,
 ) !void {
-    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
@@ -285,11 +286,18 @@ fn TableSaver(comptime table: Table, comptime io_writer: type) type {
             wg: *Thread.WaitGroup,
             failure: *Atomic(bool),
         ) void {
-            var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-            defer _ = gpa.deinit();
+            var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+            defer std.debug.assert(gpa.deinit() == .ok);
+            const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
             defer wg.finish();
-            Self.save(gpa.allocator(), gtfs_dir, db_path, header, emit_empty_calendars) catch |err| {
+            Self.save(
+                allocator,
+                gtfs_dir,
+                db_path,
+                header,
+                emit_empty_calendars,
+            ) catch |err| {
                 failure.store(true, .release);
 
                 if (@errorReturnTrace()) |trace| {
@@ -470,13 +478,14 @@ fn saveExtraTableInThread(
     wg: *Thread.WaitGroup,
     failure: *Atomic(bool),
 ) void {
-    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    defer _ = gpa.deinit();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
     defer wg.finish();
 
     saveExtraTable(
-        gpa.allocator(),
+        allocator,
         gtfs_dir,
         db_path,
         file_name,
