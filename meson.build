@@ -123,13 +123,13 @@ custom_target(
     'libextern',
     input: [
         # The following inputs are actually passed to zig build-lib
-        'impuls/extern/zig/lib.zig',
+        'impuls/extern/zig/root.zig',
         'impuls/extern/vendor/sqlite3.c',
         # The rest only serve as a trigger for meson to rebuild the library
         'impuls/extern/zig/gtfs/conversion.zig',
         'impuls/extern/zig/gtfs/conversion_from_gtfs.zig',
         'impuls/extern/zig/gtfs/conversion_to_gtfs.zig',
-        'impuls/extern/zig/gtfs/lib.zig',
+        'impuls/extern/zig/gtfs/root.zig',
         'impuls/extern/zig/gtfs/load.zig',
         'impuls/extern/zig/gtfs/save.zig',
         'impuls/extern/zig/gtfs/table.zig',
@@ -161,7 +161,7 @@ test(
         'test',
         zig_compile_args,
         files(
-            'impuls/extern/zig/lib.zig',
+            'impuls/extern/zig/root.zig',
             'impuls/extern/vendor/sqlite3.c',
         ),
     ],

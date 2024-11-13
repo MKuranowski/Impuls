@@ -3,7 +3,7 @@
 
 const std = @import("std");
 
-const gtfs = @import("./gtfs/lib.zig");
+const gtfs = @import("./gtfs/root.zig");
 const logging = @import("./logging.zig");
 
 pub const std_options = .{
