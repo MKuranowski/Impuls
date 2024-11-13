@@ -1,6 +1,7 @@
 // © Copyright 2022-2024 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+const builtin = @import("builtin");
 const c = @import("./conversion.zig");
 const csv = @import("../csv.zig");
 const std = @import("std");
@@ -11,7 +12,6 @@ const Allocator = std.mem.Allocator;
 const ColumnMapping = t.ColumnMapping;
 const ColumnValue = @import("./conversion.zig").ColumnValue;
 const fs = std.fs;
-const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const Table = t.Table;
 const tables = t.tables;
 
@@ -28,9 +28,9 @@ pub fn load(
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
-    var gpa = GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
 
     inline for (tables) |table| {
         try loadTable(
