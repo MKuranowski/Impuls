@@ -34,6 +34,11 @@ pub const c_char_p = [*:0]const u8;
 /// Non-null pointer to a null-terminated vector of c_strings, aka `char const* const*`.
 pub const c_char_p_p = [*:null]const ?c_char_p;
 
+pub const ExtraFile = extern struct {
+    file_name: c_char_p,
+    fields: c_char_p_p,
+};
+
 /// Headers represents the requested fields to save when exporting GTFS data.
 pub const Headers = extern struct {
     agency: ?c_char_p_p = null,
@@ -51,6 +56,9 @@ pub const Headers = extern struct {
     fare_attributes: ?c_char_p_p = null,
     fare_rules: ?c_char_p_p = null,
     translations: ?c_char_p_p = null,
+
+    extra_files: ?[*]const ExtraFile = null,
+    extra_files_len: c_uint = 0,
 };
 
 pub fn save(
@@ -60,26 +68,29 @@ pub fn save(
     headers: *Headers,
     emit_empty_calendars: bool,
 ) !void {
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
-    var threads: [tables.len]?Thread = [_]?Thread{null} ** tables.len;
+    var threads: std.ArrayListUnmanaged(Thread) = .{};
     defer {
-        for (threads) |maybe_thread| {
-            if (maybe_thread) |thread| {
-                thread.join();
-            }
+        for (threads.items) |thread| {
+            thread.join();
         }
+        threads.deinit(allocator);
     }
 
     var wg = Thread.WaitGroup{};
     var failed = Atomic(bool).init(false);
 
-    inline for (tables, 0..) |table, i| {
+    inline for (tables) |table| {
         const maybe_header: ?c_char_p_p = @field(headers, table.gtfsNameWithoutExtension());
         if (maybe_header) |header| {
             wg.start();
-            threads[i] = try Thread.spawn(
+            const thread = try Thread.spawn(
                 .{},
                 TableSaverFile(table).saveInThread,
                 .{
@@ -92,7 +103,27 @@ pub fn save(
                     &failed,
                 },
             );
+            try threads.append(allocator, thread);
         }
+    }
+
+    const extra_files: []const ExtraFile = if (headers.extra_files) |ptr| ptr[0..headers.extra_files_len] else &.{};
+    for (extra_files) |extra_file| {
+        wg.start();
+        const thread = try Thread.spawn(
+            .{},
+            saveExtraTableInThread,
+            .{
+                logger,
+                gtfs_dir,
+                db_path,
+                extra_file.file_name,
+                extra_file.fields,
+                &wg,
+                &failed,
+            },
+        );
+        try threads.append(allocator, thread);
     }
 
     wg.wait();
@@ -317,6 +348,163 @@ const OwnedExtraFields = struct {
     }
 };
 
+fn ExtraTableSaver(comptime io_writer: type) type {
+    return struct {
+        const Self = @This();
+
+        allocator: Allocator,
+
+        /// select is a compiled SQL "SELECT ... FROM extra_table_rows" statement
+        select: sqlite3.Statement,
+
+        /// writer writes CSV data to a buffered fs.File
+        writer: csv.Writer(io_writer),
+
+        /// header contains the field to export.
+        header: []const [:0]const u8,
+
+        /// file_name contains the name of the extra file to export.
+        file_name: [*:0]const u8,
+
+        inline fn init(
+            db: sqlite3.Connection,
+            writer: io_writer,
+            file_name: [*:0]const u8,
+            header: c_char_p_p,
+            allocator: Allocator,
+        ) !Self {
+            const header_slice = try ownedSliceOverCStrings(header, allocator);
+            errdefer allocator.free(header_slice);
+
+            var select = try db.prepare(
+                \\ SELECT fields_json FROM extra_table_rows
+                \\ WHERE table_name = ?
+                \\ ORDER BY row_sort_order ASC
+            );
+            errdefer select.deinit();
+
+            return .{
+                .allocator = allocator,
+                .select = select,
+                .writer = csv.writer(writer),
+                .header = header_slice,
+                .file_name = file_name,
+            };
+        }
+
+        fn deinit(self: *Self) void {
+            self.allocator.free(self.header);
+            self.select.deinit();
+        }
+
+        fn writeAll(self: *Self) !void {
+            try self.writeHeader();
+            try self.bindSelectArguments();
+            while (try self.select.step()) {
+                try self.writeRecord();
+            }
+            try self.select.clearBindings();
+        }
+
+        fn writeHeader(self: *Self) !void {
+            try self.writer.writeRecord(self.header);
+        }
+
+        fn bindSelectArguments(self: *Self) !void {
+            try self.select.bind(1, self.file_name);
+        }
+
+        fn writeRecord(self: *Self) !void {
+            var arena = std.heap.ArenaAllocator.init(self.allocator);
+            defer arena.deinit();
+
+            var fields_json: []const u8 = undefined;
+            self.select.column(0, &fields_json);
+
+            const fields = try std.json.parseFromSliceLeaky(
+                std.json.ArrayHashMap([]const u8),
+                arena.allocator(),
+                fields_json,
+                .{},
+            );
+
+            for (self.header) |field_name| {
+                const value = fields.map.get(field_name) orelse "";
+                try self.writer.writeField(value);
+            }
+            try self.writer.terminateRecord();
+        }
+    };
+}
+
+fn saveExtraTable(
+    logger: Logger,
+    allocator: Allocator,
+    gtfs_dir: fs.Dir,
+    db_path: [*:0]const u8,
+    file_name: [*:0]const u8,
+    header: c_char_p_p,
+) !void {
+    var db = try sqlite3.Connection.init(
+        db_path,
+        .{ .mode = .read_only, .threading_mode = .no_mutex },
+    );
+    defer db.deinit();
+
+    var file = try gtfs_dir.createFileZ(file_name, .{});
+    defer file.close();
+    var buffer = bufferedWriterSize(8192, file.writer());
+    const writer = buffer.writer();
+
+    var saver = try ExtraTableSaver(@TypeOf(writer)).init(
+        db,
+        writer,
+        file_name,
+        header,
+        allocator,
+    );
+    defer saver.deinit();
+    try saver.writeAll();
+    try buffer.flush();
+    logger.debug("Saving {s} completed", .{file_name});
+}
+
+fn saveExtraTableInThread(
+    logger: Logger,
+    gtfs_dir: fs.Dir,
+    db_path: [*:0]const u8,
+    file_name: [*:0]const u8,
+    header: c_char_p_p,
+    wg: *Thread.WaitGroup,
+    failure: *Atomic(bool),
+) void {
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    defer _ = gpa.deinit();
+
+    defer wg.finish();
+
+    saveExtraTable(
+        logger,
+        gpa.allocator(),
+        gtfs_dir,
+        db_path,
+        file_name,
+        header,
+    ) catch |err| {
+        failure.store(true, .release);
+
+        if (@errorReturnTrace()) |trace| {
+            logger.err(
+                "gtfs.save: {s}: {}\nStack trace: {}",
+                .{ file_name, err, trace },
+            );
+        } else {
+            logger.err("gtfs.save: {s}: {}", .{ file_name, err });
+        }
+        return;
+    };
+}
+
 /// bufferedWriterSize creates a std.io.BufferedWriter over the provided stream with a given
 /// size buffer.
 fn bufferedWriterSize(
@@ -331,6 +519,22 @@ fn bufferedWriterSize(
 /// This is in contrast to `std.mem.span`, which would return a slice of *optional* c_char_p.
 fn sliceOverCStrings(ptr: c_char_p_p) []const c_char_p {
     return @as([*]const c_char_p, @ptrCast(ptr))[0..std.mem.len(ptr)];
+}
+
+/// ownedSliceOverCStrings converts a c_char_p_p to a slice of slices.
+/// The returned slice must be later deallocated with `allocator.free`.
+///
+/// This is in constrast to `sliceOverCStrings`, which returns a slice of raw pointers.
+fn ownedSliceOverCStrings(ptr: c_char_p_p, allocator: Allocator) ![]const [:0]const u8 {
+    var slices: std.ArrayListUnmanaged([:0]const u8) = .{};
+    defer slices.deinit(allocator);
+
+    var i: usize = 0;
+    while (ptr[i] != null) : (i += 1) {
+        try slices.append(allocator, std.mem.span(ptr[i].?));
+    }
+
+    return try slices.toOwnedSlice(allocator);
 }
 
 /// isCalendarEmpty returns true if none of the weekdays of a calendar are set to zero.
@@ -426,6 +630,58 @@ test "gtfs.save.extra_fields" {
         ++ "0,Foo,https://example.com,UTC,en,foo@example.com\r\n"
         ++ "1,Bar,https://example.com,UTC,en,\r\n",
         // zig fmt: on
+        content,
+    );
+}
+
+test "gtfs.save.extra_files" {
+    var db = try sqlite3.Connection.init(":memory:", .{});
+    defer db.deinit();
+
+    try db.execMany(
+        \\ CREATE TABLE extra_table_rows (
+        \\    extra_table_row_id INTEGER PRIMARY KEY,
+        \\    table_name TEXT NOT NULL,
+        \\    fields_json TEXT NOT NULL DEFAULT '{}',
+        \\    row_sort_order INTEGER
+        \\ ) STRICT;
+        \\ CREATE INDEX idx_extra_table_rows_table_row ON extra_table_rows(table_name, row_sort_order);
+    );
+    try db.exec("BEGIN");
+    try db.exec(
+        \\ INSERT INTO extra_table_rows (table_name, fields_json, row_sort_order) VALUES
+        \\ ('foo.txt', '{"foo":"1","bar":"Hello","baz":"42"}', 0)
+    );
+    try db.exec(
+        \\ INSERT INTO extra_table_rows (table_name, fields_json, row_sort_order) VALUES
+        \\ ('foo.txt', '{"foo":"2","bar":"World","baz":""}', 1)
+    );
+    try db.exec(
+        \\ INSERT INTO extra_table_rows (table_name, fields_json, row_sort_order) VALUES
+        \\ ('bar.txt', '{"spam":"eggs"}', 0)
+    );
+    try db.exec("COMMIT");
+
+    const header: []const ?c_char_p = &.{ "foo", "bar", "spam", null };
+    const header_null_terminated: [:null]const ?c_char_p = header[0..3 :null];
+
+    var b: [8192]u8 = undefined;
+    var fbs = std.io.fixedBufferStream(&b);
+    const writer = fbs.writer();
+
+    var s = try ExtraTableSaver(@TypeOf(writer)).init(
+        db,
+        writer,
+        "foo.txt",
+        header_null_terminated.ptr,
+        std.testing.allocator,
+    );
+    defer s.deinit();
+    try s.writeAll();
+
+    const content = b[0..fbs.pos];
+    try std.testing.expectEqualStrings(
+        "foo,bar,spam\r\n1,Hello,\r\n2,World,\r\n",
         content,
     );
 }
