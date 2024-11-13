@@ -31,6 +31,13 @@ lib = ctypes.cdll.LoadLibrary(str(lib_path))
 # XXX: The declarations below must match zig/lib.zig
 
 
+class _ExtraFile(ctypes.Structure):
+    _fields_ = [
+        ("file_name", c_char_p),
+        ("fields", c_char_p_p),
+    ]
+
+
 class _GTFSHeaders(ctypes.Structure):
     _fields_ = [
         ("agency", c_char_p_p),
@@ -48,6 +55,8 @@ class _GTFSHeaders(ctypes.Structure):
         ("fare_attributes", c_char_p_p),
         ("fare_rules", c_char_p_p),
         ("translations", c_char_p_p),
+        ("extra_files", POINTER(_ExtraFile)),
+        ("extra_files_len", c_uint),
     ]
 
 
@@ -95,13 +104,21 @@ def save_gtfs(
     emit_empty_calendars: bool = False,
 ) -> None:
     extern_headers = _GTFSHeaders()
+    extra_files = list[_ExtraFile]()
     for file, header in headers.items():
         if not header:
             continue
         extern_header = (c_char_p * (len(header) + 1))()
         for i, field in enumerate(header):
             extern_header[i] = field.encode("utf-8")
-        setattr(extern_headers, file, extern_header)
+        if hasattr(extern_headers, file) and "extra_files" not in file:
+            setattr(extern_headers, file, extern_header)
+        else:
+            extra_files.append(_ExtraFile(file.encode("utf-8"), extern_header))
+
+    if extra_files:
+        extern_headers.extra_files = (_ExtraFile * len(extra_files))(*extra_files)
+        extern_headers.extra_files_len = len(extra_files)
 
     status: int = lib.save_gtfs(
         _log_handler,

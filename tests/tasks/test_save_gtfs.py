@@ -2,7 +2,7 @@ from io import TextIOWrapper
 from typing import IO, AnyStr
 from zipfile import ZipFile
 
-from impuls.model import Agency, Calendar, Date
+from impuls.model import Agency, Calendar, Date, ExtraTableRow
 from impuls.tasks import SaveGTFS
 from impuls.tools.testing_mocks import MockFile
 
@@ -248,6 +248,45 @@ class TestSaveGTFSWithExtraFields(AbstractTestTask.Template):
                     "0,Foo,UTC,https://foo.example.com,foo@example.com\r\n",
                     "1,Bar,UTC,https://bar.example.com,bar@example.com\r\n",
                     "2,Baz,UTC,https://baz.example.com,\r\n",
+                ],
+            )
+
+
+class TestSaveGTFSWithExtraFiles(AbstractTestTask.Template):
+    db_name = None
+
+    def test(self) -> None:
+        self.runtime.db.create_many(
+            ExtraTableRow,
+            (
+                ExtraTableRow(0, "foo.txt", r'{"foo":"1","bar":"Hello"}', 0),
+                ExtraTableRow(0, "foo.txt", r'{"foo":"2","bar":"World"}', 1),
+                ExtraTableRow(0, "foo.txt", r'{"foo":"3"}', 2),
+                ExtraTableRow(0, "bar.txt", r'{"spam":"eggs"}', 0),
+            ),
+        )
+
+        with MockFile() as gtfs_path:
+            t = SaveGTFS(
+                headers={
+                    "foo.txt": ("foo", "bar", "spam"),
+                },
+                target=gtfs_path,
+            )
+
+            t.execute(self.runtime)
+
+            with ZipFile(gtfs_path, mode="r") as gtfs:
+                with gtfs.open("foo.txt", "r") as f:
+                    content = TextIOWrapper(f, "utf-8", newline="").readlines()
+
+            self.assertListEqual(
+                content,
+                [
+                    "foo,bar,spam\r\n",
+                    "1,Hello,\r\n",
+                    "2,World,\r\n",
+                    "3,,\r\n",
                 ],
             )
 

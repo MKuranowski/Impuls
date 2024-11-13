@@ -44,8 +44,11 @@ class LoadGTFS(Task):
     will be encoded to a string-to-string JSON object and placed in the ``extra_fields_json``
     column, if that is available.
 
-    ``extra_files`` is a list of extra files to be loaded using the generic
-    :py:class:`~impuls.model.ExtraTableRow` schema.
+    ``extra_files`` is a list of extra files (including any extensions!) to be loaded using the
+    generic :py:class:`~impuls.model.ExtraTableRow` schema. Note that
+    :py:attr:`ExtraTableRow.table_name <impuls.model.ExtraTableRow.table_name>`
+    will be saved as provided in the ``extra_files`` list, that is including any filename
+    extensions.
     """
 
     resource: str

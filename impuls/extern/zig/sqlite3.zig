@@ -308,7 +308,7 @@ pub const Statement = struct {
                         c.SQLITE_STATIC,
                         c.SQLITE_UTF16,
                     ));
-                } else if (ptr.child == u8 and ptr.size == .Many and ptr.sentinel == 0) {
+                } else if (comptime is_ptr_to_null_terminated(ptr, u8)) {
                     // Pass [*:0]u8 as UTF-8 TEXT, letting sqlite find the sentinel null terminator
                     try check(c.sqlite3_bind_text(
                         self.handle,
@@ -317,7 +317,7 @@ pub const Statement = struct {
                         -1,
                         c.SQLITE_STATIC,
                     ));
-                } else if (ptr.child == u16 and ptr.size == .Many and ptr.sentinel == 0) {
+                } else if (comptime is_ptr_to_null_terminated(ptr, u16)) {
                     // Pass [*:0]u16 as UTF-16 TEXT,
                     // letting sqlite find the sentinel null terminator
                     try check(c.sqlite3_bind_text16(
@@ -327,7 +327,7 @@ pub const Statement = struct {
                         -1,
                         c.SQLITE_STATIC,
                     ));
-                } else if (is_ptr_to_array_of(ptr, u8)) |len| {
+                } else if (comptime is_ptr_to_array_of(ptr, u8)) |len| {
                     // Pass *[len]u8 as UTF-8 TEXT, with explicit size
                     try check(c.sqlite3_bind_text64(
                         self.handle,
@@ -337,7 +337,7 @@ pub const Statement = struct {
                         c.SQLITE_STATIC,
                         c.SQLITE_UTF8,
                     ));
-                } else if (is_ptr_to_array_of(ptr, u16)) |len| {
+                } else if (comptime is_ptr_to_array_of(ptr, u16)) |len| {
                     // Pass *[len]u16 as UTF-16 TEXT, with explicit size
                     try check(c.sqlite3_bind_text64(
                         self.handle,
@@ -818,10 +818,18 @@ test "sqlite.basic" {
     }
 }
 
-/// is_ptr_to_array_of return N if ptr represents `*[N]child` or null otherwise.
+/// is_ptr_to_array_of returns N if ptr represents `*[N]child` or null otherwise.
 fn is_ptr_to_array_of(comptime ptr: std.builtin.Type.Pointer, comptime child: type) ?comptime_int {
     return if (ptr.size == .One) switch (@typeInfo(ptr.child)) {
         .Array => |arr| if (arr.child == child) arr.len else null,
         else => null,
     } else null;
+}
+
+/// is_ptr_to_array_of returns true if ptr represents `[*:0]child`.
+///
+/// `comptime_int` must be able to be coerced into `child`, otherwise the null terminator check
+/// will fail to compile.
+fn is_ptr_to_null_terminated(comptime ptr: std.builtin.Type.Pointer, comptime child: type) bool {
+    return ptr.child == child and ptr.size == .Many and ptr.sentinel != null and @as(*const child, @ptrCast(ptr.sentinel.?)).* == 0;
 }

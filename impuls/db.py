@@ -293,7 +293,9 @@ class DBConnection:
     # Untyped SQL handling
 
     def raw_execute(
-        self, sql: str, parameters: Sequence[SQLNativeType] = ()
+        self,
+        sql: str,
+        parameters: Sequence[SQLNativeType] = (),
     ) -> UntypedQueryResult:
         """Executes a "raw" SQL query - no ORM substitutions are made in the query.
         The parameters and results are passed unchanged to/from the sqlite3 module.
@@ -421,7 +423,7 @@ class DBConnection:
 
     def create_many(self, typ: Type[EntityT], entities: Iterable[EntityT]) -> None:
         """Creates multiple entries in the database"""
-        self.typed_in_execute_many("INSERT INTO :table VALUES :vals", typ, entities)
+        self.typed_in_execute_many("INSERT INTO :table :cols VALUES :vals", typ, entities)
 
     def update(self, entity: Entity) -> None:
         """Updates the attributes of an entity in the database"""
