@@ -71,6 +71,15 @@ pub const Table = struct {
         return StaticStringMap(usize).initComptime(kvs);
     }
 
+    pub fn gtfsColumnNameToIndex(self: Table, column_name: []const u8) ?usize {
+        for (self.columns, 0..) |column, index| {
+            if (mem.eql(u8, column_name, column.gtfsName())) {
+                return index;
+            }
+        }
+        return null;
+    }
+
     /// gtfsNameWithoutExtension returns the GTFS name of the table without the ".txt" extension
     pub fn gtfsNameWithoutExtension(comptime self: Table) []const u8 {
         comptime {
