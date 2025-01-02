@@ -58,5 +58,6 @@ Table of Contents
 
     db_schema
     example
+    migration
     api/index
     license
