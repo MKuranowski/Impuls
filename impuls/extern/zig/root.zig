@@ -37,14 +37,14 @@ pub export fn load_gtfs(
     return 0;
 }
 
-pub const GTFSHeaders = gtfs.Headers;
-
 pub export fn save_gtfs(
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
-    headers: *GTFSHeaders,
+    headers_ptr: [*]gtfs.FileHeader,
+    headers_len: c_int,
     emit_empty_calendars: bool,
 ) c_int {
+    const headers = headers_ptr[0..@intCast(headers_len)];
     gtfs.save(db_path, gtfs_dir_path, headers, emit_empty_calendars) catch |err| {
         if (@errorReturnTrace()) |trace| {
             std.log.err("gtfs.save: {}\nStack trace: {}", .{ err, trace });

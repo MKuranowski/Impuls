@@ -16,8 +16,8 @@ class TestSaveGTFS(AbstractTestTask.Template):
         with MockFile() as gtfs_path:
             t = SaveGTFS(
                 headers={
-                    "agency": ("agency_id", "agency_name", "agency_timezone", "agency_url"),
-                    "calendar": (
+                    "agency.txt": ("agency_id", "agency_name", "agency_timezone", "agency_url"),
+                    "calendar.txt": (
                         "service_id",
                         "monday",
                         "tuesday",
@@ -29,22 +29,22 @@ class TestSaveGTFS(AbstractTestTask.Template):
                         "start_date",
                         "end_date",
                     ),
-                    "calendar_dates": ("service_id", "date", "exception_type"),
-                    "routes": (
+                    "calendar_dates.txt": ("service_id", "date", "exception_type"),
+                    "routes.txt": (
                         "route_id",
                         "agency_id",
                         "route_short_name",
                         "route_long_name",
                         "route_type",
                     ),
-                    "stops": (
+                    "stops.txt": (
                         "stop_id",
                         "stop_name",
                         "stop_lat",
                         "stop_lon",
                         "wheelchair_boarding",
                     ),
-                    "trips": (
+                    "trips.txt": (
                         "route_id",
                         "service_id",
                         "trip_id",
@@ -52,7 +52,7 @@ class TestSaveGTFS(AbstractTestTask.Template):
                         "trip_short_name",
                         "wheelchair_accessible",
                     ),
-                    "stop_times": (
+                    "stop_times.txt": (
                         "trip_id",
                         "stop_sequence",
                         "stop_id",
@@ -67,7 +67,7 @@ class TestSaveGTFS(AbstractTestTask.Template):
 
             with ZipFile(gtfs_path, mode="r") as gtfs:
                 header, record, count = header_first_record_and_record_count(gtfs, "agency.txt")
-                self.assertEqual(header, ",".join(t.headers["agency"]))
+                self.assertEqual(header, ",".join(t.headers["agency.txt"]))
                 self.assertEqual(
                     record,
                     "0,Warszawska Kolej Dojazdowa,Europe/Warsaw,http://www.wkd.com.pl/",
@@ -75,7 +75,7 @@ class TestSaveGTFS(AbstractTestTask.Template):
                 self.assertEqual(count, 1)
 
                 header, record, count = header_first_record_and_record_count(gtfs, "calendar.txt")
-                self.assertEqual(header, ",".join(t.headers["calendar"]))
+                self.assertEqual(header, ",".join(t.headers["calendar.txt"]))
                 self.assertEqual(record, "C,0,0,0,0,0,1,1,20230508,20240430")
                 self.assertEqual(count, 2)
 
@@ -83,12 +83,12 @@ class TestSaveGTFS(AbstractTestTask.Template):
                     gtfs,
                     "calendar_dates.txt",
                 )
-                self.assertEqual(header, ",".join(t.headers["calendar_dates"]))
+                self.assertEqual(header, ",".join(t.headers["calendar_dates.txt"]))
                 self.assertEqual(record, "D,20230608,2")
                 self.assertEqual(count, 14)
 
                 header, record, count = header_first_record_and_record_count(gtfs, "routes.txt")
-                self.assertEqual(header, ",".join(t.headers["routes"]))
+                self.assertEqual(header, ",".join(t.headers["routes.txt"]))
                 self.assertEqual(
                     record,
                     "A1,0,A1,Warszawa Śródmieście WKD — Grodzisk Mazowiecki Radońska,2",
@@ -96,7 +96,7 @@ class TestSaveGTFS(AbstractTestTask.Template):
                 self.assertEqual(count, 3)
 
                 header, record, count = header_first_record_and_record_count(gtfs, "stops.txt")
-                self.assertEqual(header, ",".join(t.headers["stops"]))
+                self.assertEqual(header, ",".join(t.headers["stops.txt"]))
                 self.assertEqual(
                     record,
                     "wsrod,Warszawa Śródmieście WKD,52.22768605033,21.00040372159,2",
@@ -104,7 +104,7 @@ class TestSaveGTFS(AbstractTestTask.Template):
                 self.assertEqual(count, 28)
 
                 header, record, count = header_first_record_and_record_count(gtfs, "trips.txt")
-                self.assertEqual(header, ",".join(t.headers["trips"]))
+                self.assertEqual(header, ",".join(t.headers["trips.txt"]))
                 self.assertEqual(record, "A1,C,C-303,Podkowa Leśna Główna,303,1")
                 self.assertEqual(count, 372)
 
@@ -112,7 +112,7 @@ class TestSaveGTFS(AbstractTestTask.Template):
                     gtfs,
                     "stop_times.txt",
                 )
-                self.assertEqual(header, ",".join(t.headers["stop_times"]))
+                self.assertEqual(header, ",".join(t.headers["stop_times.txt"]))
                 self.assertEqual(record, "C-303,0,wsrod,05:05:00,05:05:00")
                 self.assertEqual(count, 6276)
 
@@ -141,7 +141,7 @@ class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
         with MockFile() as gtfs_path:
             t = SaveGTFS(
                 headers={
-                    "calendar": (
+                    "calendar.txt": (
                         "service_id",
                         "monday",
                         "tuesday",
@@ -162,7 +162,7 @@ class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
 
             with ZipFile(gtfs_path, mode="r") as gtfs:
                 header, record, count = header_first_record_and_record_count(gtfs, "calendar.txt")
-                self.assertEqual(header, ",".join(t.headers["calendar"]))
+                self.assertEqual(header, ",".join(t.headers["calendar.txt"]))
                 self.assertEqual(record, "")
                 self.assertEqual(count, 0)
 
@@ -170,7 +170,7 @@ class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
         with MockFile() as gtfs_path:
             t = SaveGTFS(
                 headers={
-                    "calendar": (
+                    "calendar.txt": (
                         "service_id",
                         "monday",
                         "tuesday",
@@ -191,7 +191,7 @@ class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
 
             with ZipFile(gtfs_path, mode="r") as gtfs:
                 header, record, count = header_first_record_and_record_count(gtfs, "calendar.txt")
-                self.assertEqual(header, ",".join(t.headers["calendar"]))
+                self.assertEqual(header, ",".join(t.headers["calendar.txt"]))
                 self.assertEqual(record, "0,0,0,0,0,0,0,0,11111111,11111111")
                 self.assertEqual(count, 1)
 
@@ -224,7 +224,7 @@ class TestSaveGTFSWithExtraFields(AbstractTestTask.Template):
         with MockFile() as gtfs_path:
             t = SaveGTFS(
                 headers={
-                    "agency": (
+                    "agency.txt": (
                         "agency_id",
                         "agency_name",
                         "agency_timezone",

@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const builtin = @import("builtin");
@@ -31,37 +31,15 @@ pub const c_char_p = [*:0]const u8;
 /// Non-null pointer to a null-terminated vector of c_strings, aka `char const* const*`.
 pub const c_char_p_p = [*:null]const ?c_char_p;
 
-pub const ExtraFile = extern struct {
+pub const FileHeader = extern struct {
     file_name: c_char_p,
     fields: c_char_p_p,
-};
-
-/// Headers represents the requested fields to save when exporting GTFS data.
-pub const Headers = extern struct {
-    agency: ?c_char_p_p = null,
-    attributions: ?c_char_p_p = null,
-    calendar: ?c_char_p_p = null,
-    calendar_dates: ?c_char_p_p = null,
-    feed_info: ?c_char_p_p = null,
-    routes: ?c_char_p_p = null,
-    stops: ?c_char_p_p = null,
-    shapes: ?c_char_p_p = null,
-    trips: ?c_char_p_p = null,
-    stop_times: ?c_char_p_p = null,
-    frequencies: ?c_char_p_p = null,
-    transfers: ?c_char_p_p = null,
-    fare_attributes: ?c_char_p_p = null,
-    fare_rules: ?c_char_p_p = null,
-    translations: ?c_char_p_p = null,
-
-    extra_files: ?[*]const ExtraFile = null,
-    extra_files_len: c_uint = 0,
 };
 
 pub fn save(
     db_path: [*:0]const u8,
     gtfs_dir_path: [*:0]const u8,
-    headers: *Headers,
+    headers: []const FileHeader,
     emit_empty_calendars: bool,
 ) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -71,7 +49,7 @@ pub fn save(
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
-    var threads: std.ArrayListUnmanaged(Thread) = .{};
+    var threads = try std.ArrayListUnmanaged(Thread).initCapacity(allocator, headers.len);
     defer {
         for (threads.items) |thread| {
             thread.join();
@@ -82,49 +60,60 @@ pub fn save(
     var wg = Thread.WaitGroup{};
     var failed = Atomic(bool).init(false);
 
-    inline for (&tables) |*table| {
-        const maybe_header: ?c_char_p_p = @field(headers, table.gtfsNameWithoutExtension());
-        if (maybe_header) |header| {
-            wg.start();
-            const thread = try Thread.spawn(
-                .{},
-                saveTableInThread,
-                .{
-                    gtfs_dir,
-                    db_path,
-                    table,
-                    header,
-                    emit_empty_calendars,
-                    &wg,
-                    &failed,
-                },
-            );
-            errdefer thread.join();
-            try threads.append(allocator, thread);
-        }
+    for (headers) |header| {
+        wg.start();
+        const thread = try spawnSaveThread(
+            gtfs_dir,
+            db_path,
+            header,
+            emit_empty_calendars,
+            &wg,
+            &failed,
+        );
+        errdefer thread.join();
+        threads.append(allocator, thread) catch std.debug.panic("`threads` should have enough capacity to hold as many threads as there are files to save", .{});
     }
 
-    const extra_files: []const ExtraFile = if (headers.extra_files) |ptr| ptr[0..headers.extra_files_len] else &.{};
-    for (extra_files) |extra_file| {
-        wg.start();
-        const thread = try Thread.spawn(
+    wg.wait();
+    return if (failed.load(.monotonic)) error.ThreadFailed else {};
+}
+
+/// spawnSaveThread spawns a new thread calling `saveTableInThread` or `saveExtraTableInThread`.
+fn spawnSaveThread(
+    gtfs_dir: fs.Dir,
+    db_path: [*:0]const u8,
+    header: FileHeader,
+    emit_empty_calendars: bool,
+    wg: *Thread.WaitGroup,
+    failure: *Atomic(bool),
+) !Thread {
+    return if (t.tableByGtfsName(std.mem.span(header.file_name))) |table|
+        Thread.spawn(
+            .{},
+            saveTableInThread,
+            .{
+                gtfs_dir,
+                db_path,
+                table,
+                header.fields,
+                emit_empty_calendars,
+                wg,
+                failure,
+            },
+        )
+    else
+        try Thread.spawn(
             .{},
             saveExtraTableInThread,
             .{
                 gtfs_dir,
                 db_path,
-                extra_file.file_name,
-                extra_file.fields,
-                &wg,
-                &failed,
+                header.file_name,
+                header.fields,
+                wg,
+                failure,
             },
         );
-        errdefer thread.join();
-        try threads.append(allocator, thread);
-    }
-
-    wg.wait();
-    return if (failed.load(.monotonic)) error.ThreadFailed else {};
 }
 
 /// TableSaver saves GTFS data from a given SQL table to a writer.

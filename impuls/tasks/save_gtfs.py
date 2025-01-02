@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
@@ -13,44 +13,27 @@ from ..tools.types import StrPath
 
 GTFSHeaders = Mapping[str, Sequence[str]]
 
-FILES_WITH_IMPLICIT_SUFFIX = {
-    "agency",
-    "attributions",
-    "calendar",
-    "calendar_dates",
-    "feed_info",
-    "routes",
-    "stops",
-    "shapes",
-    "trips",
-    "stop_times",
-    "frequencies",
-    "transfers",
-    "fare_attributes",
-    "fare_rules",
-    "translations",
-}
-
 
 class SaveGTFS(Task):
     """SaveGTFS exports the contained data to as a GTFS zip file at the provided path.
 
     ``headers`` is a mapping from a GTFS table to a sequence of column names.
 
-    Standard GTFS tables (those who have a dedicated model class) must be keyed without
-    the ``.txt`` extension, while extra GTFS tables (those using
-    :py:class:`~impuls.model.ExtraTableRow`) must be keyed exactly as their corresponding
-    :py:attr:`~impuls.model.ExtraTableRow.table_name` value, that is including any filename
-    extensions. For example::
+    All keys must include the ``.txt`` extension. If a GTFS table exists both as a standalone
+    SQL table and as a :py:class:`~impuls.model.ExtraTableRow`, the former will always
+    be preferred. For example::
 
         headers = {
-            "agency": ("agency_id", "agency_name", "agency_url", "agency_timezone", "agency_lang"),
-            "routes": ("agency_id", "route_id", "route_short_name", "route_long_name", "route_type"),
+            "agency.txt": ("agency_id", "agency_name", "agency_url", "agency_timezone", "agency_lang"),
+            "routes.txt": ("agency_id", "route_id", "route_short_name", "route_long_name", "route_type"),
             "extra_file.txt": ("custom_column_1", "custom_column_2"),
         }
 
     SaveGTFS doesn't validate the provided mapping, so the caller must ensure
     all required columns and files are provided.
+
+    The table names are used as file names and must not contain any path separators,
+    or other disallowed characters/character sequences by the current OS and file system.
 
     When ``emit_empty_calendars`` is set to True (default is False), empty calendars will
     still be generated in the calendar.txt file.
@@ -84,9 +67,6 @@ class SaveGTFS(Task):
     def create_zip(self, dir: StrPath) -> None:
         self.logger.info("Compressing to %s", self.target)
         with ZipFile(self.target, mode="w", compression=ZIP_DEFLATED) as archive:
-            for table_name in self.headers:
-                file_name = (
-                    table_name + ".txt" if table_name in FILES_WITH_IMPLICIT_SUFFIX else table_name
-                )
+            for file_name in self.headers:
                 self.logger.debug("Compressing %s", file_name)
                 archive.write(os.path.join(dir, file_name), file_name)

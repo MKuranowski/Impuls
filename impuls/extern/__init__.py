@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import ctypes
@@ -31,32 +31,10 @@ lib = ctypes.cdll.LoadLibrary(str(lib_path))
 # XXX: The declarations below must match zig/lib.zig
 
 
-class _ExtraFile(ctypes.Structure):
+class _FileHeader(ctypes.Structure):
     _fields_ = [
         ("file_name", c_char_p),
         ("fields", c_char_p_p),
-    ]
-
-
-class _GTFSHeaders(ctypes.Structure):
-    _fields_ = [
-        ("agency", c_char_p_p),
-        ("attributions", c_char_p_p),
-        ("calendar", c_char_p_p),
-        ("calendar_dates", c_char_p_p),
-        ("feed_info", c_char_p_p),
-        ("routes", c_char_p_p),
-        ("stops", c_char_p_p),
-        ("shapes", c_char_p_p),
-        ("trips", c_char_p_p),
-        ("stop_times", c_char_p_p),
-        ("frequencies", c_char_p_p),
-        ("transfers", c_char_p_p),
-        ("fare_attributes", c_char_p_p),
-        ("fare_rules", c_char_p_p),
-        ("translations", c_char_p_p),
-        ("extra_files", POINTER(_ExtraFile)),
-        ("extra_files_len", c_uint),
     ]
 
 
@@ -75,7 +53,7 @@ lib.set_log_handler(_log_handler)
 lib.load_gtfs.argtypes = [c_char_p, c_char_p, c_bool, c_char_p_p, c_uint]
 lib.load_gtfs.restype = c_int
 
-lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_GTFSHeaders), c_bool]
+lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_FileHeader), c_int, c_bool]
 lib.save_gtfs.restype = c_int
 
 
@@ -106,27 +84,18 @@ def save_gtfs(
     headers: Mapping[str, Sequence[str]],
     emit_empty_calendars: bool = False,
 ) -> None:
-    extern_headers = _GTFSHeaders()
-    extra_files = list[_ExtraFile]()
-    for file, header in headers.items():
-        if not header:
-            continue
-        extern_header = (c_char_p * (len(header) + 1))()
-        for i, field in enumerate(header):
-            extern_header[i] = field.encode("utf-8")
-        if hasattr(extern_headers, file) and "extra_files" not in file:
-            setattr(extern_headers, file, extern_header)
-        else:
-            extra_files.append(_ExtraFile(file.encode("utf-8"), extern_header))
-
-    if extra_files:
-        extern_headers.extra_files = (_ExtraFile * len(extra_files))(*extra_files)
-        extern_headers.extra_files_len = len(extra_files)
+    extern_headers = (_FileHeader * len(headers))()
+    for i, (file_name, field_names) in enumerate(headers.items()):
+        extern_header = (c_char_p * (len(field_names) + 1))()
+        for j, field in enumerate(field_names):
+            extern_header[j] = field.encode("utf-8")
+        extern_headers[i] = _FileHeader(file_name.encode("utf-8"), extern_header)
 
     status: int = lib.save_gtfs(
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
-        ctypes.byref(extern_headers),
+        extern_headers,
+        len(headers),
         emit_empty_calendars,
     )
     if status:
