@@ -281,6 +281,7 @@ class MultiFile(Generic[ResourceT_co]):
         """
 
         # 1. Load up additional resources
+        self.options.workspace_directory.mkdir(parents=True, exist_ok=True)
         if self.additional_resources:
             resources = self._prepare_resources()
         else:
