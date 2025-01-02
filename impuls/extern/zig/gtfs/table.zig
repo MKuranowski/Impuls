@@ -336,7 +336,7 @@ pub const tables = [_]Table{
             Column{ .name = "headsign", .gtfs_name = "trip_headsign" },
             Column{ .name = "short_name", .gtfs_name = "trip_short_name" },
             Column{ .name = "direction", .gtfs_name = "direction_id", .from_gtfs = from_gtfs.optionalInt },
-            Column{ .name = "block_id" },
+            Column{ .name = "block_id", .from_gtfs = from_gtfs.optional },
             Column{ .name = "shape_id", .from_gtfs = from_gtfs.optional },
             Column{
                 .name = "wheelchair_accessible",
