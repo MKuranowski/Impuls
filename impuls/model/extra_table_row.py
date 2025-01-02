@@ -1,4 +1,4 @@
-# © Copyright 2024 Mikołaj Kuranowski
+# © Copyright 2024-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import json
@@ -86,31 +86,31 @@ class ExtraTableRow(Entity):
 
     def get_fields(self) -> dict[str, str]:
         """get_fields returns a fresh dictionary of all fields stored in the
-        :py:attr:`.fields_json`.
+        :py:attr:`fields_json`.
         """
         return json.loads(self.fields_json)
 
     def set_fields(self, fields: Mapping[str, str]) -> None:
-        """set_fields sets all fields in :py:attr:`.fields_json` from the
+        """set_fields sets all fields in :py:attr:`fields_json` from the
         provided mapping.
         """
         self.fields_json = json.dumps(fields, indent=None, separators=(",", ":"))
 
     def get_field(self, field: str) -> Optional[str]:
-        """get_field returns a specific field stored in :py:attr:`.fields_json`.
+        """get_field returns a specific field stored in :py:attr:`fields_json`.
 
-        Invoking this function causes an unconditional parse of :py:attr:`.fields_json`,
+        Invoking this function causes an unconditional parse of :py:attr:`fields_json`,
         which, if called repeatedly, may incur a performance penalty.
-        Use :py:meth:`.get_fields` to avoid parsing overhead.
+        Use :py:meth:`get_fields` to avoid parsing overhead.
         """
         return self.get_fields().get(field)
 
     def set_field(self, field: str, value: Optional[str]) -> None:
-        """set_field sets a specific of field stored in :py:attr:`.extra_fields_json`.
+        """set_field sets a specific field stored in :py:attr:`extra_fields_json`.
 
         Invoking this function causes an unconditional parse and serialization of
-        :py:attr:`.fields_json`. Use :py:meth:`.get_fields` and
-        :py:meth:`.set_fields` once to avoid JSON serialization overhead.
+        :py:attr:`fields_json`. Use :py:meth:`get_fields` and
+        :py:meth:`set_fields` once to avoid JSON serialization overhead.
         """
         fields = self.get_fields()
         if value is None:

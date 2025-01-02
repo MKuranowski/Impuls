@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from typing import Type as TypeOf
@@ -13,6 +13,7 @@ from .fare_rule import FareRule
 from .feed_info import FeedInfo
 from .frequency import Frequency
 from .meta.entity import Entity, EntityT
+from .meta.extra_fields_mixin import ExtraFieldsMixin
 from .meta.utility_types import Date, TimePoint
 from .route import Route
 from .shape_point import ShapePoint
@@ -36,6 +37,7 @@ __all__ = [
     "Frequency",
     "Entity",
     "EntityT",
+    "ExtraFieldsMixin",
     "Route",
     "ShapePoint",
     "Stop",
