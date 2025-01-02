@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const c = @import("./conversion.zig");
@@ -416,6 +416,22 @@ pub const tables = [_]Table{
         .has_extra_fields_json = true,
     },
 };
+
+/// tablesByGtfsName creates a StaticStringMap mapping GTFS table names
+/// (with .txt extensions) to the actual `Table` data.
+pub fn tablesByGtfsName() StaticStringMap(*const Table) {
+    comptime var kvs_list: [tables.len]struct { []const u8, *const Table } = undefined;
+    for (&tables, 0..) |*table, i| {
+        kvs_list[i] = .{ table.gtfs_name, table };
+    }
+    return StaticStringMap(*const Table).initComptime(kvs_list);
+}
+
+/// tableByGtfsName finds a `Table` by a given GTFS name (including .txt extension).
+pub fn tableByGtfsName(name: []const u8) ?*const Table {
+    const tables_by_gtfs_name = comptime tablesByGtfsName();
+    return tables_by_gtfs_name.get(name);
+}
 
 test "gtfs.table.Table.columnNames" {
     try std.testing.expectEqualStrings(
