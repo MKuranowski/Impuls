@@ -14,39 +14,39 @@ from .provider import RadomProvider
 from .stops_resource import RadomStopsResource
 
 GTFS_HEADERS = {
-    "agency": (
+    "agency.txt": (
         "agency_id",
         "agency_name",
         "agency_url",
         "agency_timezone",
         "agency_lang",
     ),
-    "stops": (
+    "stops.txt": (
         "stop_id",
         "stop_name",
         "stop_lat",
         "stop_lon",
     ),
-    "routes": (
+    "routes.txt": (
         "agency_id",
         "route_id",
         "route_short_name",
         "route_long_name",
         "route_type",
     ),
-    "trips": (
+    "trips.txt": (
         "route_id",
         "service_id",
         "trip_id",
     ),
-    "stop_times": (
+    "stop_times.txt": (
         "trip_id",
         "stop_sequence",
         "stop_id",
         "arrival_time",
         "departure_time",
     ),
-    "calendar": (
+    "calendar.txt": (
         "service_id",
         "start_date",
         "end_date",
@@ -59,7 +59,7 @@ GTFS_HEADERS = {
         "sunday",
         "service_desc",
     ),
-    "calendar_dates": ("service_id", "date", "exception_type"),
+    "calendar_dates.txt": ("service_id", "date", "exception_type"),
 }
 
 

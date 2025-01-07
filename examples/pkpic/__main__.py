@@ -13,7 +13,7 @@ from .split_bus_legs import SplitBusLegs
 from .station_import import ImportStationData
 
 GTFS_HEADERS = {
-    "agency": (
+    "agency.txt": (
         "agency_id",
         "agency_name",
         "agency_url",
@@ -21,13 +21,13 @@ GTFS_HEADERS = {
         "agency_lang",
         "agency_phone",
     ),
-    "stops": (
+    "stops.txt": (
         "stop_id",
         "stop_name",
         "stop_lat",
         "stop_lon",
     ),
-    "routes": (
+    "routes.txt": (
         "agency_id",
         "route_id",
         "route_short_name",
@@ -36,14 +36,14 @@ GTFS_HEADERS = {
         "route_color",
         "route_text_color",
     ),
-    "trips": (
+    "trips.txt": (
         "route_id",
         "service_id",
         "trip_id",
         "trip_headsign",
         "trip_short_name",
     ),
-    "stop_times": (
+    "stop_times.txt": (
         "trip_id",
         "stop_sequence",
         "stop_id",
@@ -51,7 +51,7 @@ GTFS_HEADERS = {
         "departure_time",
         "platform",
     ),
-    "calendar": (
+    "calendar.txt": (
         "service_id",
         "start_date",
         "end_date",

@@ -7,7 +7,7 @@ from impuls.tasks import ExecuteSQL, LoadGTFS, RemoveUnusedEntities, SaveGTFS
 from .generate_route_long_name import GenerateRouteLongName
 
 GTFS_HEADERS = {
-    "agency": (
+    "agency.txt": (
         "agency_id",
         "agency_name",
         "agency_url",
@@ -15,14 +15,14 @@ GTFS_HEADERS = {
         "agency_lang",
         "agency_phone",
     ),
-    "stops": (
+    "stops.txt": (
         "stop_id",
         "stop_code",
         "stop_name",
         "stop_lat",
         "stop_lon",
     ),
-    "routes": (
+    "routes.txt": (
         "agency_id",
         "route_id",
         "route_short_name",
@@ -31,21 +31,21 @@ GTFS_HEADERS = {
         "route_color",
         "route_text_color",
     ),
-    "trips": (
+    "trips.txt": (
         "route_id",
         "service_id",
         "trip_id",
         "trip_headsign",
         "direction_id",
     ),
-    "stop_times": (
+    "stop_times.txt": (
         "trip_id",
         "stop_sequence",
         "stop_id",
         "arrival_time",
         "departure_time",
     ),
-    "calendar": (
+    "calendar.txt": (
         "service_id",
         "start_date",
         "end_date",
@@ -57,7 +57,7 @@ GTFS_HEADERS = {
         "saturday",
         "sunday",
     ),
-    "calendar_dates": (
+    "calendar_dates.txt": (
         "service_id",
         "date",
         "exception_type",

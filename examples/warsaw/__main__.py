@@ -14,14 +14,14 @@ from .ztm_ftp import FTPResource, ZTMFeedProvider
 
 GTFS_HEADERS = {
     "agency": (
-        "agency_id",
+        "agency_id.txt",
         "agency_name",
         "agency_url",
         "agency_timezone",
         "agency_lang",
         "agency_phone",
     ),
-    "stops": (
+    "stops.txt": (
         "stop_id",
         "stop_name",
         "stop_lat",
@@ -29,7 +29,7 @@ GTFS_HEADERS = {
         "zone_id",
         "wheelchair_boarding",
     ),
-    "routes": (
+    "routes.txt": (
         "agency_id",
         "route_id",
         "route_short_name",
@@ -38,7 +38,7 @@ GTFS_HEADERS = {
         "route_color",
         "route_text_color",
     ),
-    "trips": (
+    "trips.txt": (
         "route_id",
         "service_id",
         "trip_id",
@@ -47,7 +47,7 @@ GTFS_HEADERS = {
         "wheelchair_accessible",
         "exceptional",
     ),
-    "stop_times": (
+    "stop_times.txt": (
         "trip_id",
         "stop_sequence",
         "stop_id",
@@ -56,7 +56,7 @@ GTFS_HEADERS = {
         "pickup_type",
         "drop_off_type",
     ),
-    "calendar_dates": ("service_id", "date", "exception_type"),
+    "calendar_dates.txt": ("service_id", "date", "exception_type"),
 }
 
 
