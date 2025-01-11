@@ -442,7 +442,7 @@ class Merge(Task):
         )
 
     def merge_fares(self, db: DBConnection, incoming_prefix: str) -> None:
-        self.logger.debug("Joining Fare Attributes")
+        self.logger.debug("Joining FareAttributes")
 
         db.raw_execute(
             "UPDATE incoming.fare_attributes SET fare_id = ? || ? || fare_id",
@@ -509,7 +509,7 @@ class Merge(Task):
         db.raw_execute("INSERT OR ABORT INTO frequencies SELECT * FROM incoming.frequencies")
 
     def merge_transfers(self, db: DBConnection) -> None:
-        self.logger.debug("Joining StopTimes")
+        self.logger.debug("Joining Transfers")
 
         # NOTE: merge_routes should have updated from_route_id & to_route_id
         # NOTE: merge_stops should have updated from_stop_id & to_stop_id
