@@ -41,6 +41,7 @@ pub fn save(
     gtfs_dir_path: [*:0]const u8,
     headers: []const FileHeader,
     emit_empty_calendars: bool,
+    ensure_order: bool,
 ) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(gpa.deinit() == .ok);
@@ -67,6 +68,7 @@ pub fn save(
             db_path,
             header,
             emit_empty_calendars,
+            ensure_order,
             &wg,
             &failed,
         );
@@ -84,6 +86,7 @@ fn spawnSaveThread(
     db_path: [*:0]const u8,
     header: FileHeader,
     emit_empty_calendars: bool,
+    ensure_order: bool,
     wg: *Thread.WaitGroup,
     failure: *Atomic(bool),
 ) !Thread {
@@ -97,6 +100,7 @@ fn spawnSaveThread(
                 table,
                 header.fields,
                 emit_empty_calendars,
+                ensure_order,
                 wg,
                 failure,
             },
@@ -163,6 +167,7 @@ fn TableSaver(comptime IoWriter: type) type {
             table: *const Table,
             header: c_char_p_p,
             emit_empty_calendars: bool,
+            ensure_order: bool,
             allocator: Allocator,
         ) !Self {
             const header_slice = try ownedSliceOverCStrings(header, allocator);
@@ -173,7 +178,7 @@ fn TableSaver(comptime IoWriter: type) type {
             const extra_fields = columns_and_extra_fields[1];
             errdefer allocator.free(columns);
 
-            const select = try prepareSelect(db, table, extra_fields, allocator);
+            const select = try prepareSelect(db, table, extra_fields, ensure_order, allocator);
             errdefer select.deinit();
 
             const filter_empty_calendars = !emit_empty_calendars and std.mem.eql(u8, table.sql_name, "calendars");
@@ -225,6 +230,7 @@ fn TableSaver(comptime IoWriter: type) type {
             db: sqlite3.Connection,
             table: *const Table,
             loads_extra_fields: bool,
+            ensure_order: bool,
             allocator: Allocator,
         ) !sqlite3.Statement {
             var sql: std.ArrayListUnmanaged(u8) = .{};
@@ -242,6 +248,11 @@ fn TableSaver(comptime IoWriter: type) type {
 
             try sql.appendSlice(allocator, " FROM ");
             try sql.appendSlice(allocator, table.sql_name);
+
+            if (ensure_order) {
+                try sql.appendSlice(allocator, table.order_clause);
+            }
+
             try sql.append(allocator, 0);
 
             const statement = try db.prepare(sql.items[0 .. sql.items.len - 1 :0]);
@@ -342,6 +353,7 @@ fn saveTable(
     table: *const Table,
     header: c_char_p_p,
     emit_empty_calendars: bool,
+    ensure_order: bool,
 ) !void {
     var db = try sqlite3.Connection.init(
         db_path,
@@ -360,6 +372,7 @@ fn saveTable(
         table,
         header,
         emit_empty_calendars,
+        ensure_order,
         allocator,
     );
     defer saver.deinit();
@@ -378,6 +391,7 @@ fn saveTableInThread(
     table: *const Table,
     header: c_char_p_p,
     emit_empty_calendars: bool,
+    ensure_order: bool,
     wg: *Thread.WaitGroup,
     failure: *Atomic(bool),
 ) void {
@@ -394,6 +408,7 @@ fn saveTableInThread(
         table,
         header,
         emit_empty_calendars,
+        ensure_order,
     ) catch |err| {
         failure.store(true, .release);
 
@@ -657,6 +672,7 @@ test "gtfs.save.simple" {
         &tables[5],
         header,
         false,
+        true,
     );
 
     const content = try out_dir.dir.readFileAlloc(std.testing.allocator, "routes.txt", 16384);
@@ -711,6 +727,7 @@ test "gtfs.save.extra_fields" {
         &tables[0],
         header,
         false,
+        true,
         std.testing.allocator,
     );
     defer s.deinit();

@@ -116,6 +116,15 @@ class TestSaveGTFS(AbstractTestTask.Template):
                 self.assertEqual(record, "C-303,0,wsrod,05:05:00,05:05:00")
                 self.assertEqual(count, 6276)
 
+    def test_ensure_order(self) -> None:
+        with MockFile() as gtfs_path:
+            t = SaveGTFS(headers={"stops.txt": ("stop_id",)}, target=gtfs_path, ensure_order=True)
+            t.execute(self.runtime)
+
+            with ZipFile(gtfs_path, "r") as gtfs:
+                ids = gtfs.read("stops.txt").decode("utf-8-sig").splitlines()[1:]
+                self.assertListEqual(ids, sorted(ids))
+
 
 class TestSaveGTFSEmitEmptyCalendars(AbstractTestTask.Template):
     db_name = None

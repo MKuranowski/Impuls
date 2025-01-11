@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const std = @import("std");
@@ -43,9 +43,16 @@ pub export fn save_gtfs(
     headers_ptr: [*]gtfs.FileHeader,
     headers_len: c_int,
     emit_empty_calendars: bool,
+    ensure_order: bool,
 ) c_int {
     const headers = headers_ptr[0..@intCast(headers_len)];
-    gtfs.save(db_path, gtfs_dir_path, headers, emit_empty_calendars) catch |err| {
+    gtfs.save(
+        db_path,
+        gtfs_dir_path,
+        headers,
+        emit_empty_calendars,
+        ensure_order,
+    ) catch |err| {
         if (@errorReturnTrace()) |trace| {
             std.log.err("gtfs.save: {}\nStack trace: {}", .{ err, trace });
         } else {

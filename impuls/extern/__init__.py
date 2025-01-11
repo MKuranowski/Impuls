@@ -53,7 +53,7 @@ lib.set_log_handler(_log_handler)
 lib.load_gtfs.argtypes = [c_char_p, c_char_p, c_bool, c_char_p_p, c_uint]
 lib.load_gtfs.restype = c_int
 
-lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_FileHeader), c_int, c_bool]
+lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_FileHeader), c_int, c_bool, c_bool]
 lib.save_gtfs.restype = c_int
 
 
@@ -83,6 +83,7 @@ def save_gtfs(
     gtfs_dir_path: StrPath,
     headers: Mapping[str, Sequence[str]],
     emit_empty_calendars: bool = False,
+    ensure_order: bool = False,
 ) -> None:
     extern_headers = (_FileHeader * len(headers))()
     for i, (file_name, field_names) in enumerate(headers.items()):
@@ -97,6 +98,7 @@ def save_gtfs(
         extern_headers,
         len(headers),
         emit_empty_calendars,
+        ensure_order,
     )
     if status:
         raise RuntimeError(f"extern load_gtfs failed with {status}")

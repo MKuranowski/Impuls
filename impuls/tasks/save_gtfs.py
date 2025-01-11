@@ -37,22 +37,28 @@ class SaveGTFS(Task):
 
     When ``emit_empty_calendars`` is set to True (default is False), empty calendars will
     still be generated in the calendar.txt file.
+
+    When ``ensure_order`` is set to True (most) output tables will be sorted by their primary key.
+    This might slow down the task. The default is False, which saves tables in arbitrary order.
     """  # noqa: E501
 
     headers: GTFSHeaders
     target: Path
     emit_empty_calendars: bool
+    ensure_order: bool
 
     def __init__(
         self,
         headers: GTFSHeaders,
         target: StrPath,
         emit_empty_calendars: bool = False,
+        ensure_order: bool = False,
     ) -> None:
         super().__init__()
         self.headers = headers
         self.target = Path(target)
         self.emit_empty_calendars = emit_empty_calendars
+        self.ensure_order = ensure_order
 
     def execute(self, r: TaskRuntime) -> None:
         with TemporaryDirectory(prefix="impuls-save-gtfs-") as temp_dir:
@@ -62,7 +68,13 @@ class SaveGTFS(Task):
     def dump_tables(self, gtfs_dir: StrPath, db: DBConnection) -> None:
         self.logger.info("Dumping tables")
         with db.released() as db_path:
-            extern.save_gtfs(db_path, gtfs_dir, self.headers, self.emit_empty_calendars)
+            extern.save_gtfs(
+                db_path,
+                gtfs_dir,
+                self.headers,
+                self.emit_empty_calendars,
+                self.ensure_order,
+            )
 
     def create_zip(self, dir: StrPath) -> None:
         self.logger.info("Compressing to %s", self.target)

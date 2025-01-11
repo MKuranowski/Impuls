@@ -36,6 +36,10 @@ pub const Table = struct {
     /// `placeholders`.
     has_extra_fields_json: bool = false,
 
+    /// order_clause contains an optional " ORDER BY ..." (with a leading space) to enforce
+    /// a defined ordering when serializing a table to CSV.
+    order_clause: []const u8 = "",
+
     /// columnNames returns a "column_a, column_b, column_c" string with the SQL column names
     /// of the table.
     pub fn columnNames(comptime self: Table) []const u8 {
@@ -162,6 +166,7 @@ pub const tables = [_]Table{
             Column{ .name = "fare_url", .gtfs_name = "agency_fare_url" },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY agency_id",
     },
     Table{
         .gtfs_name = "attributions.txt",
@@ -178,6 +183,7 @@ pub const tables = [_]Table{
             Column{ .name = "phone", .gtfs_name = "attribution_phone" },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY attribution_id",
     },
     Table{
         .gtfs_name = "calendar.txt",
@@ -197,6 +203,7 @@ pub const tables = [_]Table{
             Column{ .name = "desc", .gtfs_name = "service_desc" },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY calendar_id",
     },
     Table{
         .gtfs_name = "calendar_dates.txt",
@@ -211,6 +218,7 @@ pub const tables = [_]Table{
             .sql_key = "calendar_id",
             .gtfs_key = "service_id",
         },
+        .order_clause = " ORDER BY calendar_id, date",
     },
     Table{
         .gtfs_name = "feed_info.txt",
@@ -257,6 +265,7 @@ pub const tables = [_]Table{
             Column{ .name = "sort_order", .gtfs_name = "route_sort_order", .from_gtfs = from_gtfs.optionalInt },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY route_id",
     },
     Table{
         .gtfs_name = "stops.txt",
@@ -279,6 +288,7 @@ pub const tables = [_]Table{
             Column{ .name = "platform_code" },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY stop_id",
     },
     Table{
         .gtfs_name = "fare_attributes.txt",
@@ -293,6 +303,7 @@ pub const tables = [_]Table{
             Column{ .name = "transfer_duration", .from_gtfs = from_gtfs.optionalInt },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY fare_id",
     },
     Table{
         .gtfs_name = "fare_rules.txt",
@@ -304,6 +315,7 @@ pub const tables = [_]Table{
             Column{ .name = "destination_id", .from_gtfs = from_gtfs.optional },
             Column{ .name = "contains_id", .from_gtfs = from_gtfs.optional },
         },
+        .order_clause = " ORDER BY fare_id",
     },
     Table{
         .gtfs_name = "shapes.txt",
@@ -324,6 +336,7 @@ pub const tables = [_]Table{
             .sql_key = "shape_id",
             .gtfs_key = "shape_id",
         },
+        .order_clause = " ORDER BY shape_id, shape_pt_sequence",
     },
     Table{
         .gtfs_name = "trips.txt",
@@ -355,6 +368,7 @@ pub const tables = [_]Table{
             },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY trip_id",
     },
     Table{
         .gtfs_name = "stop_times.txt",
@@ -373,6 +387,7 @@ pub const tables = [_]Table{
             Column{ .name = "platform" },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY trip_id, stop_sequence",
     },
     Table{
         .gtfs_name = "frequencies.txt",
@@ -385,6 +400,7 @@ pub const tables = [_]Table{
             Column{ .name = "exact_times", .from_gtfs = from_gtfs.intFallbackZero },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY trip_id, start_time",
     },
     Table{
         .gtfs_name = "transfers.txt",
@@ -400,6 +416,7 @@ pub const tables = [_]Table{
             Column{ .name = "min_transfer_time", .from_gtfs = from_gtfs.optionalInt },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY from_stop_id, to_stop_id",
     },
     Table{
         .gtfs_name = "translations.txt",
@@ -414,6 +431,7 @@ pub const tables = [_]Table{
             Column{ .name = "field_value" },
         },
         .has_extra_fields_json = true,
+        .order_clause = " ORDER BY table_name, record_id, record_sub_id, field_value, language, field_name",
     },
 };
 
