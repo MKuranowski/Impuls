@@ -33,7 +33,7 @@ __url__ = "https://github.com/MKuranowski/Impuls"
 __author__ = "Mikołaj Kuranowski"
 __copyright__ = "© Copyright 2022-2025 Mikołaj Kuranowski"
 __license__ = "GPL-3.0-or-later"
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __email__ = "mkuranowski+pypackages@gmail.com"
 
 DBConnection = db.DBConnection
