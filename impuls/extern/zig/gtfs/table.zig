@@ -336,7 +336,7 @@ pub const tables = [_]Table{
             .sql_key = "shape_id",
             .gtfs_key = "shape_id",
         },
-        .order_clause = " ORDER BY shape_id, shape_pt_sequence",
+        .order_clause = " ORDER BY shape_id, sequence",
     },
     Table{
         .gtfs_name = "trips.txt",
@@ -431,7 +431,7 @@ pub const tables = [_]Table{
             Column{ .name = "field_value" },
         },
         .has_extra_fields_json = true,
-        .order_clause = " ORDER BY table_name, record_id, record_sub_id, field_value, language, field_name",
+        .order_clause = " ORDER BY table_name, record_id, record_sub_id, field_value, field_name, language",
     },
 };
 
