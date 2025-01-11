@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
@@ -166,6 +166,9 @@ class Merge(Task):
       major database. The second case serves merging versioned datasets, with the last case
       preventing any inconsistencies in the :py:class:`~impuls.model.FeedInfo` object.
 
+    * :py:class:`~impuls.model.ExtraTableRow` instances are never merged; the rows
+      are simply copied over. Use the :py:attr:`~DatabaseToMerge.pre_merge_pipeline`
+      to adjust any values or the sort order.
     * :py:attr:`Stop.zone_id <impuls.model.Stop.zone_id>` is left untouched - effectively
       merging zones across datasets.
     * :py:attr:`Trip.block_id <impuls.model.Trip.block_id>` and
@@ -306,6 +309,7 @@ class Merge(Task):
         self.merge_frequencies(db)
         self.merge_transfers(db)
         self.merge_translations(db)
+        self.merge_extra_table_rows(db)
         self.collect_incoming_feed_info(db)
 
     def merge_agencies(self, db: DBConnection) -> None:
@@ -535,8 +539,19 @@ class Merge(Task):
             "table_name, field_name, language, translation, record_id, record_sub_id, field_value"
         )
         db.raw_execute(
-            f"INSERT OR IGNORE INTO translations ({columns}) SELECT {columns} "
-            "FROM incoming.translations"
+            f"INSERT OR IGNORE INTO translations ({columns}) "
+            f"SELECT {columns} FROM incoming.translations"
+        )
+
+    def merge_extra_table_rows(self, db: DBConnection) -> None:
+        self.logger.debug("Joining ExtraTableRows")
+
+        # NOTE: to avoid collisions, extra_table_row_id must not be copied -
+        #       SQLite will automatically generate new ones (thanks to INTEGER PRIMARY KEY)
+        columns = "table_name, fields_json, row_sort_order"
+        db.raw_execute(
+            f"INSERT OR ABORT INTO extra_table_rows ({columns}) "
+            f"SELECT {columns} FROM incoming.extra_table_rows"
         )
 
     def collect_incoming_feed_info(self, db: DBConnection) -> None:
