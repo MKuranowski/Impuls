@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import re
+from itertools import count
+from typing import Container
 
 ILLEGAL_PORTABLE_NAMES: frozenset[str] = frozenset(
     (
@@ -65,3 +67,25 @@ def is_portable_name(name: str) -> bool:
         name.upper() not in ILLEGAL_PORTABLE_NAMES
         and re.match(r"^[A-Za-z0-9._-]+$", name, re.ASCII) is not None
     )
+
+
+def find_non_conflicting_id(used: Container[str], id: str, separator: str = ":") -> str:
+    """Tries to find the lowest numeric suffix (joined with separator) to the id
+    which generates a string not contained in `used`.
+
+    >>> find_non_conflicting_id({"A", "B"}, "C")
+    'C'
+    >>> find_non_conflicting_id({"A", "B"}, "A")
+    'A:1'
+    >>> find_non_conflicting_id({"A", "A/1", "A/2"}, "A", separator="/")
+    'A/3'
+    """
+    if id not in used:
+        return id
+
+    for suffix in count(1):
+        candidate = f"{id}{separator}{suffix}"
+        if candidate not in used:
+            return candidate
+
+    raise RuntimeError("not reachable - itertools.count must be infinite")

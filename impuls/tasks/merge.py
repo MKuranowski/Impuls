@@ -5,18 +5,18 @@ import os
 import shutil
 from contextlib import contextmanager
 from dataclasses import dataclass
-from itertools import count
 from math import inf
 from operator import itemgetter
 from pathlib import Path
 from tempfile import mkstemp
-from typing import Container, Generator, Iterable, NamedTuple, Type
+from typing import Generator, Iterable, NamedTuple, Type
 
 from ..db import DBConnection
 from ..model import FeedInfo, Route, Stop
 from ..pipeline import Pipeline
 from ..task import Task, TaskRuntime
 from ..tools.geo import earth_distance_m
+from ..tools.strings import find_non_conflicting_id
 from ..tools.types import Self, all_non_none
 
 
@@ -625,25 +625,3 @@ def pick_closest_stop(
         key=itemgetter(1),
     )
     return closest if distance_m <= max_distance_m else None
-
-
-def find_non_conflicting_id(used: Container[str], id: str, separator: str = ":") -> str:
-    """Tries to find the lowest numeric suffix (joined with separator) to the id
-    which generates a string not contained in `used`.
-
-    >>> find_non_conflicting_id({"A", "B"}, "C")
-    'C'
-    >>> find_non_conflicting_id({"A", "B"}, "A")
-    'A:1'
-    >>> find_non_conflicting_id({"A", "A/1", "A/2"}, "A", separator="/")
-    'A/3'
-    """
-    if id not in used:
-        return id
-
-    for suffix in count(1):
-        candidate = f"{id}{separator}{suffix}"
-        if candidate not in used:
-            return candidate
-
-    raise RuntimeError("not reachable - itertools.count must be infinite")
