@@ -13,7 +13,7 @@ const mem = std.mem;
 
 /// Table contains data necessary for mapping between GTFS and Impuls (SQL) tables.
 pub const Table = struct {
-    /// gtfs_name constains the GTFS table name, with the .txt extension
+    /// gtfs_name contains the GTFS table name, with the .txt extension
     gtfs_name: [:0]const u8,
 
     /// sql_name contains the Impuls (SQL) table name
@@ -22,17 +22,17 @@ pub const Table = struct {
     /// required denotes if this table must be present in order to consider a GTFS file valid.
     required: bool = false,
 
-    /// columns constains specifics on column mapping between the schemas
+    /// columns contains specifics on column mapping between the schemas
     columns: []const Column,
 
-    /// parent_implication, if present, describes the existance of parent objects in GTFS
+    /// parent_implication, if present, describes the existence of parent objects in GTFS
     parent_implication: ?ParentImplication = null,
 
     /// has_extra_fields_json is set to true if there is the SQL table has an additional
     /// "extra_fields_json" TEXT column with a JSON object mapping extra GTFS fields to its
     /// string values.
     ///
-    /// The "extra_fields_json" colum is never present in the `columns`, `columnNames` and
+    /// The "extra_fields_json" column is never present in the `columns`, `columnNames` and
     /// `placeholders`.
     has_extra_fields_json: bool = false,
 
@@ -95,10 +95,10 @@ pub const Table = struct {
     }
 };
 
-/// ParentImplication describes the existance of parent objects in GTFS for a particular table.
+/// ParentImplication describes the existence of parent objects in GTFS for a particular table.
 ///
 /// For example, a calendar exception from GTFS's calendar_dates table implies
-/// the existance of a parent calendar, even if it wasn't defined in the calendar table.
+/// the existence of a parent calendar, even if it wasn't defined in the calendar table.
 /// Impuls doesn't allow for implicit objects, and an extra INSERT may be necessary to
 /// ensure foreign key references remain valid.
 pub const ParentImplication = struct {
@@ -126,7 +126,7 @@ pub const Column = struct {
     from_gtfs: FnFromGtfs = from_gtfs.asIs,
 
     /// convert_to_gtfs, if present, takes the raw SQL column value, and adjusts the value of
-    /// the column, so that ColumnValue.ensureString() will be a vaild GTFS value.
+    /// the column, so that ColumnValue.ensureString() will be a valid GTFS value.
     to_gtfs: ?FnToGtfs = null,
 
     /// gtfsName returns the GTFS name of the column.
@@ -363,8 +363,7 @@ pub const tables = [_]Table{
             },
             Column{
                 .name = "exceptional",
-                .from_gtfs = from_gtfs.maybeWithZeroUnknown,
-                .to_gtfs = to_gtfs.maybeWithZeroUnknown,
+                .from_gtfs = from_gtfs.optionalInt,
             },
         },
         .has_extra_fields_json = true,

@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const c = @import("./conversion.zig");
@@ -20,7 +20,7 @@ test "gtfs.conversion_from_gtfs.asIs" {
     try std.testing.expectEqualStrings("foo", v.BorrowedString);
 }
 
-/// optional retruns Null if `s` empty, and borrows `s` otherwise.
+/// optional returns Null if `s` empty, and borrows `s` otherwise.
 pub fn optional(s: []const u8, _: u32) InvalidValueT!ColumnValue {
     return if (s.len == 0) ColumnValue.null_() else ColumnValue.borrowed(s);
 }
