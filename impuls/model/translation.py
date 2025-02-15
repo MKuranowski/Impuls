@@ -129,6 +129,9 @@ class Translation(Entity, ExtraFieldsMixin):
             -- if the record_sub_id is set, record_id must be set as well:
             CHECK (record_sub_id = '' OR record_id != '')
         ) STRICT;
+        CREATE INDEX idx_translations_by_record ON
+            translations(table_name, record_id, record_sub_id);
+        CREATE INDEX idx_translations_by_value ON translations(table_name, field_value);
         """
 
     @staticmethod
