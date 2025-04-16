@@ -54,8 +54,54 @@ class MultipleDataErrors(DataError):
             + "\n    ".join(err.args[0] for err in errors)
         )
 
+    def flatten(self) -> None:
+        """flatten recursively flattens any nested MultipleDataErrors.
+
+        >>> e = MultipleDataErrors(
+        ...       "test",
+        ...       [DataError("foo"), MultipleDataErrors("test2", [DataError("bar")])]
+        ... )
+        >>> e.flatten()
+        >>> e.errors
+        [DataError('foo'), DataError('bar')]
+        """
+        flat: list[DataError] = []
+        for err in self.errors:
+            if isinstance(err, MultipleDataErrors):
+                err.flatten()
+                flat.extend(err.errors)
+            else:
+                flat.append(err)
+        self.errors = flat
+
+    def deduplicate(self) -> None:
+        """deduplicate ensure only the first instance of an error with the same
+        message (as per calling ``str`` on the exception) is preserved
+
+        >>> e = MultipleDataErrors("test", [DataError("foo"), DataError("bar"), DataError("bar"),
+        ...                                 DataError("foo"), DataError("baz")])
+        >>> e.deduplicate()
+        >>> e.errors
+        [DataError('foo'), DataError('bar'), DataError('baz')]
+        """
+        seen: set[str] = set()
+        deduplicated: list[DataError] = []
+        for err in self.errors:
+            desc = str(err)
+            if desc not in seen:
+                deduplicated.append(err)
+                seen.add(desc)
+        self.errors = deduplicated
+
     @classmethod
-    def catch_all(cls, context: str, may_raise_data_error: Iterable[_T]) -> list[_T]:
+    def catch_all(
+        cls,
+        context: str,
+        may_raise_data_error: Iterable[_T],
+        /,
+        flatten: bool = False,
+        deduplicate: bool = False,
+    ) -> list[_T]:
         """catch_all takes a generator that may raise DataError when retrieving
         the next item; and catches all the DataErrors to raise a single
         MultipleDataErrors once the generator is exhausted.
@@ -68,6 +114,10 @@ class MultipleDataErrors(DataError):
         Note that ``may_raise_data_error`` must not be a generator expression,
         and should usually be a ``map`` object. Generator expressions stop at the
         first raised exception, making the whole endeavor useless.
+
+        If ``flatten`` or ``deduplicate`` are set to True, the corresponding
+        action is run on the MultipleDataErrors object before it is raised.
+        If both are specified, flatten is run first.
 
         >>> def some_function(x: int) -> int:
         ...    if x % 5 == 0:
@@ -103,6 +153,11 @@ class MultipleDataErrors(DataError):
                 errors.append(e)
 
         if errors:
-            raise MultipleDataErrors(context, errors)
+            m = MultipleDataErrors(context, errors)
+            if flatten:
+                m.flatten()
+            if deduplicate:
+                m.deduplicate()
+            raise m
 
         return elements
