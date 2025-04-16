@@ -257,7 +257,7 @@ class MultiFile(Generic[ResourceT_co]):
     new instances of Tasks in a new list.
     """
 
-    additional_resources: Mapping[str, Resource] = field(default_factory=dict)
+    additional_resources: Mapping[str, Resource] = field(default_factory=dict[str, Resource])
     """Additional resources, made available for all intermediate and final pipelines."""
 
     merge_separator: str = ":"

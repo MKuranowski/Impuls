@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime, timezone
 from io import BytesIO, TextIOWrapper
-from typing import Any, Iterator
+from typing import Any, Iterator, cast
 
 import zeep
 
@@ -17,7 +17,7 @@ class RadomStopsResource(ConcreteResource):
             r"{http://PublicService/}PublicServiceSoap",
             "http://rkm.mzdik.radom.pl/PublicService.asmx",
         )
-        stops: Any = service.GetGoogleStops().findall("S")  # type: ignore
+        stops = cast(Any, service.GetGoogleStops().findall("S"))  # type: ignore
 
         if len(stops) == 0:
             raise RuntimeError("no stops returned from rkm.mzdik.radom.pl")

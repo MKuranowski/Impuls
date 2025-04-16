@@ -1,6 +1,6 @@
 import re
 from io import StringIO
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
 import requests
@@ -24,7 +24,7 @@ class RadomProvider(IntermediateFeedProvider[ZippedResource]):
             r.encoding = "utf-8"
 
         # Parse the website
-        tree: Any = etree.parse(StringIO(r.text), etree.HTMLParser())  # type: ignore
+        tree = cast(Any, etree.parse(StringIO(r.text), etree.HTMLParser()))  # type: ignore
 
         # Find links to schedule files and collect feeds
         feeds: list[IntermediateFeed[ZippedResource]] = []
