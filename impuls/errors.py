@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from typing import Iterable, TypeVar
