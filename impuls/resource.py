@@ -287,7 +287,7 @@ class HTTPResource(ConcreteResource):
         /,
         params: Union[Mapping[str, str], Sequence[tuple[str, str]], None] = None,
         headers: Optional[Mapping[str, str]] = None,
-        data: Union[Mapping[str, str], Sequence[tuple[str, str]], None] = None,
+        data: Union[str, bytes, Mapping[str, str], Sequence[tuple[str, str]], None] = None,
         json: Any = None,
     ) -> Self:
         """post creates a HTTPResource performing a POST request to the provided URL.
@@ -296,8 +296,8 @@ class HTTPResource(ConcreteResource):
           Those parameters are appended to the URL.
         :param headers: Optional dictionary of headers to send to the server.
         :param data: Optional body to attach to the request.
-          May be a dictionary or a list of k-v tuples - in this case ``data`` is URL-form encoded
-          before sending to the server.
+          Apart from a string or bytes, this may be a dictionary or a list of k-v tuples -
+          in this case ``data`` is URL-form encoded before sending to the server.
         :param json: Optional the body to attach to the to the request, using JSON encoding.
           If both ``data`` and ``json`` is provided, ``data`` takes precedence.
         """
