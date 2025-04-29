@@ -54,45 +54,6 @@ class MultipleDataErrors(DataError):
             + "\n    ".join(err.args[0] for err in errors)
         )
 
-    def flatten(self) -> None:
-        """flatten recursively flattens any nested MultipleDataErrors.
-
-        >>> e = MultipleDataErrors(
-        ...       "test",
-        ...       [DataError("foo"), MultipleDataErrors("test2", [DataError("bar")])]
-        ... )
-        >>> e.flatten()
-        >>> e.errors
-        [DataError('foo'), DataError('bar')]
-        """
-        flat: list[DataError] = []
-        for err in self.errors:
-            if isinstance(err, MultipleDataErrors):
-                err.flatten()
-                flat.extend(err.errors)
-            else:
-                flat.append(err)
-        self.errors = flat
-
-    def deduplicate(self) -> None:
-        """deduplicate ensure only the first instance of an error with the same
-        message (as per calling ``str`` on the exception) is preserved
-
-        >>> e = MultipleDataErrors("test", [DataError("foo"), DataError("bar"), DataError("bar"),
-        ...                                 DataError("foo"), DataError("baz")])
-        >>> e.deduplicate()
-        >>> e.errors
-        [DataError('foo'), DataError('bar'), DataError('baz')]
-        """
-        seen: set[str] = set()
-        deduplicated: list[DataError] = []
-        for err in self.errors:
-            desc = str(err)
-            if desc not in seen:
-                deduplicated.append(err)
-                seen.add(desc)
-        self.errors = deduplicated
-
     @classmethod
     def catch_all(
         cls,
@@ -153,11 +114,46 @@ class MultipleDataErrors(DataError):
                 errors.append(e)
 
         if errors:
-            m = MultipleDataErrors(context, errors)
             if flatten:
-                m.flatten()
+                errors = cls.flatten(errors)
             if deduplicate:
-                m.deduplicate()
-            raise m
+                errors = cls.deduplicate(errors)
+            raise MultipleDataErrors(context, errors)
 
         return elements
+
+    @staticmethod
+    def flatten(errors: Iterable[DataError]) -> list[DataError]:
+        """flatten recursively flattens any nested MultipleDataErrors.
+
+        >>> MultipleDataErrors.flatten([
+        ...    DataError("foo"),
+        ...    MultipleDataErrors("test2", [DataError("bar")]),
+        ... ])
+        [DataError('foo'), DataError('bar')]
+        """
+        flat: list[DataError] = []
+        for err in errors:
+            if isinstance(err, MultipleDataErrors):
+                flat.extend(MultipleDataErrors.flatten(err.errors))
+            else:
+                flat.append(err)
+        return flat
+
+    @staticmethod
+    def deduplicate(errors: Iterable[DataError]) -> list[DataError]:
+        """deduplicate ensure only the first instance of an error with the same
+        message (as per calling ``str`` on the exception) is preserved
+
+        >>> MultipleDataErrors.deduplicate([DataError("foo"), DataError("bar"), DataError("bar"),
+        ...                                 DataError("foo"), DataError("baz")])
+        [DataError('foo'), DataError('bar'), DataError('baz')]
+        """
+        seen: set[str] = set()
+        deduplicated: list[DataError] = []
+        for err in errors:
+            desc = str(err)
+            if desc not in seen:
+                deduplicated.append(err)
+                seen.add(desc)
+        return deduplicated
