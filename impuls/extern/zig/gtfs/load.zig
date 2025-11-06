@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const builtin = @import("builtin");
@@ -9,6 +9,7 @@ const sqlite3 = @import("../sqlite3.zig");
 const t = @import("./table.zig");
 
 const Allocator = std.mem.Allocator;
+const BoundedArray = @import("../bounded_array.zig").BoundedArray;
 const ColumnMapping = t.ColumnMapping;
 const ColumnValue = @import("./conversion.zig").ColumnValue;
 const fs = std.fs;
@@ -28,9 +29,10 @@ pub fn load(
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    // const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    const allocator = std.heap.c_allocator;
 
     inline for (tables) |table| {
         try loadTable(
@@ -59,6 +61,7 @@ fn loadTable(
     extra_fields: bool,
     comptime table: Table,
 ) !void {
+    var file_buffer: [8192]u8 = undefined;
     var file = gtfs_dir.openFileZ(table.gtfs_name, .{}) catch |err| {
         if (err == error.FileNotFound) {
             if (table.required) {
@@ -70,13 +73,14 @@ fn loadTable(
         }
         return err;
     };
-    var buffer = std.io.bufferedReaderSize(8192, file.reader());
+    defer file.close();
+    var reader = file.reader(&file_buffer);
     std.log.debug("Loading " ++ table.gtfs_name, .{});
 
-    const Loader = comptime TableLoader(table, @TypeOf(buffer).Reader);
+    const Loader = comptime TableLoader(table);
     var loader = try Loader.init(
         db,
-        buffer.reader(),
+        &reader.interface,
         allocator,
         extra_fields,
     );
@@ -89,8 +93,8 @@ fn loadTable(
 }
 
 /// TableLoader loads GTFS data from the provided reader into an SQL table.
-fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
-    const ColumnBuffer = std.BoundedArray(ColumnMapping, 32);
+fn TableLoader(comptime table: Table) type {
+    const ColumnBuffer = BoundedArray(ColumnMapping, 32);
     const has_pi = comptime table.parent_implication != null;
     const gtfs_column_name_to_index = comptime table.gtfsColumnNamesToIndices();
 
@@ -98,7 +102,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         const Self = @This();
 
         /// reader reads data from the provided GTFS file.
-        reader: csv.Reader(ReaderType),
+        reader: csv.Reader,
 
         /// record stores the recently-read row from the GTFS file.
         record: csv.Record,
@@ -129,11 +133,11 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
         /// Necessary INSERT statements are compiled.
         fn init(
             db: sqlite3.Connection,
-            reader: ReaderType,
+            reader: *std.Io.Reader,
             allocator: Allocator,
             load_extra_fields: bool,
         ) !Self {
-            const csv_reader = csv.reader(reader);
+            const csv_reader = csv.Reader.init(reader);
             var csv_record = csv.Record.init(allocator);
             errdefer csv_record.deinit();
             var csv_header_record = csv.Record.init(allocator);
@@ -300,7 +304,7 @@ fn TableLoader(comptime table: Table, comptime ReaderType: anytype) type {
 
             var sql_to_gtfs_idx = [_]?usize{null} ** table.columns.len;
 
-            for (self.header.slice(), 0..) |column_mapping, gtfs_idx| {
+            for (self.header.constSlice(), 0..) |column_mapping, gtfs_idx| {
                 const raw_value = self.record.get(gtfs_idx);
                 switch (column_mapping) {
                     .standard => |sql_idx| {
@@ -389,11 +393,10 @@ fn InsertArguments(comptime table_columns: usize) type {
 
         fn ensureExtraSerialized(self: *Self) !void {
             if (self.extra.map.count() > 0) {
-                self.extra_serialized = try std.json.stringifyAlloc(
-                    self.arena.?.allocator(),
-                    self.extra,
-                    .{ .escape_unicode = true },
-                );
+                var w = std.Io.Writer.Allocating.init(self.arena.?.allocator());
+                defer w.deinit();
+                try std.json.Stringify.value(self.extra, .{ .escape_unicode = true }, &w.writer);
+                self.extra_serialized = try w.toOwnedSlice();
             } else {
                 self.extra_serialized = null;
             }
@@ -407,6 +410,7 @@ fn loadExtraTable(
     allocator: Allocator,
     extra_file: [*:0]const u8,
 ) !void {
+    var file_buffer: [8192]u8 = undefined;
     var file = gtfs_dir.openFileZ(extra_file, .{}) catch |err| {
         if (err == error.FileNotFound) {
             std.log.warn("Missing extra file: {s}", .{extra_file});
@@ -414,12 +418,13 @@ fn loadExtraTable(
         }
         return err;
     };
-    var buffer = std.io.bufferedReaderSize(8192, file.reader());
+    defer file.close();
+    var reader = file.reader(&file_buffer);
     std.log.debug("Loading {s}", .{extra_file});
 
-    var loader = try ExtraTableLoader(@TypeOf(buffer).Reader).init(
+    var loader = try ExtraTableLoader.init(
         db,
-        buffer.reader(),
+        &reader.interface,
         std.mem.span(extra_file),
         allocator,
     );
@@ -431,136 +436,128 @@ fn loadExtraTable(
     try db.exec("COMMIT");
 }
 
-fn ExtraTableLoader(comptime ReaderType: anytype) type {
-    return struct {
-        const Self = @This();
+const ExtraTableLoader = struct {
+    /// reader reads data from the provided GTFS file.
+    reader: csv.Reader,
 
-        /// reader reads data from the provided GTFS file.
-        reader: csv.Reader(ReaderType),
+    /// record stores the recently-read row from the GTFS file.
+    record: csv.Record,
 
-        /// record stores the recently-read row from the GTFS file.
-        record: csv.Record,
+    /// record_map stores a mapping from header fields to record fields,
+    /// for serialization into the "fields_json" SQL field.
+    record_map: std.json.ArrayHashMap([]const u8) = .{},
 
-        /// record_map stores a mapping from header fields to record fields,
-        /// for serialization into the "fields_json" SQL field.
-        record_map: std.json.ArrayHashMap([]const u8) = .{},
+    /// record_map_json stores the serialization of `record_map`.
+    record_map_json: std.Io.Writer.Allocating,
 
-        /// record_map_json stores the serialization of `record_map`.
-        record_map_json: std.ArrayList(u8),
+    /// header stores the header row from the GTFS file.
+    header: csv.Record,
 
-        /// header stores the header row from the GTFS file.
-        header: csv.Record,
+    /// insert is the compiled INSERT INTO ... SQL statement
+    insert: sqlite3.Statement,
 
-        /// insert is the compiled INSERT INTO ... SQL statement
-        insert: sqlite3.Statement,
+    /// table_name is the full name of the loaded table
+    table_name: [:0]const u8,
 
-        /// table_name is the full name of the loaded table
+    /// init creates an ExtraTableLoader for a given DB connection and CSV file.
+    /// The necessary INSERT statement is compiled.
+    inline fn init(
+        db: sqlite3.Connection,
+        reader: *std.Io.Reader,
         table_name: [:0]const u8,
+        allocator: Allocator,
+    ) !ExtraTableLoader {
+        return .{
+            .reader = csv.Reader.init(reader),
+            .record = csv.Record.init(allocator),
+            .record_map_json = std.Io.Writer.Allocating.init(allocator),
+            .header = csv.Record.init(allocator),
+            .insert = try db.prepare(
+                \\ INSERT INTO extra_table_rows
+                \\ (table_name, fields_json, row_sort_order)
+                \\ VALUES (?, ?, ?)
+            ),
+            .table_name = table_name,
+        };
+    }
 
-        /// init creates an ExtraTableLoader for a given DB connection and CSV file.
-        /// The necessary INSERT statement is compiled.
-        inline fn init(
-            db: sqlite3.Connection,
-            reader: ReaderType,
-            table_name: [:0]const u8,
-            allocator: Allocator,
-        ) !Self {
-            return .{
-                .reader = csv.reader(reader),
-                .record = csv.Record.init(allocator),
-                .record_map_json = std.ArrayList(u8).init(allocator),
-                .header = csv.Record.init(allocator),
-                .insert = try db.prepare(
-                    \\ INSERT INTO extra_table_rows
-                    \\ (table_name, fields_json, row_sort_order)
-                    \\ VALUES (?, ?, ?)
-                ),
-                .table_name = table_name,
-            };
+    /// getAllocator returns an Allocator available for this ExtraTableLoader.
+    inline fn getAllocator(self: ExtraTableLoader) Allocator {
+        return self.record.allocator;
+    }
+
+    /// deinit deallocates any resources used by the ExtraTableLoader.
+    fn deinit(self: *ExtraTableLoader) void {
+        self.record_map.deinit(self.getAllocator());
+        self.record_map_json.deinit();
+        self.record.deinit();
+        self.header.deinit();
+        self.insert.deinit();
+    }
+
+    fn load(self: *ExtraTableLoader) !void {
+        if (!try self.loadHeader()) return;
+        var sort_order: usize = 0;
+        while (try self.reader.next(&self.record)) : (sort_order += 1) {
+            try self.loadRecord(sort_order);
         }
+    }
 
-        /// getAllocator returns an Allocator available for this ExtraTableLoader.
-        inline fn getAllocator(self: Self) Allocator {
-            return self.record.allocator;
-        }
+    /// loadHeader loads a record from the GTFS table and processes it as the header row.
+    /// Initializes `header`.
+    ///
+    /// Returns false is there is no header row.
+    fn loadHeader(self: *ExtraTableLoader) !bool {
+        const exists = self.reader.next(&self.header);
+        self.record.line_no = self.header.line_no;
+        return exists;
+    }
 
-        /// deinit deallocates any resources used by the ExtraTableLoader.
-        fn deinit(self: *Self) void {
-            self.record_map.deinit(self.getAllocator());
-            self.record_map_json.deinit();
-            self.record.deinit();
-            self.header.deinit();
-            self.insert.deinit();
-        }
+    /// loadRecord attempts to load `self.record` into the SQL table.
+    fn loadRecord(self: *ExtraTableLoader, sort_order: usize) !void {
+        try self.ensureRecordHasEnoughColumns();
+        try self.loadRecordMap();
+        try self.serializeRecordMap();
+        try self.insert.reset();
+        try self.bindRecordArguements(sort_order);
+        try self.insert.stepUntilDone();
+        try self.insert.clearBindings();
+    }
 
-        fn load(self: *Self) !void {
-            if (!try self.loadHeader()) return;
-            var sort_order: usize = 0;
-            while (try self.reader.next(&self.record)) : (sort_order += 1) {
-                try self.loadRecord(sort_order);
-            }
-        }
-
-        /// loadHeader loads a record from the GTFS table and processes it as the header row.
-        /// Initializes `header`.
-        ///
-        /// Returns false is there is no header row.
-        fn loadHeader(self: *Self) !bool {
-            const exists = self.reader.next(&self.header);
-            self.record.line_no = self.header.line_no;
-            return exists;
-        }
-
-        /// loadRecord attempts to load `self.record` into the SQL table.
-        fn loadRecord(self: *Self, sort_order: usize) !void {
-            try self.ensureRecordHasEnoughColumns();
-            try self.loadRecordMap();
-            try self.serializeRecordMap();
-            try self.insert.reset();
-            try self.bindRecordArguements(sort_order);
-            try self.insert.stepUntilDone();
-            try self.insert.clearBindings();
-        }
-
-        /// ensureRecordHasEnoughColumns raises an error if the number of fields inside of the
-        /// current record is different than the number of fields inside of the header.
-        fn ensureRecordHasEnoughColumns(self: Self) !void {
-            if (self.record.len() != self.header.len()) {
-                std.log.err(
-                    "{s}:{d}: expected {d} columns, got {d}",
-                    .{ self.table_name, self.record.line_no, self.header.len(), self.record.len() },
-                );
-                return error.MisalignedCSV;
-            }
-        }
-
-        /// loadRecordMap re-initializes `record_map` values.
-        fn loadRecordMap(self: *Self) !void {
-            for (0..self.header.len()) |i| {
-                const key = self.header.get(i);
-                const value = self.record.get(i);
-                try self.record_map.map.put(self.getAllocator(), key, value);
-            }
-        }
-
-        /// serializeRecordMap re-initializes `record_map_json` string.
-        fn serializeRecordMap(self: *Self) !void {
-            self.record_map_json.clearRetainingCapacity();
-            try std.json.stringify(
-                self.record_map,
-                .{ .escape_unicode = true },
-                self.record_map_json.writer(),
+    /// ensureRecordHasEnoughColumns raises an error if the number of fields inside of the
+    /// current record is different than the number of fields inside of the header.
+    fn ensureRecordHasEnoughColumns(self: ExtraTableLoader) !void {
+        if (self.record.len() != self.header.len()) {
+            std.log.err(
+                "{s}:{d}: expected {d} columns, got {d}",
+                .{ self.table_name, self.record.line_no, self.header.len(), self.record.len() },
             );
+            return error.MisalignedCSV;
         }
+    }
 
-        /// bindRecordArguements binds the 2nd and 3rd arguments of the INSERT statement.
-        fn bindRecordArguements(self: *Self, sort_order: usize) !void {
-            try self.insert.bind(1, self.table_name);
-            try self.insert.bind(2, self.record_map_json.items);
-            try self.insert.bind(3, sort_order);
+    /// loadRecordMap re-initializes `record_map` values.
+    fn loadRecordMap(self: *ExtraTableLoader) !void {
+        for (0..self.header.len()) |i| {
+            const key = self.header.get(i);
+            const value = self.record.get(i);
+            try self.record_map.map.put(self.getAllocator(), key, value);
         }
-    };
-}
+    }
+
+    /// serializeRecordMap re-initializes `record_map_json` string.
+    fn serializeRecordMap(self: *ExtraTableLoader) !void {
+        self.record_map_json.clearRetainingCapacity();
+        try std.json.Stringify.value(self.record_map, .{ .escape_unicode = true }, &self.record_map_json.writer);
+    }
+
+    /// bindRecordArguements binds the 2nd and 3rd arguments of the INSERT statement.
+    fn bindRecordArguements(self: *ExtraTableLoader, sort_order: usize) !void {
+        try self.insert.bind(1, self.table_name);
+        try self.insert.bind(2, self.record_map_json.written());
+        try self.insert.bind(3, sort_order);
+    }
+};
 
 test "gtfs.load.simple" {
     const from_gtfs = @import("./conversion_from_gtfs.zig");
@@ -571,8 +568,7 @@ test "gtfs.load.simple" {
     try db.exec("CREATE TABLE spam (foo TEXT PRIMARY KEY, bar INTEGER NOT NULL, baz TEXT NOT NULL DEFAULT '') STRICT");
 
     const data = "foo,baz,bar\r\n1,Hello,42\r\n2,World,\r\n";
-    var fbs = std.io.fixedBufferStream(data);
-    const reader = fbs.reader();
+    var reader = std.Io.Reader.fixed(data);
 
     const table = comptime Table{
         .gtfs_name = "spam.txt",
@@ -584,10 +580,10 @@ test "gtfs.load.simple" {
         },
     };
 
-    const Loader = TableLoader(table, @TypeOf(reader));
+    const Loader = TableLoader(table);
     var loader = try Loader.init(
         db,
-        reader,
+        &reader,
         std.testing.allocator,
         false,
     );
@@ -641,8 +637,7 @@ test "gtfs.load.with_parent_implication" {
     );
 
     const data = "parent_id,seq\r\nA,0\r\nA,1\r\nB,1\r\nB,2\r\n";
-    var fbs = std.io.fixedBufferStream(data);
-    const reader = fbs.reader();
+    var reader = std.Io.Reader.fixed(data);
 
     const table = comptime Table{
         .gtfs_name = "children.txt",
@@ -658,8 +653,8 @@ test "gtfs.load.with_parent_implication" {
         },
     };
 
-    const Loader = TableLoader(table, @TypeOf(reader));
-    var loader = try Loader.init(db, reader, std.testing.allocator, false);
+    const Loader = TableLoader(table);
+    var loader = try Loader.init(db, &reader, std.testing.allocator, false);
     defer loader.deinit();
 
     try db.exec("BEGIN");
@@ -741,12 +736,11 @@ test "gtfs.load.extra" {
     );
 
     const data = "foo,baz,bar\r\n1,Hello,42\r\n2,World,\r\n";
-    var fbs = std.io.fixedBufferStream(data);
-    const reader = fbs.reader();
+    var reader = std.Io.Reader.fixed(data);
 
-    var loader = try ExtraTableLoader(@TypeOf(reader)).init(
+    var loader = try ExtraTableLoader.init(
         db,
-        reader,
+        &reader,
         "foo.txt",
         std.testing.allocator,
     );

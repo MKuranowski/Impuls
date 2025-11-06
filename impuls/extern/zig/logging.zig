@@ -1,14 +1,14 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const std = @import("std");
 
-pub const Handler = *const fn (c_int, [*:0]const u8) callconv(.C) void;
+pub const Handler = *const fn (c_int, [*:0]const u8) callconv(.c) void;
 pub var custom_handler: ?Handler = null;
 
 pub fn logWithCustomHandler(
     comptime message_level: std.log.Level,
-    comptime scope: @Type(.EnumLiteral),
+    comptime scope: @Type(.enum_literal),
     comptime format: []const u8,
     args: anytype,
 ) void {

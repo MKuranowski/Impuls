@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const std = @import("std");
@@ -263,23 +263,23 @@ pub const Statement = struct {
     /// The leftmost parameter has index 1.
     pub fn bind(self: Statement, oneBasedIndex: c_int, arg: anytype) !void {
         switch (@typeInfo(@TypeOf(arg))) {
-            .Int, .ComptimeInt => {
+            .int, .comptime_int => {
                 try check(c.sqlite3_bind_int64(self.handle, oneBasedIndex, @intCast(arg)));
             },
 
-            .Float, .ComptimeFloat => {
+            .float, .comptime_float => {
                 try check(c.sqlite3_bind_double(self.handle, oneBasedIndex, @floatCast(arg)));
             },
 
-            .Bool => {
+            .bool => {
                 try check(c.sqlite3_bind_int(self.handle, oneBasedIndex, @intFromBool(arg)));
             },
 
-            .Null => {
+            .null => {
                 try check(c.sqlite3_bind_null(self.handle, oneBasedIndex));
             },
 
-            .Optional => {
+            .optional => {
                 if (arg) |value| {
                     return self.bind(oneBasedIndex, value);
                 } else {
@@ -287,8 +287,8 @@ pub const Statement = struct {
                 }
             },
 
-            .Pointer => |ptr| {
-                if (ptr.child == u8 and ptr.size == .Slice) {
+            .pointer => |ptr| {
+                if (ptr.child == u8 and ptr.size == .slice) {
                     // Pass []u8 as UTF-8 TEXT, with explicit size
                     try check(c.sqlite3_bind_text64(
                         self.handle,
@@ -298,7 +298,7 @@ pub const Statement = struct {
                         c.SQLITE_STATIC,
                         c.SQLITE_UTF8,
                     ));
-                } else if (ptr.child == u16 and ptr.size == .Slice) {
+                } else if (ptr.child == u16 and ptr.size == .slice) {
                     // Pass []u8 as UTF-16 TEXT, with explicit size
                     try check(c.sqlite3_bind_text64(
                         self.handle,
@@ -365,7 +365,7 @@ pub const Statement = struct {
     pub fn bindAll(self: Statement, argsTuple: anytype) !void {
         // Check that argsTuple is a tuple of the required size
         switch (@typeInfo(@TypeOf(argsTuple))) {
-            .Struct => |s| {
+            .@"struct" => |s| {
                 if (!s.is_tuple) {
                     @compileError("argsTuple is not a tuple");
                 }
@@ -463,18 +463,18 @@ pub const Statement = struct {
     /// For details on how CAST works, see https://www.sqlite.org/lang_expr.html#castexpr.
     pub fn column(self: Statement, zeroBasedIndex: c_int, ptr: anytype) void {
         const T = switch (@typeInfo(@TypeOf(ptr))) {
-            .Pointer => |p| if (p.size != .One or p.is_const)
+            .pointer => |p| if (p.size != .one or p.is_const)
                 @compileError("unable to save column to " ++ @typeName(@TypeOf(ptr)) ++ ", argument must be a non-const pointer")
             else
                 p.child,
-            .Null => return,
+            .null => return,
             else => @compileError("unable to save column to " ++ @typeName(@TypeOf(ptr)) ++ ", argument must be a non-const pointer"),
         };
 
         assert(zeroBasedIndex < self.columnCount()); // column index out-of-bounds
 
         switch (@typeInfo(T)) {
-            .Bool => {
+            .bool => {
                 if (c.sqlite3_column_int(self.handle, zeroBasedIndex) == 0) {
                     ptr.* = false;
                 } else {
@@ -482,15 +482,15 @@ pub const Statement = struct {
                 }
             },
 
-            .Int => {
+            .int => {
                 ptr.* = @intCast(c.sqlite3_column_int64(self.handle, zeroBasedIndex));
             },
 
-            .Float => {
+            .float => {
                 ptr.* = @floatCast(c.sqlite3_column_double(self.handle, zeroBasedIndex));
             },
 
-            .Optional => |o| {
+            .optional => |o| {
                 if (self.columnType(zeroBasedIndex) == .Null) {
                     ptr.* = null;
                 } else {
@@ -500,26 +500,26 @@ pub const Statement = struct {
                 }
             },
 
-            .Pointer => |p| {
-                if (p.child == u8 and p.size == .Slice and p.sentinel == null and p.is_const) {
+            .pointer => |p| {
+                if (p.child == u8 and p.size == .slice and p.sentinel() == null and p.is_const) {
                     const str = c.sqlite3_column_text(self.handle, zeroBasedIndex);
                     const len = c.sqlite3_column_bytes(self.handle, zeroBasedIndex);
                     ptr.* = str[0..@intCast(len)];
-                } else if (p.child == u8 and p.size == .Slice and p.sentinel == 0 and p.is_const) {
+                } else if (p.child == u8 and p.size == .slice and p.sentinel() == 0 and p.is_const) {
                     const str = c.sqlite3_column_text(self.handle, zeroBasedIndex);
                     const len = c.sqlite3_column_bytes(self.handle, zeroBasedIndex);
                     ptr.* = str[0..@intCast(len) :0];
-                } else if (p.child == u16 and p.size == .Slice and p.sentinel == null and p.is_const) {
+                } else if (p.child == u16 and p.size == .slice and p.sentinel() == null and p.is_const) {
                     const str = c.sqlite3_column_text16(self.handle, zeroBasedIndex);
                     const len = c.sqlite3_column_bytes16(self.handle, zeroBasedIndex);
                     ptr.* = str[0..@intCast(len)];
-                } else if (p.child == u16 and p.size == .Slice and p.sentinel == 0 and p.is_const) {
+                } else if (p.child == u16 and p.size == .slice and p.sentinel() == 0 and p.is_const) {
                     const str = c.sqlite3_column_text16(self.handle, zeroBasedIndex);
                     const len = c.sqlite3_column_bytes16(self.handle, zeroBasedIndex);
                     ptr.* = str[0..@intCast(len) :0];
-                } else if (p.child == u8 and p.size == .Many and p.sentinel == 0 and p.is_const) {
+                } else if (p.child == u8 and p.size == .many and p.sentinel() == 0 and p.is_const) {
                     ptr.* = c.sqlite3_column_text(self.handle, zeroBasedIndex);
-                } else if (p.child == u16 and p.size == .Many and p.sentinel == 0 and p.is_const) {
+                } else if (p.child == u16 and p.size == .many and p.sentinel() == 0 and p.is_const) {
                     ptr.* = c.sqlite3_column_text16(self.handle, zeroBasedIndex);
                 } else {
                     @compileError("unable to read column to type " ++ @typeName(@TypeOf(T)));
@@ -538,7 +538,7 @@ pub const Statement = struct {
     /// caveats, especially lifetime restrictions on strings.
     pub fn columns(self: Statement, tupleOfPointers: anytype) void {
         switch (@typeInfo(@TypeOf(tupleOfPointers))) {
-            .Struct => |s| {
+            .@"struct" => |s| {
                 if (!s.is_tuple) {
                     @compileError("tupleOfPointers is not a tuple");
                 }
@@ -820,8 +820,8 @@ test "sqlite.basic" {
 
 /// is_ptr_to_array_of returns N if ptr represents `*[N]child` or null otherwise.
 fn is_ptr_to_array_of(comptime ptr: std.builtin.Type.Pointer, comptime child: type) ?comptime_int {
-    return if (ptr.size == .One) switch (@typeInfo(ptr.child)) {
-        .Array => |arr| if (arr.child == child) arr.len else null,
+    return if (ptr.size == .one) switch (@typeInfo(ptr.child)) {
+        .array => |arr| if (arr.child == child) arr.len else null,
         else => null,
     } else null;
 }
@@ -831,5 +831,5 @@ fn is_ptr_to_array_of(comptime ptr: std.builtin.Type.Pointer, comptime child: ty
 /// `comptime_int` must be able to be coerced into `child`, otherwise the null terminator check
 /// will fail to compile.
 fn is_ptr_to_null_terminated(comptime ptr: std.builtin.Type.Pointer, comptime child: type) bool {
-    return ptr.child == child and ptr.size == .Many and ptr.sentinel != null and @as(*const child, @ptrCast(ptr.sentinel.?)).* == 0;
+    return ptr.child == child and ptr.size == .many and ptr.sentinel() == 0;
 }

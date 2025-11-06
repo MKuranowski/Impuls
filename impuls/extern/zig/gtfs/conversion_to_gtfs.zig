@@ -1,4 +1,4 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const c = @import("./conversion.zig");
@@ -28,7 +28,7 @@ pub fn date(v: *ColumnValue) void {
 
         .Null => {}, // allow optional values
 
-        else => panic("invalid date value: {}", .{v.*}),
+        else => panic("invalid date value: {f}", .{v.*}),
     }
 }
 
@@ -61,7 +61,7 @@ pub fn time(v: *ColumnValue) void {
             };
         },
 
-        else => panic("invalid time value: {}", .{v.*}),
+        else => panic("invalid time value: {f}", .{v.*}),
     }
 }
 

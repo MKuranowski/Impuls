@@ -21,7 +21,7 @@ comptime {
     // C guarantees that sizeof(char) is 1 byte, but doesn't guarante that one byte is exactly
     // 8 bits. Platforms with non-8-bit-bytes exist, but are extremely uncommon. As this module
     // treats c_char and u8 interchangebly, crash if those types have different sizes.
-    if (@typeInfo(c_char).Int.bits != @typeInfo(u8).Int.bits)
+    if (@typeInfo(c_char).int.bits != @typeInfo(u8).int.bits)
         @compileError("u8 and c_char have different widths. This module expectes those types to be interchangable.");
 }
 
@@ -43,14 +43,15 @@ pub fn save(
     emit_empty_calendars: bool,
     ensure_order: bool,
 ) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    // const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    const allocator = std.heap.c_allocator;
 
     var gtfs_dir = try fs.cwd().openDirZ(gtfs_dir_path, .{});
     defer gtfs_dir.close();
 
-    var threads = try std.ArrayListUnmanaged(Thread).initCapacity(allocator, headers.len);
+    var threads = try std.ArrayList(Thread).initCapacity(allocator, headers.len);
     defer {
         for (threads.items) |thread| {
             thread.join();
@@ -121,228 +122,224 @@ fn spawnSaveThread(
 }
 
 /// TableSaver saves GTFS data from a given SQL table to a writer.
-fn TableSaver(comptime IoWriter: type) type {
-    return struct {
-        const Self = @This();
+const TableSaver = struct {
+    allocator: Allocator,
 
-        allocator: Allocator,
+    /// table points to the Table to be exported
+    table: *const Table,
 
-        /// table points to the Table to be exported
+    /// columns is the order of fields to write for each record
+    columns: []ColumnMapping,
+
+    /// select is a compiled SQL "SELECT ... FROM table.sql_name" statement, retrieving
+    /// all SQL columns
+    select: sqlite3.Statement,
+
+    /// writer writes CSV data to a buffered fs.File
+    writer: csv.Writer,
+
+    /// header contains the field to export
+    header: []const [:0]const u8,
+
+    /// extra_fields_columns is an index of the extra_fields_json column in the SELECT
+    /// statement, if required and present
+    extra_fields_column: ?c_int = null,
+
+    /// filter_empty_calendars flags whether rows for which `isCalendarEmpty` returns true
+    /// should not be written to the writer. Can only be set if `table` represents `calendars`.
+    filter_empty_calendars: bool = false,
+
+    /// init creates a TableSaver writing GTFS data from a provided database
+    /// to a provided writer, according to the provided header.
+    ///
+    /// If a non-standard field is encountered in `header`, TableSaver will attempt
+    /// to access that fields from `extra_fields` (if the `Table` has it), otherwise
+    /// that column will always have empty cells written.
+    ///
+    /// `emit_empty_calendars` is only used if `table.sql_name` is `calendars`. If that
+    /// flag is not set, empty calendar rows (inactive on all weekdays) are not going
+    /// to be written to the output file.
+    fn init(
+        db: sqlite3.Connection,
+        writer: *std.Io.Writer,
         table: *const Table,
+        header: c_char_p_p,
+        emit_empty_calendars: bool,
+        ensure_order: bool,
+        allocator: Allocator,
+    ) !TableSaver {
+        const header_slice = try ownedSliceOverCStrings(header, allocator);
+        errdefer allocator.free(header_slice);
 
-        /// columns is the order of fields to write for each record
-        columns: []ColumnMapping,
+        const columns_and_extra_fields = try prepareColumnMapping(table, header_slice, allocator);
+        const columns = columns_and_extra_fields[0];
+        const extra_fields = columns_and_extra_fields[1];
+        errdefer allocator.free(columns);
 
-        /// select is a compiled SQL "SELECT ... FROM table.sql_name" statement, retrieving
-        /// all SQL columns
-        select: sqlite3.Statement,
+        const select = try prepareSelect(db, table, extra_fields, ensure_order, allocator);
+        errdefer select.deinit();
 
-        /// writer writes CSV data to a buffered fs.File
-        writer: csv.Writer(IoWriter),
+        const filter_empty_calendars = !emit_empty_calendars and std.mem.eql(u8, table.sql_name, "calendars");
 
-        /// header contains the field to export
-        header: []const [:0]const u8,
+        return .{
+            .allocator = allocator,
+            .table = table,
+            .columns = columns,
+            .select = select,
+            .writer = csv.Writer.init(writer),
+            .header = header_slice,
+            .extra_fields_column = if (extra_fields) @intCast(table.columns.len) else null,
+            .filter_empty_calendars = filter_empty_calendars,
+        };
+    }
 
-        /// extra_fields_columns is an index of the extra_fields_json column in the SELECT
-        /// statement, if required and present
-        extra_fields_column: ?c_int = null,
+    /// prepareColumnMapping combines `table.columns` with the `header` to figure out
+    /// the order of columns to be written. The second return value indicates whether
+    /// `extra_fields_json` need to be parsed to properly write the data, as there are
+    /// extra ColumnMappings being used.
+    fn prepareColumnMapping(
+        table: *const Table,
+        header: []const []const u8,
+        allocator: Allocator,
+    ) !struct { []ColumnMapping, bool } {
+        var loads_extra_fields = false;
+        var columns: std.ArrayList(ColumnMapping) = .{};
+        defer columns.deinit(allocator);
 
-        /// filter_empty_calendars flags whether rows for which `isCalendarEmpty` returns true
-        /// should not be written to the writer. Can only be set if `table` represents `calendars`.
-        filter_empty_calendars: bool = false,
-
-        /// init creates a TableSaver writing GTFS data from a provided database
-        /// to a provided writer, according to the provided header.
-        ///
-        /// If a non-standard field is encountered in `header`, TableSaver will attempt
-        /// to access that fields from `extra_fields` (if the `Table` has it), otherwise
-        /// that column will always have empty cells written.
-        ///
-        /// `emit_empty_calendars` is only used if `table.sql_name` is `calendars`. If that
-        /// flag is not set, empty calendar rows (inactive on all weekdays) are not going
-        /// to be written to the output file.
-        fn init(
-            db: sqlite3.Connection,
-            writer: IoWriter,
-            table: *const Table,
-            header: c_char_p_p,
-            emit_empty_calendars: bool,
-            ensure_order: bool,
-            allocator: Allocator,
-        ) !Self {
-            const header_slice = try ownedSliceOverCStrings(header, allocator);
-            errdefer allocator.free(header_slice);
-
-            const columns_and_extra_fields = try prepareColumnMapping(table, header_slice, allocator);
-            const columns = columns_and_extra_fields[0];
-            const extra_fields = columns_and_extra_fields[1];
-            errdefer allocator.free(columns);
-
-            const select = try prepareSelect(db, table, extra_fields, ensure_order, allocator);
-            errdefer select.deinit();
-
-            const filter_empty_calendars = !emit_empty_calendars and std.mem.eql(u8, table.sql_name, "calendars");
-
-            return .{
-                .allocator = allocator,
-                .table = table,
-                .columns = columns,
-                .select = select,
-                .writer = csv.writer(writer),
-                .header = header_slice,
-                .extra_fields_column = if (extra_fields) @intCast(table.columns.len) else null,
-                .filter_empty_calendars = filter_empty_calendars,
-            };
-        }
-
-        /// prepareColumnMapping combines `table.columns` with the `header` to figure out
-        /// the order of columns to be written. The second return value indicates whether
-        /// `extra_fields_json` need to be parsed to properly write the data, as there are
-        /// extra ColumnMappings being used.
-        fn prepareColumnMapping(
-            table: *const Table,
-            header: []const []const u8,
-            allocator: Allocator,
-        ) !struct { []ColumnMapping, bool } {
-            var loads_extra_fields = false;
-            var columns: std.ArrayListUnmanaged(ColumnMapping) = .{};
-            defer columns.deinit(allocator);
-
-            for (header) |gtfs_column_name| {
-                if (table.gtfsColumnNameToIndex(gtfs_column_name)) |column_idx| {
-                    try columns.append(allocator, .{ .standard = column_idx });
-                } else if (table.has_extra_fields_json) {
-                    loads_extra_fields = true;
-                    try columns.append(allocator, .{ .extra = gtfs_column_name });
-                } else {
-                    try columns.append(allocator, .{ .none = {} });
-                }
-            }
-
-            return .{ try columns.toOwnedSlice(allocator), loads_extra_fields };
-        }
-
-        /// prepareSelect prepares and compiles an SQL SELECT statement for the provided
-        /// table in the provided database. The SELECT statement selects all columns (as
-        /// indicated by `table.columns`) and optionally (if `loads_extra_fields` is set)
-        /// `extra_fields_json` (guaranteed last column).
-        fn prepareSelect(
-            db: sqlite3.Connection,
-            table: *const Table,
-            loads_extra_fields: bool,
-            ensure_order: bool,
-            allocator: Allocator,
-        ) !sqlite3.Statement {
-            var sql: std.ArrayListUnmanaged(u8) = .{};
-            defer sql.deinit(allocator);
-
-            try sql.appendSlice(allocator, "SELECT ");
-            for (table.columns, 0..) |column, i| {
-                if (i != 0) try sql.appendSlice(allocator, ", ");
-                try sql.appendSlice(allocator, column.name);
-            }
-
-            if (loads_extra_fields) {
-                try sql.appendSlice(allocator, ", extra_fields_json");
-            }
-
-            try sql.appendSlice(allocator, " FROM ");
-            try sql.appendSlice(allocator, table.sql_name);
-
-            if (ensure_order) {
-                try sql.appendSlice(allocator, table.order_clause);
-            }
-
-            try sql.append(allocator, 0);
-
-            const statement = try db.prepare(sql.items[0 .. sql.items.len - 1 :0]);
-            return statement;
-        }
-
-        /// deinit deallocates any resources allocated by the TableSaver.
-        fn deinit(self: Self) void {
-            self.allocator.free(self.header);
-            self.allocator.free(self.columns);
-            self.select.deinit();
-        }
-
-        /// writeAll writes complete data to the underlying file - the header and all rows.
-        fn writeAll(self: *Self) !void {
-            try self.writeHeader();
-            try self.writeRows();
-        }
-
-        /// writeHeader writes the header to the underlying file.
-        fn writeHeader(self: *Self) !void {
-            try self.writer.writeRecord(self.header);
-        }
-
-        /// writeRows rewrites all rows from SQL to GTFS.
-        fn writeRows(self: *Self) !void {
-            while (try self.select.step()) {
-                try self.writeRow();
-            }
-        }
-
-        /// writeRow rewrites a row from SQL to GTFS - should be called only after
-        /// `self.select.step` returns true.
-        fn writeRow(self: *Self) !void {
-            if (self.shouldSkipRow()) return;
-
-            var extra_fields = try self.parseExtraFields();
-            defer if (extra_fields) |*ef| ef.deinit();
-            try self.writeRecord(extra_fields);
-        }
-
-        /// shouldSkipRow returns true if the current row should not be written out.
-        fn shouldSkipRow(self: *Self) bool {
-            return self.filter_empty_calendars and isCalendarEmpty(self.select);
-        }
-
-        /// parseExtraFields parses the `extra_fields_json` column, if it is available.
-        fn parseExtraFields(self: *Self) !?OwnedExtraFields {
-            if (self.extra_fields_column) |column| {
-                var json: ?[]const u8 = undefined;
-                self.select.column(column, &json);
-
-                var fields = OwnedExtraFields.init(self.allocator);
-                errdefer fields.deinit();
-                try fields.parse(json);
-
-                return fields;
+        for (header) |gtfs_column_name| {
+            if (table.gtfsColumnNameToIndex(gtfs_column_name)) |column_idx| {
+                try columns.append(allocator, .{ .standard = column_idx });
+            } else if (table.has_extra_fields_json) {
+                loads_extra_fields = true;
+                try columns.append(allocator, .{ .extra = gtfs_column_name });
             } else {
-                return null;
+                try columns.append(allocator, .{ .none = {} });
             }
         }
 
-        /// writeRecord writes data to the underlying writer.
-        fn writeRecord(self: *Self, extra_fields: ?OwnedExtraFields) !void {
-            for (self.columns) |column| {
-                try self.writeColumn(column, extra_fields);
-            }
-            try self.writer.terminateRecord();
+        return .{ try columns.toOwnedSlice(allocator), loads_extra_fields };
+    }
+
+    /// prepareSelect prepares and compiles an SQL SELECT statement for the provided
+    /// table in the provided database. The SELECT statement selects all columns (as
+    /// indicated by `table.columns`) and optionally (if `loads_extra_fields` is set)
+    /// `extra_fields_json` (guaranteed last column).
+    fn prepareSelect(
+        db: sqlite3.Connection,
+        table: *const Table,
+        loads_extra_fields: bool,
+        ensure_order: bool,
+        allocator: Allocator,
+    ) !sqlite3.Statement {
+        var sql: std.ArrayList(u8) = .{};
+        defer sql.deinit(allocator);
+
+        try sql.appendSlice(allocator, "SELECT ");
+        for (table.columns, 0..) |column, i| {
+            if (i != 0) try sql.appendSlice(allocator, ", ");
+            try sql.appendSlice(allocator, column.name);
         }
 
-        /// writeColumn writes data from the provided column to the underlying writer.
-        fn writeColumn(self: *Self, column: ColumnMapping, extra_fields: ?OwnedExtraFields) !void {
-            switch (column) {
-                .standard => |column_idx| {
-                    var value = ColumnValue.scan(self.select, @intCast(column_idx));
-                    if (self.table.columns[column_idx].to_gtfs) |converter| converter(&value);
-                    try self.writer.writeField(try value.ensureString());
-                },
-
-                .extra => |extra_col_name| {
-                    try self.writer.writeField(extra_fields.?.get(extra_col_name));
-                },
-
-                .none => {
-                    try self.writer.writeField("");
-                },
-            }
+        if (loads_extra_fields) {
+            try sql.appendSlice(allocator, ", extra_fields_json");
         }
-    };
-}
+
+        try sql.appendSlice(allocator, " FROM ");
+        try sql.appendSlice(allocator, table.sql_name);
+
+        if (ensure_order) {
+            try sql.appendSlice(allocator, table.order_clause);
+        }
+
+        try sql.append(allocator, 0);
+
+        const statement = try db.prepare(sql.items[0 .. sql.items.len - 1 :0]);
+        return statement;
+    }
+
+    /// deinit deallocates any resources allocated by the TableSaver.
+    fn deinit(self: TableSaver) void {
+        self.allocator.free(self.header);
+        self.allocator.free(self.columns);
+        self.select.deinit();
+    }
+
+    /// writeAll writes complete data to the underlying file - the header and all rows.
+    fn writeAll(self: *TableSaver) !void {
+        try self.writeHeader();
+        try self.writeRows();
+    }
+
+    /// writeHeader writes the header to the underlying file.
+    fn writeHeader(self: *TableSaver) !void {
+        try self.writer.writeRecord(self.header);
+    }
+
+    /// writeRows rewrites all rows from SQL to GTFS.
+    fn writeRows(self: *TableSaver) !void {
+        while (try self.select.step()) {
+            try self.writeRow();
+        }
+    }
+
+    /// writeRow rewrites a row from SQL to GTFS - should be called only after
+    /// `self.select.step` returns true.
+    fn writeRow(self: *TableSaver) !void {
+        if (self.shouldSkipRow()) return;
+
+        var extra_fields = try self.parseExtraFields();
+        defer if (extra_fields) |*ef| ef.deinit();
+        try self.writeRecord(extra_fields);
+    }
+
+    /// shouldSkipRow returns true if the current row should not be written out.
+    fn shouldSkipRow(self: *TableSaver) bool {
+        return self.filter_empty_calendars and isCalendarEmpty(self.select);
+    }
+
+    /// parseExtraFields parses the `extra_fields_json` column, if it is available.
+    fn parseExtraFields(self: *TableSaver) !?OwnedExtraFields {
+        if (self.extra_fields_column) |column| {
+            var json: ?[]const u8 = undefined;
+            self.select.column(column, &json);
+
+            var fields = OwnedExtraFields.init(self.allocator);
+            errdefer fields.deinit();
+            try fields.parse(json);
+
+            return fields;
+        } else {
+            return null;
+        }
+    }
+
+    /// writeRecord writes data to the underlying writer.
+    fn writeRecord(self: *TableSaver, extra_fields: ?OwnedExtraFields) !void {
+        for (self.columns) |column| {
+            try self.writeColumn(column, extra_fields);
+        }
+        try self.writer.terminateRecord();
+    }
+
+    /// writeColumn writes data from the provided column to the underlying writer.
+    fn writeColumn(self: *TableSaver, column: ColumnMapping, extra_fields: ?OwnedExtraFields) !void {
+        switch (column) {
+            .standard => |column_idx| {
+                var value = ColumnValue.scan(self.select, @intCast(column_idx));
+                if (self.table.columns[column_idx].to_gtfs) |converter| converter(&value);
+                try self.writer.writeField(try value.ensureString());
+            },
+
+            .extra => |extra_col_name| {
+                try self.writer.writeField(extra_fields.?.get(extra_col_name));
+            },
+
+            .none => {
+                try self.writer.writeField("");
+            },
+        }
+    }
+};
 
 /// saveTable opens the necessary resources, initializes a `TableSaver` and calls
 /// `TableSaver.writeAll` to fully rewrite an SQL table to GTFS.
@@ -361,14 +358,14 @@ fn saveTable(
     );
     defer db.deinit();
 
+    var file_buffer: [8192]u8 = undefined;
     var file = try gtfs_dir.createFileZ(table.gtfs_name, .{});
     defer file.close();
-    var buffer = bufferedWriterSize(8192, file.writer());
-    const writer = buffer.writer();
+    var writer = file.writer(&file_buffer);
 
-    var saver = try TableSaver(@TypeOf(writer)).init(
+    var saver = try TableSaver.init(
         db,
-        writer,
+        &writer.interface,
         table,
         header,
         emit_empty_calendars,
@@ -377,7 +374,7 @@ fn saveTable(
     );
     defer saver.deinit();
     try saver.writeAll();
-    try buffer.flush();
+    try writer.interface.flush();
     std.log.debug("Saving {s} completed", .{table.gtfs_name});
 }
 
@@ -397,9 +394,10 @@ fn saveTableInThread(
 ) void {
     defer wg.finish();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    // const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    const allocator = std.heap.c_allocator;
 
     saveTable(
         allocator,
@@ -414,7 +412,7 @@ fn saveTableInThread(
 
         if (@errorReturnTrace()) |trace| {
             std.log.err(
-                "gtfs.save: {s}: {}\nStack trace: {}",
+                "gtfs.save: {s}: {}\nStack trace: {f}",
                 .{ table.gtfs_name, err, trace },
             );
         } else {
@@ -425,97 +423,93 @@ fn saveTableInThread(
 }
 
 /// ExtraTableSaver saves GTFS data from a table stored in the special `extra_table_rows` SQL table.
-fn ExtraTableSaver(comptime IoWriter: type) type {
-    return struct {
-        const Self = @This();
+const ExtraTableSaver = struct {
+    allocator: Allocator,
 
-        allocator: Allocator,
+    /// select is a compiled SQL "SELECT fields_json FROM extra_table_rows ..." statement
+    select: sqlite3.Statement,
 
-        /// select is a compiled SQL "SELECT fields_json FROM extra_table_rows ..." statement
-        select: sqlite3.Statement,
+    /// writer writes CSV data to a buffered fs.File
+    writer: csv.Writer,
 
-        /// writer writes CSV data to a buffered fs.File
-        writer: csv.Writer(IoWriter),
+    /// header contains the field to export
+    header: []const [:0]const u8,
 
-        /// header contains the field to export
-        header: []const [:0]const u8,
+    /// file_name contains the name of the extra file to export
+    file_name: [*:0]const u8,
 
-        /// file_name contains the name of the extra file to export
+    /// init creates an ExtraTableSaver writing GTFS data from a provided database
+    /// to a provided writer, according to the provided header.
+    fn init(
+        db: sqlite3.Connection,
+        writer: *std.Io.Writer,
         file_name: [*:0]const u8,
+        header: c_char_p_p,
+        allocator: Allocator,
+    ) !ExtraTableSaver {
+        const header_slice = try ownedSliceOverCStrings(header, allocator);
+        errdefer allocator.free(header_slice);
 
-        /// init creates an ExtraTableSaver writing GTFS data from a provided database
-        /// to a provided writer, according to the provided header.
-        fn init(
-            db: sqlite3.Connection,
-            writer: IoWriter,
-            file_name: [*:0]const u8,
-            header: c_char_p_p,
-            allocator: Allocator,
-        ) !Self {
-            const header_slice = try ownedSliceOverCStrings(header, allocator);
-            errdefer allocator.free(header_slice);
+        var select = try db.prepare(
+            \\ SELECT fields_json FROM extra_table_rows
+            \\ WHERE table_name = ?
+            \\ ORDER BY row_sort_order ASC
+        );
+        errdefer select.deinit();
 
-            var select = try db.prepare(
-                \\ SELECT fields_json FROM extra_table_rows
-                \\ WHERE table_name = ?
-                \\ ORDER BY row_sort_order ASC
-            );
-            errdefer select.deinit();
+        return .{
+            .allocator = allocator,
+            .select = select,
+            .writer = csv.Writer.init(writer),
+            .header = header_slice,
+            .file_name = file_name,
+        };
+    }
 
-            return .{
-                .allocator = allocator,
-                .select = select,
-                .writer = csv.writer(writer),
-                .header = header_slice,
-                .file_name = file_name,
-            };
+    /// deinit deallocates any resources allocated by the ExtraTableSaver.
+    fn deinit(self: *ExtraTableSaver) void {
+        self.allocator.free(self.header);
+        self.select.deinit();
+    }
+
+    /// writeAll writes complete data to the underlying file - the header and all rows.
+    fn writeAll(self: *ExtraTableSaver) !void {
+        try self.writeHeader();
+        try self.bindSelectArguments();
+        while (try self.select.step()) {
+            try self.writeRow();
         }
+        try self.select.clearBindings();
+    }
 
-        /// deinit deallocates any resources allocated by the ExtraTableSaver.
-        fn deinit(self: *Self) void {
-            self.allocator.free(self.header);
-            self.select.deinit();
+    /// writeHeader writes the header to the underlying file.
+    fn writeHeader(self: *ExtraTableSaver) !void {
+        try self.writer.writeRecord(self.header);
+    }
+
+    /// bindSelectArguments binds `self.file_name` as the first parameter of the
+    /// SELECT statement.
+    fn bindSelectArguments(self: *ExtraTableSaver) !void {
+        try self.select.bind(1, self.file_name);
+    }
+
+    /// writeRow rewrites a row from SQL to GTFS - should be called only after
+    /// `self.select.step` returns true.
+    fn writeRow(self: *ExtraTableSaver) !void {
+        var fields = OwnedExtraFields.init(self.allocator);
+        defer fields.deinit();
+
+        var fields_json: []const u8 = undefined;
+        self.select.column(0, &fields_json);
+        try fields.parse(fields_json);
+
+        for (self.header) |field_name| {
+            const value = fields.get(field_name);
+            try self.writer.writeField(value);
         }
-
-        /// writeAll writes complete data to the underlying file - the header and all rows.
-        fn writeAll(self: *Self) !void {
-            try self.writeHeader();
-            try self.bindSelectArguments();
-            while (try self.select.step()) {
-                try self.writeRow();
-            }
-            try self.select.clearBindings();
-        }
-
-        /// writeHeader writes the header to the underlying file.
-        fn writeHeader(self: *Self) !void {
-            try self.writer.writeRecord(self.header);
-        }
-
-        /// bindSelectArguments binds `self.file_name` as the first parameter of the
-        /// SELECT statement.
-        fn bindSelectArguments(self: *Self) !void {
-            try self.select.bind(1, self.file_name);
-        }
-
-        /// writeRow rewrites a row from SQL to GTFS - should be called only after
-        /// `self.select.step` returns true.
-        fn writeRow(self: *Self) !void {
-            var fields = OwnedExtraFields.init(self.allocator);
-            defer fields.deinit();
-
-            var fields_json: []const u8 = undefined;
-            self.select.column(0, &fields_json);
-            try fields.parse(fields_json);
-
-            for (self.header) |field_name| {
-                const value = fields.get(field_name);
-                try self.writer.writeField(value);
-            }
-            try self.writer.terminateRecord();
-        }
-    };
-}
+        try self.writer.terminateRecord();
+    }
+};
 
 /// saveTable opens the necessary resources, initializes an `ExtraTableSaver` and calls
 /// `ExtraTableSaver.writeAll` to fully rewrite a generic table stored
@@ -533,21 +527,21 @@ fn saveExtraTable(
     );
     defer db.deinit();
 
+    var file_buffer: [8192]u8 = undefined;
     var file = try gtfs_dir.createFileZ(file_name, .{});
     defer file.close();
-    var buffer = bufferedWriterSize(8192, file.writer());
-    const writer = buffer.writer();
+    var writer = file.writer(&file_buffer);
 
-    var saver = try ExtraTableSaver(@TypeOf(writer)).init(
+    var saver = try ExtraTableSaver.init(
         db,
-        writer,
+        &writer.interface,
         file_name,
         header,
         allocator,
     );
     defer saver.deinit();
     try saver.writeAll();
-    try buffer.flush();
+    try writer.interface.flush();
     std.log.debug("Saving {s} completed", .{file_name});
 }
 
@@ -563,9 +557,10 @@ fn saveExtraTableInThread(
     wg: *Thread.WaitGroup,
     failure: *Atomic(bool),
 ) void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer std.debug.assert(gpa.deinit() == .ok);
-    const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    // defer std.debug.assert(gpa.deinit() == .ok);
+    // const allocator = if (builtin.mode == .Debug) gpa.allocator() else std.heap.c_allocator;
+    const allocator = std.heap.c_allocator;
 
     defer wg.finish();
 
@@ -580,11 +575,11 @@ fn saveExtraTableInThread(
 
         if (@errorReturnTrace()) |trace| {
             std.log.err(
-                "gtfs.save: {s}: {}\nStack trace: {}",
+                "gtfs.save: {s}: {t}\nStack trace: {f}",
                 .{ file_name, err, trace },
             );
         } else {
-            std.log.err("gtfs.save: {s}: {}", .{ file_name, err });
+            std.log.err("gtfs.save: {s}: {t}", .{ file_name, err });
         }
         return;
     };
@@ -620,19 +615,10 @@ const OwnedExtraFields = struct {
     }
 };
 
-/// bufferedWriterSize creates a std.io.BufferedWriter over the provided stream with a given
-/// size buffer.
-fn bufferedWriterSize(
-    comptime size: usize,
-    underlying_stream: anytype,
-) std.io.BufferedWriter(size, @TypeOf(underlying_stream)) {
-    return .{ .unbuffered_writer = underlying_stream };
-}
-
 /// ownedSliceOverCStrings converts a c_char_p_p to a slice of slices.
 /// The returned slice must be later deallocated with `allocator.free`.
 fn ownedSliceOverCStrings(ptr: c_char_p_p, allocator: Allocator) ![]const [:0]const u8 {
-    var slices: std.ArrayListUnmanaged([:0]const u8) = .{};
+    var slices: std.ArrayList([:0]const u8) = .{};
     defer slices.deinit(allocator);
 
     var i: usize = 0;
@@ -717,13 +703,12 @@ test "gtfs.save.extra_fields" {
     const header_slice = &[_]?c_char_p{ "agency_id", "agency_name", "agency_url", "agency_timezone", "agency_lang", "agency_email", null };
     const header: c_char_p_p = header_slice[0 .. header_slice.len - 1 :null];
 
-    var b: [8192]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&b);
-    const writer = fbs.writer();
+    var w = std.Io.Writer.Allocating.init(std.testing.allocator);
+    defer w.deinit();
 
-    var s = try TableSaver(@TypeOf(writer)).init(
+    var s = try TableSaver.init(
         db,
-        writer,
+        &w.writer,
         &tables[0],
         header,
         false,
@@ -734,7 +719,7 @@ test "gtfs.save.extra_fields" {
 
     try s.writeAll();
 
-    const content = b[0..fbs.pos];
+    const content = w.written();
     try std.testing.expectEqualStrings(
         // zig fmt: off
         "agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_email\r\n"
@@ -776,13 +761,12 @@ test "gtfs.save.extra_files" {
     const header: []const ?c_char_p = &.{ "foo", "bar", "spam", null };
     const header_null_terminated: [:null]const ?c_char_p = header[0..3 :null];
 
-    var b: [8192]u8 = undefined;
-    var fbs = std.io.fixedBufferStream(&b);
-    const writer = fbs.writer();
+    var w = std.Io.Writer.Allocating.init(std.testing.allocator);
+    defer w.deinit();
 
-    var s = try ExtraTableSaver(@TypeOf(writer)).init(
+    var s = try ExtraTableSaver.init(
         db,
-        writer,
+        &w.writer,
         "foo.txt",
         header_null_terminated.ptr,
         std.testing.allocator,
@@ -790,7 +774,7 @@ test "gtfs.save.extra_files" {
     defer s.deinit();
     try s.writeAll();
 
-    const content = b[0..fbs.pos];
+    const content = w.written();
     try std.testing.expectEqualStrings(
         "foo,bar,spam\r\n1,Hello,\r\n2,World,\r\n",
         content,

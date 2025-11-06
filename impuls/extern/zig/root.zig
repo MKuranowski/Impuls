@@ -6,7 +6,7 @@ const std = @import("std");
 const gtfs = @import("./gtfs/root.zig");
 const logging = @import("./logging.zig");
 
-pub const std_options = .{
+pub const std_options = std.Options{
     .log_level = .debug,
     .logFn = logging.logWithCustomHandler,
 };
@@ -28,7 +28,7 @@ pub export fn load_gtfs(
     const extra_files = extra_files_ptr[0..extra_files_len];
     gtfs.load(db_path, gtfs_dir_path, extra_fields, extra_files) catch |err| {
         if (@errorReturnTrace()) |trace| {
-            std.log.err("gtfs.load: {}\nStack trace: {}", .{ err, trace });
+            std.log.err("gtfs.load: {}\nStack trace: {f}", .{ err, trace });
         } else {
             std.log.err("gtfs.load: {}", .{err});
         }
@@ -54,7 +54,7 @@ pub export fn save_gtfs(
         ensure_order,
     ) catch |err| {
         if (@errorReturnTrace()) |trace| {
-            std.log.err("gtfs.save: {}\nStack trace: {}", .{ err, trace });
+            std.log.err("gtfs.save: {}\nStack trace: {f}", .{ err, trace });
         } else {
             std.log.err("gtfs.save: {}", .{err});
         }

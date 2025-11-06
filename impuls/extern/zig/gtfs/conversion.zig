@@ -1,8 +1,9 @@
-// © Copyright 2022-2024 Mikołaj Kuranowski
+// © Copyright 2022-2025 Mikołaj Kuranowski
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 const std = @import("std");
 const sqlite3 = @import("../sqlite3.zig");
+const BoundedArray = @import("../bounded_array.zig").BoundedArray;
 
 /// ColumnValue represents a possible SQL column value.
 pub const ColumnValue = union(enum) {
@@ -36,36 +37,36 @@ pub const ColumnValue = union(enum) {
         return ColumnValue{ .Float = f };
     }
 
-    /// borrowed creates a ColumnValue contaning a borrowed SQL TEXT.
+    /// borrowed creates a ColumnValue containing a borrowed SQL TEXT.
     pub inline fn borrowed(s: []const u8) ColumnValue {
         return ColumnValue{ .BorrowedString = s };
     }
 
-    /// owned creates a ColumnValue contaning an owned SQL TEXT.
+    /// owned creates a ColumnValue containing an owned SQL TEXT.
     pub inline fn owned(s: BoundedString) ColumnValue {
         return ColumnValue{ .OwnedString = s };
     }
 
-    /// formatted creates a ColumnValue contaning an owned SQL TEXT from a format string
-    /// and its arguments. See std.fmt.format.
+    /// formatted creates a ColumnValue containing an owned SQL TEXT from a format string
+    /// and its arguments. See std.Io.Writer.print.
     pub fn formatted(comptime fmt_: []const u8, args: anytype) !ColumnValue {
         var s = BoundedString{};
-        var fbs = std.io.fixedBufferStream(&s.buffer);
-        try std.fmt.format(fbs.writer(), fmt_, args);
-        s.len = @intCast(fbs.pos);
+        var w = std.Io.Writer.fixed(&s.buffer);
+        try w.print(fmt_, args);
+        s.len = w.end;
         return ColumnValue.owned(s);
     }
 
     /// format prints the ColumnValue into the provided writer. This function makes it possible
-    /// to format ColumnValues directly using `fmt.format("{}", .{column_value})`.
-    pub fn format(self: ColumnValue, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+    /// to format ColumnValues directly using `std.Io.Writer.print("{f}", .{column_value})`.
+    pub fn format(self: ColumnValue, writer: *std.Io.Writer) std.Io.Writer.Error!void {
         try writer.writeAll("gtfs.ColumnValue{ ");
         switch (self) {
             .Null => try writer.writeAll(".Null = {}"),
             .Int => |i| try writer.print(".Int = {}", .{i}),
             .Float => |f| try writer.print(".Float = {}", .{f}),
             .BorrowedString => |s| try writer.print(".BorrowedString = \"{s}\"", .{s}),
-            .OwnedString => |s| try writer.print(".OwnedString = \"{s}\"", .{s.slice()}),
+            .OwnedString => |s| try writer.print(".OwnedString = \"{s}\"", .{s.constSlice()}),
         }
         try writer.writeAll(" }");
     }
@@ -82,7 +83,7 @@ pub const ColumnValue = union(enum) {
             .Int => |i| try stmt.bind(placeholderOneIndex, i),
             .Float => |f| try stmt.bind(placeholderOneIndex, f),
             .BorrowedString => |s| try stmt.bind(placeholderOneIndex, s),
-            .OwnedString => |*s| try stmt.bind(placeholderOneIndex, s.slice()),
+            .OwnedString => |*s| try stmt.bind(placeholderOneIndex, s.constSlice()),
         }
     }
 
@@ -146,7 +147,7 @@ pub const InvalidValue = error.InvalidValue;
 pub const InvalidValueT = @TypeOf(InvalidValue);
 
 /// BoundedString is the type of ColumnValue.OwnedString - a bounded u8 array.
-pub const BoundedString = std.BoundedArray(u8, 32);
+pub const BoundedString = BoundedArray(u8, 32);
 
 /// FnFromGtfs is a type alias for a function converting data from GTFS to Impuls.
 /// The two arguments represent the value coming in from the CSV table and line number.
