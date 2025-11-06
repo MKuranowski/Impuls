@@ -30,10 +30,10 @@ class RouteParsingState:
     route_id: str
     """route_id of the parsed route, used for prefixing trip_id and calendar_id"""
 
-    dir_0_stops: set[str] = field(default_factory=set)
+    dir_0_stops: set[str] = field(default_factory=set[str])
     """Set of stop IDs in the outbound direction"""
 
-    dir_1_stops: set[str] = field(default_factory=set)
+    dir_1_stops: set[str] = field(default_factory=set[str])
     """Set of stop IDs in the inbound direction"""
 
     origin_area_id: str = ""
@@ -42,10 +42,10 @@ class RouteParsingState:
     dest_area_id: str = ""
     """Stop area ID of the principal destination of the route"""
 
-    inaccessible_trips: set[str] = field(default_factory=set)
+    inaccessible_trips: set[str] = field(default_factory=set[str])
     """Set of trip IDs which are known to be inaccessible for wheelchair users"""
 
-    used_calendars: set[str] = field(default_factory=set)
+    used_calendars: set[str] = field(default_factory=set[str])
     """Set of calendar IDs referenced by trips"""
 
     def exclude_overlapping_stops_from_dir(self) -> None:
