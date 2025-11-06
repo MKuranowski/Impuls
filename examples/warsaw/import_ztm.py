@@ -1,8 +1,8 @@
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from io import TextIOWrapper
 from pathlib import Path
-from typing import IO, ContextManager, Generator, Iterator, TextIO, cast
+from tempfile import TemporaryDirectory
+from typing import ContextManager, Generator, Iterator, TextIO
 
 from py7zr import SevenZipFile
 
@@ -502,12 +502,12 @@ def decompress_7z_file(path: Path) -> Generator[TextIO, None, None]:
     """Assuming a 7z file at the provided path only has a single, windows-1250 encoded file -
     returns the content of that file.
     """
-    with SevenZipFile(path) as archive:
+    with SevenZipFile(path) as archive, TemporaryDirectory() as temp_dir_name:
         filenames = archive.getnames()
         if len(filenames) != 1:
             raise ValueError(f"ZTM 7z archive should have one file, got {filenames}")
+        filename = filenames[0]
 
-        handles = archive.read()
-        assert handles is not None
-        for _, handle in handles.items():
-            yield TextIOWrapper(cast(IO[bytes], handle), encoding="windows-1250")
+        archive.extract(temp_dir_name, {filename})
+        extracted_file = Path(temp_dir_name, filename)
+        yield extracted_file.open("r", encoding="windows-1250")
