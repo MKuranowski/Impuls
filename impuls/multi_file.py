@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import json
@@ -442,6 +442,7 @@ class MultiFile(Generic[ResourceT_co]):
                 options=self.options,
                 name=feed.version,
                 db_path=path / f"{feed.version}.db",
+                remove_db_on_failure=True,
             )
 
             # Make the intermediate input and additional resources available

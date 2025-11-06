@@ -317,8 +317,17 @@ class DummyTask(Task):
         pass
 
 
+class BrokenTask(Task):
+    def execute(self, r: TaskRuntime) -> None:
+        raise ValueError
+
+
 def mock_task_factory(feed: IntermediateFeed[LocalResource]) -> list[Task]:
     return [DummyTask(f"DummyTask.{feed.version}")]
+
+
+def mock_broken_task_factory(feed: IntermediateFeed[LocalResource]) -> list[Task]:
+    return [BrokenTask()]
 
 
 def mock_multi_task_factory(feeds: list[IntermediateFeed[LocalResource]]) -> list[Task]:
@@ -378,6 +387,7 @@ class TestMultiFile(TestCase):
 
         db_path = self.workspace.path / "intermediate_dbs" / f"{version}.db"
         self.assertEqual(p.db_path, db_path)
+        self.assertTrue(p.remove_db_on_failure)
 
         assert p.managed_resources is not None
         self.assertEqual(len(p.managed_resources), 1)
@@ -668,3 +678,12 @@ class TestMultiFile(TestCase):
         self.check_intermediate_pipeline(intermediates[0], "v2")
         self.check_intermediate_pipeline(intermediates[1], "v3")
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+    def test_removes_failed_intermediate_dbs(self) -> None:
+        self.multi_file.intermediate_pipeline_tasks_factory = mock_broken_task_factory
+        pipelines = self.multi_file.prepare()
+
+        with self.assertRaises(ValueError):
+            pipelines.run()
+
+        self.assertListEqual(list(self.multi_file.intermediate_dbs_path().iterdir()), [])

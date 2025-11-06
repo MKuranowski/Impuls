@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import logging
@@ -34,6 +34,7 @@ class Pipeline:
     :param bool run_on_existing_db: Don't clear the database before executing the Tasks;
         effectively assuming that the database stored at ``db_path`` exists and has
         the expected schema. Advanced usage only.
+    :param bool remove_db_on_failure: Remove the database file when the Pipeline fails.
     """
 
     def __init__(
@@ -44,6 +45,7 @@ class Pipeline:
         name: str = "",
         db_path: StrPath | None = None,
         run_on_existing_db: bool = False,
+        remove_db_on_failure: bool = False,
     ) -> None:
         # Set parameters
         self.name: str = name
@@ -53,6 +55,7 @@ class Pipeline:
         self.tasks: list[Task] = tasks
         self.options: PipelineOptions = options
         self.run_on_existing_db: bool = run_on_existing_db
+        self.remove_db_on_failure: bool = remove_db_on_failure
 
         # Update task loggers
         if self.name:
@@ -111,14 +114,19 @@ class Pipeline:
         assert self.managed_resources is not None
 
         # Prepare the database
-        with self.open_db() as db:
-            # Prepare the runtime for tasks
-            runtime = TaskRuntime(db, self.managed_resources, self.options)
+        try:
+            with self.open_db() as db:
+                # Prepare the runtime for tasks
+                runtime = TaskRuntime(db, self.managed_resources, self.options)
 
-            # Run the tasks
-            for task in self.tasks:
-                self.logger.info(f"Executing task {task.name}")
-                with machine_load.LoadTracker() as resource_usage:
-                    task.execute(runtime)
-                self.logger.debug(f"Task {task.name} finished; {resource_usage}")
-            self.logger.info("All tasks finished")
+                # Run the tasks
+                for task in self.tasks:
+                    self.logger.info(f"Executing task {task.name}")
+                    with machine_load.LoadTracker() as resource_usage:
+                        task.execute(runtime)
+                    self.logger.debug(f"Task {task.name} finished; {resource_usage}")
+                self.logger.info("All tasks finished")
+        except Exception:
+            if self.remove_db_on_failure:
+                self.db_path.unlink(missing_ok=True)
+            raise

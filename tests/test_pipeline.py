@@ -18,6 +18,11 @@ class DummyTask(Task):
         self.executed_count += 1
 
 
+class BrokenTask(Task):
+    def execute(self, r: TaskRuntime) -> None:
+        raise ValueError("BrokenTask has failed")
+
+
 class TestPipeline(TestCase):
     def setUp(self) -> None:
         self.workspace_dir = MockFile(directory=True)
@@ -251,3 +256,12 @@ class TestPipeline(TestCase):
         p.run()
         self.assertTrue(p.db_path.exists())
         self.assertEqual(t.executed_count, 1)
+
+    def test_remove_db_on_failure(self) -> None:
+        o = PipelineOptions(workspace_directory=self.workspace_dir.path)
+        p = Pipeline([BrokenTask()], options=o, remove_db_on_failure=True)
+
+        with self.assertRaises(ValueError):
+            p.run()
+
+        self.assertFalse(p.db_path.exists())
