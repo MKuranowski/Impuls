@@ -1,7 +1,8 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from abc import ABC, abstractmethod
+from datetime import date
 from math import inf
 from typing import Any, Iterator, Union, final, overload
 
@@ -604,3 +605,42 @@ def date_range(start: Date | None, end: Date | None = None) -> DateRange:
             "date_range(None, None) is ambiguous - "
             "use EmptyDateRange() or InfiniteDateRange() explicitly"
         )
+
+
+def get_european_railway_schedule_revision(for_day: date | None = None) -> str:
+    """Gets the name of the yearly European railway schedule revision active
+    on the provided day, or today if that is missing.
+
+    The yearly schedule revision changes on midnight after (think _24:00_) the 2nd Saturday
+    of december. This means that for the 2nd Saturday of December we actually return the old
+    revision, as the new schedules only start applying from the following Sunday.
+
+    The returned string is the year the revision went live, dash, then the following year.
+
+    >>> get_european_railway_schedule_revision(date(2025, 12, 1))
+    '2024-2025'
+    >>> get_european_railway_schedule_revision(date(2025, 12, 13))
+    '2024-2025'
+    >>> get_european_railway_schedule_revision(date(2025, 12, 14))
+    '2025-2026'
+    >>> get_european_railway_schedule_revision(date(2025, 12, 31))
+    '2025-2026'
+    >>> get_european_railway_schedule_revision(date(2025, 12, 31))
+    '2025-2026'
+    >>> get_european_railway_schedule_revision(date(2024, 12, 14))
+    '2023-2024'
+    >>> get_european_railway_schedule_revision(date(2024, 12, 15))
+    '2024-2025'
+    """
+    for_day = for_day or date.today()
+    base_year = for_day.year - 1
+    if for_day.month == 12:
+        # Calculate the change date - the day after the 2nd Saturday of december
+        dec_1 = Date(for_day.year, 12, 1)
+        dec_1st_sat = (5 - dec_1.weekday()) % 7
+        delta_days = dec_1st_sat + 8
+        change_day = dec_1.add_days(delta_days)
+        if for_day >= change_day:
+            base_year = for_day.year
+
+    return f"{base_year}-{base_year + 1}"
