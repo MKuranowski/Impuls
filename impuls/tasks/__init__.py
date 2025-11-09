@@ -3,6 +3,7 @@
 
 from . import merge
 from .add_entity import AddEntity
+from .assign_directions import AssignDirections
 from .exec_sql import ExecuteSQL
 from .generate_trip_headsign import GenerateTripHeadsign
 from .load_busman import LoadBusManMDB
@@ -18,6 +19,7 @@ from .truncate_calendars import TruncateCalendars
 
 __all__ = [
     "AddEntity",
+    "AssignDirections",
     "ExecuteSQL",
     "GenerateTripHeadsign",
     "LoadBusManMDB",

@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 project('impuls')
@@ -31,6 +31,7 @@ py.install_sources(
     'impuls/model/trip.py',
     'impuls/tasks/__init__.py',
     'impuls/tasks/add_entity.py',
+    'impuls/tasks/assign_directions.py',
     'impuls/tasks/exec_sql.py',
     'impuls/tasks/generate_trip_headsign.py',
     'impuls/tasks/load_busman.py',
