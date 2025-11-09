@@ -611,7 +611,7 @@ def get_european_railway_schedule_revision(for_day: date | None = None) -> str:
     """Gets the name of the yearly European railway schedule revision active
     on the provided day, or today if that is missing.
 
-    The yearly schedule revision changes on midnight after (think _24:00_) the 2nd Saturday
+    The yearly schedule revision changes on midnight after (think *24:00*) the 2nd Saturday
     of december. This means that for the 2nd Saturday of December we actually return the old
     revision, as the new schedules only start applying from the following Sunday.
 
