@@ -13,7 +13,7 @@ sys.path.insert(0, Path(__file__).parents[2].resolve().as_posix())
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "Impuls"
-copyright = "2024, Mikołaj Kuranowski"
+copyright = "2024-2025, Mikołaj Kuranowski"
 author = "Mikołaj Kuranowski"
 
 # -- General configuration ---------------------------------------------------
