@@ -31,7 +31,7 @@ packages through them.
 Impuls uses `semantic versioning <https://semver.org/>`_ and major releases will come with breaking
 changes. When defining dependencies on Impuls (e.g. through `requirements.txt <https://pip.pypa.io/en/stable/reference/requirements-file-format/>`_)
 always use the `compatible release clause (~=) <https://packaging.python.org/en/latest/specifications/version-specifiers/#compatible-release>`_,
-e.g. ``impuls~=2.2.0``, or any other way to force a specific major version of the library.
+e.g. ``impuls~=2.3.0``, or any other way to force a specific major version of the library.
 
 
 Fixing a GTFS (Kraków)
