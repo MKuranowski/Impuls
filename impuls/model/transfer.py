@@ -28,9 +28,11 @@ class Transfer(Entity, ExtraFieldsMixin):
         TIMED = 1
         MIN_TIME_REQUIRED = 2
         IMPOSSIBLE = 3
+        IN_SEAT = 4
+        RE_BOARD = 5
 
-    from_stop_id: str
-    to_stop_id: str
+    from_stop_id: str = ""
+    to_stop_id: str = ""
     from_route_id: str = ""
     to_route_id: str = ""
     from_trip_id: str = ""
@@ -55,19 +57,23 @@ class Transfer(Entity, ExtraFieldsMixin):
     def sql_create_table() -> LiteralString:
         return """CREATE TABLE transfers (
             transfer_id INTEGER PRIMARY KEY,
-            from_stop_id TEXT NOT NULL REFERENCES stops(stop_id)
-                ON DELETE CASCADE ON UPDATE CASCADE,
-            to_stop_id TEXT NOT NULL REFERENCES stops(stop_id)
-                ON DELETE CASCADE ON UPDATE CASCADE,
+            from_stop_id TEXT DEFAULT NULL REFERENCES stops(stop_id)
+                ON DELETE CASCADE ON UPDATE CASCADE
+                CHECK (from_stop_id IS NOT NULL OR transfer_type IN (4, 5)),
+            to_stop_id TEXT DEFAULT NULL REFERENCES stops(stop_id)
+                ON DELETE CASCADE ON UPDATE CASCADE
+                CHECK (to_stop_id IS NOT NULL OR transfer_type IN (4, 5)),
             from_route_id TEXT DEFAULT NULL REFERENCES routes(route_id)
                 ON DELETE CASCADE ON UPDATE CASCADE,
             to_route_id TEXT DEFAULT NULL REFERENCES routes(route_id)
                 ON DELETE CASCADE ON UPDATE CASCADE,
             from_trip_id TEXT DEFAULT NULL REFERENCES trips(trip_id)
-                ON DELETE CASCADE ON UPDATE CASCADE,
+                ON DELETE CASCADE ON UPDATE CASCADE
+                CHECK (from_trip_id IS NOT NULL OR transfer_type IN (0, 1, 2, 3)),
             to_trip_id TEXT DEFAULT NULL REFERENCES trips(trip_id)
-                ON DELETE CASCADE ON UPDATE CASCADE,
-            transfer_type INTEGER NOT NULL DEFAULT 0 CHECK (transfer_type IN (0, 1, 2, 3)),
+                ON DELETE CASCADE ON UPDATE CASCADE
+                CHECK (to_trip_id IS NOT NULL OR transfer_type IN (0, 1, 2, 3)),
+            transfer_type INTEGER NOT NULL DEFAULT 0 CHECK (transfer_type IN (0, 1, 2, 3, 4, 5)),
             min_transfer_time INTEGER DEFAULT NULL CHECK (min_transfer_time > 0),
             extra_fields_json TEXT DEFAULT NULL
         ) STRICT;
@@ -102,8 +108,8 @@ class Transfer(Entity, ExtraFieldsMixin):
 
     def sql_marshall(self) -> tuple[SQLNativeType, ...]:
         return (
-            self.from_stop_id,
-            self.to_stop_id,
+            self.from_stop_id or None,
+            self.to_stop_id or None,
             self.from_route_id or None,
             self.to_route_id or None,
             self.from_trip_id or None,
@@ -121,8 +127,8 @@ class Transfer(Entity, ExtraFieldsMixin):
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", int)
-            .field("from_stop_id", str)
-            .field("to_stop_id", str)
+            .optional_field("from_stop_id", str, lambda x: x or "")
+            .optional_field("to_stop_id", str, lambda x: x or "")
             .optional_field("from_route_id", str, lambda x: x or "")
             .optional_field("to_route_id", str, lambda x: x or "")
             .optional_field("from_trip_id", str, lambda x: x or "")
