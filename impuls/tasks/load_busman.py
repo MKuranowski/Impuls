@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import csv
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -65,6 +66,7 @@ class LoadBusManMDB(Task):
     * ``agency_id``: ID of the manually curated Agency
     * ``ignore_route_id``: use route_short_name as the ID, instead of the BusMan internal ID
     * ``ignore_stop_id``: use stop_code as the ID, instead of the BusMan internal ID
+    * ``save_blocks``: use the tTeams table to fill block_id and block_short_name
 
     This task additionally requires `mdbtools <https://github.com/mdbtools/mdbtools>`_
     to be installed. This package is available in most package managers.
@@ -74,6 +76,7 @@ class LoadBusManMDB(Task):
     agency_id: str
     ignore_route_id: bool
     ignore_stop_id: bool
+    save_blocks: bool
 
     _route_id_map: dict[str, str]
     _stop_id_map: dict[str, str]
@@ -84,12 +87,14 @@ class LoadBusManMDB(Task):
         agency_id: str,
         ignore_route_id: bool = False,
         ignore_stop_id: bool = False,
+        save_blocks: bool = False,
     ) -> None:
         super().__init__()
         self.resource = resource
         self.agency_id = agency_id
         self.ignore_route_id = ignore_route_id
         self.ignore_stop_id = ignore_stop_id
+        self.save_blocks = save_blocks
 
         self._route_id_map = {}
         self._stop_id_map = {}
@@ -209,6 +214,11 @@ class LoadBusManMDB(Task):
             row["ID"]: self._route_id_map.get(row["nLine"], row["nLine"])
             for row in dump_mdb_table(mdb_path, "tDirs")
         }
+        block_names = (
+            {row["ID"]: row["nName"] for row in dump_mdb_table(mdb_path, "tTeams")}
+            if self.save_blocks
+            else {}
+        )
 
         db.create_many(
             Trip,
@@ -217,6 +227,12 @@ class LoadBusManMDB(Task):
                     id=row["ID"],
                     route_id=pattern_to_route_id[row["nDir"]],
                     calendar_id=row["nDayType"],
+                    block_id=row["nTeam"] if self.save_blocks else "",
+                    extra_fields_json=(
+                        json.dumps({"block_short_name": block_names.get(row["nTeam"], "")})
+                        if self.save_blocks
+                        else None
+                    ),
                 )
                 for row in dump_mdb_table(mdb_path, "tDepts")
             ),
