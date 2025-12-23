@@ -5,6 +5,7 @@ from . import merge
 from .add_entity import AddEntity
 from .assign_directions import AssignDirections
 from .exec_sql import ExecuteSQL
+from .extend_calendars import ExtendCalendars, ExtendCalendarsFromPolishExceptions
 from .generate_trip_headsign import GenerateTripHeadsign
 from .load_busman import LoadBusManMDB
 from .load_db import LoadDB
@@ -21,6 +22,8 @@ __all__ = [
     "AddEntity",
     "AssignDirections",
     "ExecuteSQL",
+    "ExtendCalendars",
+    "ExtendCalendarsFromPolishExceptions",
     "GenerateTripHeadsign",
     "LoadBusManMDB",
     "LoadDB",
