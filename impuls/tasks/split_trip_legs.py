@@ -4,7 +4,7 @@
 import re
 from collections.abc import Iterable
 from copy import copy
-from typing import Any, TypeAlias, cast, final
+from typing import Any, TypeAlias, cast
 
 from .. import selector
 from ..db import DBConnection
@@ -38,19 +38,22 @@ class SplitTripLegs(Task):
     that the whole trip is operated by a bus replacement service.
     """
 
+    leg_trip_id_infix: str
+
     added_routes: set[str]
 
     def __init__(
         self,
         route_selector: selector.Routes = selector.Routes(type=Route.Type.RAIL),
         replacement_bus_short_name_pattern: re.Pattern[str] | None = None,
+        leg_trip_id_infix: str = "_",
     ) -> None:
         super().__init__()
         self.route_selector = route_selector
         self.replacement_bus_short_name_pattern = replacement_bus_short_name_pattern
+        self.leg_trip_id_infix = leg_trip_id_infix
         self.added_routes = set()
 
-    @final
     def execute(self, r: TaskRuntime) -> None:
         self.added_routes.clear()
         to_process = list(self.select_trip_ids(r.db))
@@ -173,7 +176,8 @@ class SplitTripLegs(Task):
         The default implementation removes the ``original_trip``, and then for every leg:
 
         * creates a new trip for each leg, as modified by :py:meth:`.update_trip`, with the ID
-          suffixed by `_0`, `_1`, `_2`, ...;
+          suffixed by `_0`, `_1`, `_2`, ..., `leg_trip_id_infix` can be changed to customize
+          the generated suffix;
         * re-inserts :py:class:`StopTimes <impuls.model.StopTime>` with only their
           :py:attr:`~impuls.model.StopTime.trip_id` changed;
         * creates :py:class:`Transfers <impuls.model.Transfer>` between every leg,
@@ -188,7 +192,7 @@ class SplitTripLegs(Task):
         for idx, (stop_times, data) in enumerate(legs):
             # Create a trip for the current leg
             trip = copy(original_trip)
-            trip.id = f"{trip.id}_{idx}"
+            trip.id = f"{trip.id}{self.leg_trip_id_infix}{idx}"
             self.update_trip(trip, data, db)
             db.create(trip)
 
