@@ -81,6 +81,9 @@ pub fn open_for_load<P: AsRef<Path>>(p: P) -> rusqlite::Result<rusqlite::Connect
     c.execute("PRAGMA journal_mode = MEMORY", ())?;
     c.execute("PRAGMA temp_store = MEMORY", ())?;
 
+    // TODO: Disable foreign_keys, and check them in bulk after loading
+    c.execute("PRAGMA foreign_keys = ON", ())?;
+
     Ok(c)
 }
 

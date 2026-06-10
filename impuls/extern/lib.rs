@@ -5,6 +5,8 @@ use std::ffi::{CStr, c_char, c_int};
 use std::path::Path;
 use std::str;
 
+use crate::gtfs::LoadOptions;
+
 mod db;
 mod error;
 mod gtfs;
@@ -28,7 +30,20 @@ pub unsafe extern "C" fn load_gtfs(
     extra_fields: bool,
     extra_files: *const *const c_char,
 ) -> c_int {
-    return 1;
+    let options = LoadOptions { extra_fields };
+
+    let result = gtfs::load(
+        cstr_to_path(db_path),
+        cstr_to_path(gtfs_dir_path),
+        collect_cstr_arr(extra_files),
+        options,
+    )
+    .inspect_err(|e| log::error!("{}", e));
+
+    match result {
+        Ok(_) => 0,
+        Err(_) => 1,
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -57,6 +72,7 @@ pub unsafe extern "C" fn save_gtfs(
             .map(|(file_name, header)| (file_name.as_ref(), header.as_ref())),
         options,
     );
+    // NOTE: gtfs::save already logs any encountered errors, no need to inspect_err as in load
 
     match result {
         Ok(_) => 0,

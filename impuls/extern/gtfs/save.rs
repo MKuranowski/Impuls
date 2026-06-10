@@ -7,7 +7,7 @@ use std::path::Path;
 use rusqlite::types::ValueRef;
 
 use crate::db::open_for_save;
-use crate::error::Result;
+use crate::error::{Result, ResultLocation};
 use crate::gtfs::schema::TABLES;
 use crate::gtfs::table::{Column, Table};
 
@@ -158,15 +158,10 @@ impl<'a> ResolvedTable<'a> {
 /// Each table is saved by calling [save_table] in its own thread. If multiple calls fail,
 /// all errors are [logged](log::error!), but only the first error is returned (in the order of
 /// `tables`).
-pub fn save<
-    'a,
-    P1: AsRef<Path> + Sync + Send,
-    P2: AsRef<Path> + Sync + Send,
-    I: IntoIterator<Item = (&'a str, &'a [&'a str])>,
->(
-    db_path: P1,
-    gtfs_path: P2,
-    tables: I,
+pub fn save<'a>(
+    db_path: impl AsRef<Path> + Sync + Send,
+    gtfs_path: impl AsRef<Path> + Sync + Send,
+    tables: impl IntoIterator<Item = (&'a str, &'a [&'a str])>,
     options: SaveOptions,
 ) -> Result<()> {
     std::thread::scope(|s| {
@@ -186,7 +181,8 @@ pub fn save<
                         header,
                         options,
                     )
-                    .inspect_err(|e| log::error!("{}: {}", file_name, e))
+                    .with_file(file_name)
+                    .inspect_err(|e| log::error!("{}", e))
                 })
             })
             .collect();
@@ -207,48 +203,61 @@ pub fn save<
 
 /// Saves a GTFS `table` from an Impuls SQLite database at `db_path` to a file at
 /// `gtfs_path.join(table.file_name())`.
-pub fn save_table<P1: AsRef<Path>, P2: AsRef<Path>>(
-    db_path: P1,
-    gtfs_path: P2,
+pub fn save_table(
+    db_path: impl AsRef<Path>,
+    gtfs_path: impl AsRef<Path>,
     table: ResolvedTable,
     header: &[&str],
     options: SaveOptions,
 ) -> Result<()> {
-    // Open the CSV file and write its header
-    let mut w = csv::WriterBuilder::new()
+    let mut writer = csv::WriterBuilder::new()
         .terminator(csv::Terminator::CRLF)
         .from_path(gtfs_path.as_ref().join(table.file_name()))?;
-    w.write_record(header)?;
 
-    // Open the DB, and compile and execute the SELECT query
     let db: rusqlite::Connection = open_for_save(db_path)?;
+
+    save_table_to_writer(&db, &mut writer, table, header, options)
+}
+
+/// Saves a GTFS `table` from a `db` to a `writer`
+pub fn save_table_to_writer(
+    db: &rusqlite::Connection,
+    writer: &mut csv::Writer<impl std::io::Write>,
+    table: ResolvedTable,
+    header: &[&str],
+    options: SaveOptions,
+) -> Result<()> {
+    // Prepare the SELECT statement and row iterator
     let mut select = db.prepare(&table.select(header, options.ensure_order))?;
     let mut rows = table.query(&mut select)?;
+
+    // Dump header
+    writer.write_record(header)?;
 
     // Dump rows
     while let Some(row) = rows.next()? {
         // Dump each field
         for i in 0..header.len() {
             match row.get_ref_unwrap(i) {
-                ValueRef::Null => w.write_field(b"")?,
+                ValueRef::Null => writer.write_field(b"")?,
                 ValueRef::Integer(i) => {
                     let mut b = itoa::Buffer::new();
-                    w.write_field(b.format(i))?;
+                    writer.write_field(b.format(i))?;
                 }
                 ValueRef::Real(f) => {
                     let mut b = zmij::Buffer::new();
-                    w.write_field(b.format(f))?;
+                    writer.write_field(b.format(f))?;
                 }
-                ValueRef::Text(s) => w.write_field(s)?,
-                ValueRef::Blob(b) => w.write_field(b)?,
+                ValueRef::Text(s) => writer.write_field(s)?,
+                ValueRef::Blob(b) => writer.write_field(b)?,
             }
         }
 
         // Mark the end of the row
-        w.write_record(empty::<&[u8]>())?;
+        writer.write_record(empty::<&[u8]>())?;
     }
 
-    w.flush()?;
+    writer.flush()?;
     Ok(())
 }
 
@@ -262,6 +271,151 @@ fn is_safe_object_path(c: char) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_simple() -> Result<()> {
+        let mut buf: Vec<u8> = Vec::new();
+
+        const TABLE: ResolvedTable = ResolvedTable::Standard(&TABLES[5]);
+        const HEADER: &[&str] = &[
+            "agency_id",
+            "route_id",
+            "route_short_name",
+            "route_long_name",
+            "route_type",
+        ];
+        {
+            let db = rusqlite::Connection::open_in_memory()?;
+            db.execute_batch(concat!(
+                "CREATE TABLE agencies (agency_id TEXT PRIMARY KEY) STRICT;",
+                "CREATE TABLE routes (",
+                "  route_id TEXT PRIMARY KEY,",
+                "  agency_id TEXT NOT NULL REFERENCES agencies(agency_id),",
+                "  short_name TEXT NOT NULL,",
+                "  long_name TEXT NOT NULL,",
+                "  type INTEGER NOT NULL,",
+                "  color TEXT NOT NULL DEFAULT '',",
+                "  text_color TEXT NOT NULL DEFAULT '',",
+                "  sort_order INTEGER,",
+                "  extra_fields_json TEXT",
+                ") STRICT;",
+                "INSERT INTO agencies VALUES ('0');",
+                "INSERT INTO routes VALUES ('A1', '0', 'A1', 'Warszawa Śródmieście WKD - Grodzisk Mazowiecki Radońska',",
+                "  2, '', '', NULL, NULL);",
+                "INSERT INTO routes VALUES ('ZA1', '0', 'ZA1', 'Podkowa Leśna Główna - Grodzisk Mazowiecki Radońska (ZKA)',",
+                "  3, '', '', NULL, NULL);",
+                "INSERT INTO routes VALUES ('ZA12', '0', 'ZA12', 'Podkowa Leśna Główna - Milanówek Grudów (ZKA)',",
+                "  3, '', '', NULL, NULL);",
+            ))?;
+
+            let mut writer = csv::WriterBuilder::new()
+                .terminator(csv::Terminator::CRLF)
+                .from_writer(&mut buf);
+
+            save_table_to_writer(&db, &mut writer, TABLE, HEADER, SaveOptions::default())?;
+        }
+
+        assert_eq!(
+            str::from_utf8(&buf).expect("save must write valid UTF-8"),
+            concat!(
+                "agency_id,route_id,route_short_name,route_long_name,route_type\r\n",
+                "0,A1,A1,Warszawa Śródmieście WKD - Grodzisk Mazowiecki Radońska,2\r\n",
+                "0,ZA1,ZA1,Podkowa Leśna Główna - Grodzisk Mazowiecki Radońska (ZKA),3\r\n",
+                "0,ZA12,ZA12,Podkowa Leśna Główna - Milanówek Grudów (ZKA),3\r\n",
+            )
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extra_fields() -> Result<()> {
+        let mut buf: Vec<u8> = Vec::new();
+
+        const TABLE: ResolvedTable = ResolvedTable::Standard(&TABLES[0]);
+        const HEADER: &[&str] = &[
+            "agency_id",
+            "agency_name",
+            "agency_url",
+            "agency_timezone",
+            "agency_lang",
+            "agency_email",
+        ];
+        {
+            let db = rusqlite::Connection::open_in_memory()?;
+            db.execute_batch(concat!(
+                "CREATE TABLE agencies (",
+                "  agency_id TEXT PRIMARY KEY,",
+                "  name TEXT NOT NULL,",
+                "  url TEXT NOT NULL,",
+                "  timezone TEXT NOT NULL,",
+                "  lang TEXT NOT NULL DEFAULT '',",
+                "  phone TEXT NOT NULL DEFAULT '',",
+                "  fare_url TEXT NOT NULL DEFAULT '',",
+                "  extra_fields_json TEXT",
+                ") STRICT;",
+                "INSERT INTO agencies VALUES ('0', 'Foo', 'https://example.com', 'UTC',",
+                r#"  'en', '', '', '{"agency_email":"foo@example.com"}');"#,
+                "INSERT INTO agencies VALUES ('1', 'Bar', 'https://example.com', 'UTC',",
+                r#"  'en', '', '', NULL);"#,
+            ))?;
+
+            let mut writer = csv::WriterBuilder::new()
+                .terminator(csv::Terminator::CRLF)
+                .from_writer(&mut buf);
+
+            save_table_to_writer(&db, &mut writer, TABLE, HEADER, SaveOptions::default())?;
+        }
+
+        assert_eq!(
+            str::from_utf8(&buf).expect("save must write valid UTF-8"),
+            concat!(
+                "agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_email\r\n",
+                "0,Foo,https://example.com,UTC,en,foo@example.com\r\n",
+                "1,Bar,https://example.com,UTC,en,\r\n",
+            )
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extra_files() -> Result<()> {
+        let mut buf: Vec<u8> = Vec::new();
+
+        const TABLE: ResolvedTable = ResolvedTable::Extra("foo.txt");
+        const HEADER: &[&str] = &["foo", "bar", "spam"];
+        {
+            let db = rusqlite::Connection::open_in_memory()?;
+            db.execute_batch(concat!(
+                "CREATE TABLE extra_table_rows (",
+                "  extra_table_row_id INTEGER PRIMARY KEY,",
+                "  table_name TEXT NOT NULL,",
+                "  fields_json TEXT NOT NULL DEFAULT '{}',",
+                "  row_sort_order INTEGER",
+                ") STRICT;",
+                "INSERT INTO extra_table_rows (table_name, fields_json, row_sort_order) VALUES ",
+                r#"  ('foo.txt', '{"foo":"1","bar":"Hello","baz":"42"}', 1);"#,
+                "INSERT INTO extra_table_rows (table_name, fields_json, row_sort_order) VALUES ",
+                r#"  ('foo.txt', '{"foo":"2","bar":"World","baz":""}', 2);"#,
+                "INSERT INTO extra_table_rows (table_name, fields_json, row_sort_order) VALUES ",
+                r#"  ('bar.txt', '{"spam":"eggs"}', 1);"#,
+            ))?;
+
+            let mut writer = csv::WriterBuilder::new()
+                .terminator(csv::Terminator::CRLF)
+                .from_writer(&mut buf);
+
+            save_table_to_writer(&db, &mut writer, TABLE, HEADER, SaveOptions::default())?;
+        }
+
+        assert_eq!(
+            str::from_utf8(&buf).expect("save must write valid UTF-8"),
+            "foo,bar,spam\r\n1,Hello,\r\n2,World,\r\n",
+        );
+
+        Ok(())
+    }
 
     #[test]
     fn test_resolved_table_standard() {
