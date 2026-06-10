@@ -46,7 +46,7 @@ impl<'a> Table<'a> {
 /// Definition of a well-known GTFS/Impuls (SQL) column of a [Table]
 pub struct Column<'a> {
     /// Name of the column in the Impuls (SQL) schema
-    pub sql_name: &'a str,
+    pub _sql_name: &'a str,
 
     /// Name of the column in GTFS
     pub gtfs_name: &'a str,
@@ -67,7 +67,7 @@ impl<'a> Column<'a> {
     /// (to_gtfs=`$name`, from_gtfs=`?`), and [no fallback value](FallbackValue::AsIs).
     pub const fn new(name: &'a str) -> Self {
         Self {
-            sql_name: name,
+            _sql_name: name,
             gtfs_name: name,
             to_gtfs: name,
             from_gtfs: "?",
@@ -79,7 +79,7 @@ impl<'a> Column<'a> {
     /// (to_gtfs=`$sql_name`, from_gtfs=`?`), and [no fallback value](FallbackValue::AsIs).
     pub const fn with_names(sql_name: &'a str, gtfs_name: &'a str) -> Self {
         Self {
-            sql_name,
+            _sql_name: sql_name,
             gtfs_name,
             to_gtfs: sql_name,
             from_gtfs: "?",
@@ -91,7 +91,7 @@ impl<'a> Column<'a> {
     /// fallback value, but no extra conversion (to_gtfs=`$name`, from_gtfs=`?`).
     pub const fn with_fallback(name: &'a str, from_fallback: FallbackValue<'a>) -> Self {
         Self {
-            sql_name: name,
+            _sql_name: name,
             gtfs_name: name,
             to_gtfs: name,
             from_gtfs: "?",
@@ -107,7 +107,7 @@ impl<'a> Column<'a> {
         from_fallback: FallbackValue<'a>,
     ) -> Self {
         Self {
-            sql_name,
+            _sql_name: sql_name,
             gtfs_name,
             to_gtfs: sql_name,
             from_gtfs: "?",
