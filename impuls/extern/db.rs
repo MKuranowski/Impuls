@@ -48,10 +48,12 @@ pub fn open_for_save<P: AsRef<Path>>(p: P) -> rusqlite::Result<rusqlite::Connect
 
     // NOTE: no need to register_functions, as those only contain parsing helpers
 
-    c.execute("PRAGMA mmap_size = 4294967296", ())?;
-    c.execute("PRAGMA cache_size = -262144", ())?;
-    c.execute("PRAGMA temp_store = MEMORY", ())?;
-    c.execute("PRAGMA query_only = ON", ())?;
+    c.execute_batch(concat!(
+        "PRAGMA mmap_size = 4294967296;",
+        "PRAGMA cache_size = -262144;",
+        "PRAGMA temp_store = MEMORY;",
+        "PRAGMA query_only = ON;",
+    ))?;
 
     Ok(c)
 }
@@ -74,15 +76,15 @@ pub fn open_for_load<P: AsRef<Path>>(p: P) -> rusqlite::Result<rusqlite::Connect
     )?;
 
     register_functions(&c)?;
-
-    c.execute("PRAGMA mmap_size = 2147483648", ())?;
-    c.execute("PRAGMA cache_size = -262144", ())?;
-    c.execute("PRAGMA synchronous = OFF", ())?;
-    c.execute("PRAGMA journal_mode = MEMORY", ())?;
-    c.execute("PRAGMA temp_store = MEMORY", ())?;
-
-    // TODO: Disable foreign_keys, and check them in bulk after loading
-    c.execute("PRAGMA foreign_keys = ON", ())?;
+    c.execute_batch(concat!(
+        "PRAGMA mmap_size = 2147483648;",
+        "PRAGMA cache_size = -262144;",
+        "PRAGMA synchronous = OFF;",
+        "PRAGMA journal_mode = MEMORY;",
+        "PRAGMA temp_store = MEMORY;",
+        // TODO: Disable foreign_keys, and check them in bulk after loading
+        "PRAGMA foreign_keys = ON;",
+    ))?;
 
     Ok(c)
 }
