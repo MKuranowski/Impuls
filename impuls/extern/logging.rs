@@ -73,5 +73,6 @@ pub fn set_global_handler(handler: Option<LogHandler>) {
     GLOBAL_LOGGER.set_handler(handler);
     GLOBAL_LOGGER_INSTALL.call_once(|| {
         log::set_logger(&GLOBAL_LOGGER).expect("log initialization should not fail");
+        log::set_max_level(log::LevelFilter::Trace);
     });
 }
