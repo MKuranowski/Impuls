@@ -50,7 +50,7 @@ lib.set_log_handler.argtypes = [_LogHandler]
 lib.set_log_handler.restype = None
 lib.set_log_handler(_log_handler)
 
-lib.load_gtfs.argtypes = [c_char_p, c_char_p, c_bool, c_char_p_p, c_uint]
+lib.load_gtfs.argtypes = [c_char_p, c_char_p, c_bool, c_char_p_p]
 lib.load_gtfs.restype = c_int
 
 lib.save_gtfs.argtypes = [c_char_p, c_char_p, POINTER(_FileHeader), c_int, c_bool, c_bool]
@@ -63,16 +63,18 @@ def load_gtfs(
     extra_fields: bool = False,
     extra_files: Sequence[str] = [],
 ) -> None:
-    extra_files_encoded = (c_char_p * len(extra_files))()
-    for i, extra_file in enumerate(extra_files):
-        extra_files_encoded[i] = extra_file.encode("utf-8")
+    if extra_files:
+        extra_files_encoded = (c_char_p * (len(extra_files) + 1))()
+        for i, extra_file in enumerate(extra_files):
+            extra_files_encoded[i] = extra_file.encode("utf-8")
+    else:
+        extra_files_encoded = None
 
     status: int = lib.load_gtfs(
         os.fspath(db_path).encode("utf-8"),
         os.fspath(gtfs_dir_path).encode("utf-8"),
         extra_fields,
         extra_files_encoded,
-        len(extra_files),
     )
     if status:
         raise RuntimeError(f"extern load_gtfs failed with {status}")
