@@ -41,6 +41,17 @@ impl<'a> Table<'a> {
     pub fn column_by_gtfs_name(&self, gtfs_name: &str) -> Option<&'a Column<'a>> {
         self.columns.iter().find(|&c| c.gtfs_name == gtfs_name)
     }
+
+    /// Extracts the [FallbackValue] from every [Column] of this table.
+    /// Useful for preparing default bindings for bulk insertion.
+    pub fn all_fallback_values(&self) -> [ValueRef<'a>; 256] {
+        std::array::from_fn(|i| {
+            self.columns
+                .get(i)
+                .map(|c| c.from_fallback.fill(b"", 0))
+                .unwrap_or(ValueRef::Null)
+        })
+    }
 }
 
 /// Definition of a well-known GTFS/Impuls (SQL) column of a [Table]
