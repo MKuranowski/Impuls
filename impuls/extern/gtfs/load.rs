@@ -36,7 +36,7 @@ pub fn load<'a>(
     extra_files: impl IntoIterator<Item = &'a str>,
     options: LoadOptions,
 ) -> Result<()> {
-    let mut db = db::open_for_load(db_path.as_ref())?;
+    let mut db = db::open_for_load(&db_path)?;
 
     for table in TABLES {
         load_table::<StandardInserter>(&mut db, &gtfs_path, table, options)
@@ -230,6 +230,12 @@ pub struct StandardInserter<'a> {
     /// corresponding to the `extra_fields_json` columns. This buffer can be re-used
     /// by rows to build the JSON field mapping.
     extra_fields_buffer: Option<GenericFieldsBuilder>,
+
+    /// Default parameters for every INSERT. For every row this value is copied,
+    /// values present in GTFS are substituted (through [Column::from_fallback])
+    /// (so values not present in the GTFS are passed through from this array),
+    /// bind to [StandardInserter::insert] and executed.
+    initial_params: [ValueRef<'a>; 256],
 }
 
 impl<'a> Inserter<'a> for StandardInserter<'a> {
@@ -260,6 +266,7 @@ impl<'a> Inserter<'a> for StandardInserter<'a> {
             } else {
                 None
             },
+            initial_params: table.all_fallback_values(),
         })
     }
 
@@ -311,7 +318,7 @@ impl<'a> Inserter<'a> for StandardInserter<'a> {
         line: u64,
     ) -> Result<()> {
         // Clear any bindings. NOTE: 256 entries are deliberate to omit bounds checking when indexing with a u8.
-        let mut params = [ValueRef::Null; 256];
+        let mut params = self.initial_params;
         let mut pi_param = ValueRef::Null;
         self.clear_extra_fields();
 
