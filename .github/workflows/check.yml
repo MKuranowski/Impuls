@@ -24,8 +24,8 @@ jobs:
       - name: Set up Rust, Ninja and mdbtools
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: cargo ninja mdbtools
-          version: 1
+          packages: cargo ninja-build mdbtools
+          version: 2
 
       - name: Install dependencies
         run: pip install -r requirements.dev.txt -r requirements.examples.txt
