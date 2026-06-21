@@ -63,7 +63,7 @@ jobs:
 
       - name: Type Check Python
         if: ${{ !cancelled() }}
-        uses: jakebailey/pyright-action@v2
+        uses: jakebailey/pyright-action@v3
         with:
           pylance-version: latest-release
           extra-args: "examples/ impuls/ tests/"
