@@ -235,6 +235,9 @@ pub struct StandardInserter<'a> {
     /// values present in GTFS are substituted (through [Column::from_fallback])
     /// (so values not present in the GTFS are passed through from this array),
     /// bind to [StandardInserter::insert] and executed.
+    ///
+    /// 256 elements are chosen deliberately so that the compiler can omit bound checking
+    /// when indexed with a u8.
     initial_params: [ValueRef<'a>; 256],
 }
 
@@ -317,7 +320,7 @@ impl<'a> Inserter<'a> for StandardInserter<'a> {
         columns: &[Self::ColumnData],
         line: u64,
     ) -> Result<()> {
-        // Clear any bindings. NOTE: 256 entries are deliberate to omit bounds checking when indexing with a u8.
+        // Clear any bindings
         let mut params = self.initial_params;
         let mut pi_param = ValueRef::Null;
         self.clear_extra_fields();
@@ -383,7 +386,7 @@ impl<'a> StandardInserter<'a> {
             if i != 0 {
                 insert.push(',');
             }
-            insert.push_str(col.to_gtfs);
+            insert.push_str(col.sql_name);
         }
 
         if has_extra_fields {
