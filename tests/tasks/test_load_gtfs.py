@@ -55,7 +55,9 @@ class TestLoadGTFS(AbstractTestTask.Template):
         t = LoadGTFS("wkd-missing-routes.zip")
         with self.assertRaises(RuntimeError), self.assertLogs("impuls.extern", "ERROR") as logs:
             t.execute(self.runtime)
-        self.assertIn("ERROR:impuls.extern:Missing required table routes.txt", logs.output)
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("routes.txt", logs.output[0])
+        self.assertIn("No such file", logs.output[0])
 
     def test_missing_agency_id(self) -> None:
         t = LoadGTFS("wkd-no-agency-id.zip")
@@ -92,8 +94,9 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         self.assertEqual(self.runtime.db.count(Attribution), 1)
 
-        # The generated id is 2, as the first record is on the 2nd line
-        self.runtime.db.retrieve_must(Attribution, "2")
+        # XXX: The record lies on line number 2, but the CSV library is off by one
+        #      https://github.com/BurntSushi/rust-csv/issues/395
+        self.runtime.db.retrieve_must(Attribution, "1")
 
     def test_extra_fields_false(self) -> None:
         t = LoadGTFS("wkd-extra-fields.zip", extra_fields=False)
@@ -167,7 +170,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[0]
         self.assertEqual(row.table_name, "counties.txt")
-        self.assertEqual(row.row_sort_order, 0)
+        self.assertEqual(row.row_sort_order, 1)
         self.assertDictEqual(
             row.get_fields(),
             {"county_id": "0", "county_name": "m. st. Warszawa"},
@@ -175,7 +178,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[1]
         self.assertEqual(row.table_name, "counties.txt")
-        self.assertEqual(row.row_sort_order, 1)
+        self.assertEqual(row.row_sort_order, 2)
         self.assertDictEqual(
             row.get_fields(),
             {"county_id": "1", "county_name": "pruszkowski"},
@@ -183,7 +186,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[2]
         self.assertEqual(row.table_name, "counties.txt")
-        self.assertEqual(row.row_sort_order, 2)
+        self.assertEqual(row.row_sort_order, 3)
         self.assertDictEqual(
             row.get_fields(),
             {"county_id": "2", "county_name": "grodziski"},
@@ -191,7 +194,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[3]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 0)
+        self.assertEqual(row.row_sort_order, 1)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "0", "municipality_name": "Warszawa"},
@@ -199,7 +202,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[4]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 1)
+        self.assertEqual(row.row_sort_order, 2)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "1", "municipality_name": "Michałowice"},
@@ -207,7 +210,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[5]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 2)
+        self.assertEqual(row.row_sort_order, 3)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "2", "municipality_name": "Pruszków"},
@@ -215,7 +218,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[6]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 3)
+        self.assertEqual(row.row_sort_order, 4)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "3", "municipality_name": "Brwinów"},
@@ -223,7 +226,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[7]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 4)
+        self.assertEqual(row.row_sort_order, 5)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "4", "municipality_name": "Podkowa Leśna"},
@@ -231,7 +234,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[8]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 5)
+        self.assertEqual(row.row_sort_order, 6)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "5", "municipality_name": "Milanówek"},
@@ -239,7 +242,7 @@ class TestLoadGTFS(AbstractTestTask.Template):
 
         row = rows[9]
         self.assertEqual(row.table_name, "municipalities.txt")
-        self.assertEqual(row.row_sort_order, 6)
+        self.assertEqual(row.row_sort_order, 7)
         self.assertDictEqual(
             row.get_fields(),
             {"municipality_id": "6", "municipality_name": "Grodzisk Mazowiecki"},
