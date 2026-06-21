@@ -114,7 +114,8 @@ class TestHTTPResource(AbstractTestResource.Template):
 
     def prepare_mock_do_request(self) -> Callable[[HTTPResource], MockHTTPResponse]:
         def mock_do_response(r: HTTPResource) -> MockHTTPResponse:
-            if_modified_since_str: str = r.request.headers.get("If-Modified-Since", "")
+            if_modified_since_str = r.request.headers.get("If-Modified-Since", "")
+            assert isinstance(if_modified_since_str, str)
             if if_modified_since_str:
                 if_modified_since = parsedate_to_datetime(if_modified_since_str)
                 if if_modified_since >= self.last_modified:
@@ -149,7 +150,8 @@ class TestHTTPEtagResource(AbstractTestResource.Template):
 
     def prepare_mock_do_request(self) -> Callable[[HTTPResource], MockHTTPResponse]:
         def mock_do_response(r: HTTPResource) -> MockHTTPResponse:
-            if_none_match: str = r.request.headers.get("If-None-Match", "")
+            if_none_match = r.request.headers.get("If-None-Match", "")
+            assert isinstance(if_none_match, str)
             if if_none_match and int(if_none_match[1:-1]) == self.counter:
                 return MockHTTPResponse(304)
 
