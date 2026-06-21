@@ -14,41 +14,70 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
-      - name: Set up Zig
-        uses: goto-bus-stop/setup-zig@v2
+
+      - name: Set up Rust, Ninja and mdbtools
+        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          version: 0.15.2
-      - name: Set up Ninja
-        uses: seanmiddleditch/gha-setup-ninja@v4
-      - name: Set up mdbtools
-        run: sudo apt-get install -qy --no-install-recommends mdbtools
+          packages: cargo ninja mdbtools
+          version: 1
+
       - name: Install dependencies
         run: pip install -r requirements.dev.txt -r requirements.examples.txt
+
+      - name: Cache build artifacts
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            builddir/
+            impuls/extern/target/
+          key: ${{ runner.os }}-build-${{ hashFiles('impuls/extern/Cargo.toml', 'impuls/extern/Cargo.lock', 'meson.build') }}
+
       - name: Check meson.build
         run: python check_sources_in_meson_build.py
+
       - name: Build and install Impuls
         run: |
           pip install --no-build-isolation -Cbuild-dir=builddir --editable .
           ln -s ../../builddir/libextern.so impuls/extern
+
       - name: Check Python formatting
         run: black --check examples/ impuls/ tests/
+
       - name: Check Python import ordering
         run: isort --check examples/ impuls/ tests/
+        if: ${{ !cancelled() }}
+
       - name: Lint Python
         run: flake8 examples/ impuls/ tests/
+        if: ${{ !cancelled() }}
+
       - name: Type Check Python
+        if: ${{ !cancelled() }}
         uses: jakebailey/pyright-action@v2
         with:
           pylance-version: latest-release
           extra-args: "examples/ impuls/ tests/"
+
       - name: Run Python tests
+        if: ${{ !cancelled() }}
         run: pytest
-      - name: Check Zig formatting
-        run: zig fmt --check impuls/extern/zig/
-      - name: Run Zig tests
-        run: meson test -C builddir
+
+      - name: Check Rust formatting
+        if: ${{ !cancelled() }}
+        run: cargo fmt --check
+        working-directory: ./impuls/extern/
+
+      - name: Run Rust tests
+        if: ${{ !cancelled() }}
+        run: cargo test
+        working-directory: ./impuls/extern/
