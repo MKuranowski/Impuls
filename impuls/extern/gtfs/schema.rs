@@ -22,6 +22,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: true,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY agency_id",
     },
     Table {
@@ -41,6 +42,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY attribution_id",
     },
     Table {
@@ -74,6 +76,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: " WHERE monday OR tuesday OR wednesday OR thursday OR friday OR saturday OR sunday",
         order_clause: " ORDER BY calendar_id",
     },
     Table {
@@ -97,6 +100,7 @@ pub const TABLES: &[Table<'static>] = &[
             gtfs_column: "service_id",
         }),
         has_extra_fields_json: false,
+        filter_clause: "",
         order_clause: " ORDER BY calendar_id, date",
     },
     Table {
@@ -134,6 +138,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: "",
     },
     Table {
@@ -158,6 +163,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: true,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY route_id",
     },
     Table {
@@ -184,6 +190,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: true,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY stop_id",
     },
     Table {
@@ -201,6 +208,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY fare_id",
     },
     Table {
@@ -216,6 +224,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: false,
+        filter_clause: "",
         order_clause: " ORDER BY fare_id",
     },
     Table {
@@ -235,7 +244,8 @@ pub const TABLES: &[Table<'static>] = &[
             gtfs_column: "shape_id",
         }),
         has_extra_fields_json: false,
-        order_clause: " ORDER BY shape_id, squence",
+        filter_clause: "",
+        order_clause: " ORDER BY shape_id, sequence",
     },
     Table {
         sql_name: "trips",
@@ -268,6 +278,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: true,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY trip_id",
     },
     Table {
@@ -300,6 +311,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: true,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY trip_id, stop_sequence",
     },
     Table {
@@ -327,6 +339,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY trip_id, start_time",
     },
     Table {
@@ -345,6 +358,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY from_stop_id, to_stop_id",
     },
     Table {
@@ -362,6 +376,7 @@ pub const TABLES: &[Table<'static>] = &[
         required: false,
         parent_implication: None,
         has_extra_fields_json: true,
+        filter_clause: "",
         order_clause: " ORDER BY table_name, record_id, record_sub_id, field_value, field_name, language",
     },
 ];

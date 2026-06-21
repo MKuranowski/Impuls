@@ -62,7 +62,10 @@ pub unsafe extern "C" fn save_gtfs(
         })
         .collect();
 
-    let options = gtfs::SaveOptions { ensure_order };
+    let options = gtfs::SaveOptions {
+        ensure_order,
+        emit_empty_rows: emit_empty_calendars, // this is confusing, but emit_empty_rows only affects calendars
+    };
 
     let result = gtfs::save(
         cstr_to_path(db_path),

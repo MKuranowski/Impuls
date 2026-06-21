@@ -30,6 +30,9 @@ pub struct Table<'a> {
     /// Note that this column is never present in [Table::columns].
     pub has_extra_fields_json: bool,
 
+    /// Optional " WHERE ..." clause to filter useless/empty rows from a table.
+    pub filter_clause: &'a str,
+
     /// Optional " ORDER BY ..." clause to enforce a specific order of objects in
     /// this table. Note that the leading space is required.
     pub order_clause: &'a str,

@@ -628,6 +628,7 @@ mod tests {
             required: false,
             parent_implication: None,
             has_extra_fields_json: false,
+            filter_clause: "",
             order_clause: "",
         };
 
@@ -687,6 +688,7 @@ mod tests {
                 gtfs_column: "parent_id",
             }),
             has_extra_fields_json: false,
+            filter_clause: "",
             order_clause: "",
         };
 
@@ -760,6 +762,7 @@ mod tests {
             required: false,
             parent_implication: None,
             has_extra_fields_json: true,
+            filter_clause: "",
             order_clause: "",
         };
 
