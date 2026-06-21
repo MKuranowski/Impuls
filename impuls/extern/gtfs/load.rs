@@ -343,10 +343,11 @@ impl<'a> Inserter<'a> for StandardInserter<'a> {
         // Push the extra fields parameter
         let mut columns = self.table.columns.len();
         self.finish_extra_fields();
-        if let Some(extra_fields) = &self.extra_fields_buffer
-            && !extra_fields.is_empty()
-        {
-            params[columns] = ValueRef::Text(extra_fields.as_ref());
+        if let Some(extra_fields) = &self.extra_fields_buffer {
+            // Leave the bindings as NULL when there are no extra fields
+            if !extra_fields.is_empty() {
+                params[columns] = ValueRef::Text(extra_fields.as_ref())
+            }
             columns += 1;
         }
 
