@@ -1,4 +1,4 @@
-# © Copyright 2022-2025 Mikołaj Kuranowski
+# © Copyright 2022-2026 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 project('impuls')
@@ -83,92 +83,54 @@ else
 endif
 lib_name = 'libextern' + lib_suffix
 
-zig_lib_args = ['-dynamic', '--name', 'extern']
+cargo_args = []
 if meson.is_cross_build()
-    zig_lib_args += ['-target', meson.get_external_property('zig_target')]
+    cargo_args += ['--target', meson.get_external_property('cargo_target')]
 endif
 
-if get_option('debug')
-    zig_lib_args += ['-fno-strip', '-fno-omit-frame-pointer']
-else
-    zig_lib_args += '-fstrip'
+if get_option('optimization') in ['s', '2', '3']
+    cargo_args += ['--release']
 endif
 
-if get_option('optimization') == 's'
-    zig_lib_args += ['-O', 'ReleaseSmall']
-elif get_option('optimization') == '3'
-    zig_lib_args += ['-O', 'ReleaseFast']
-elif get_option('optimization') == '2'
-    zig_lib_args += ['-O', 'ReleaseSafe']
-else
-    zig_lib_args += ['-O', 'Debug']
-endif
-
-zig_compile_args = [
-    '-lc',
-    '-I',
-    meson.project_source_root() / 'impuls' / 'extern' / 'vendor',
-    # https://sqlite.org/compile.html#recommended_compile_time_options
-    '-DSQLITE_DQS=0',
-    '-DSQLITE_DEFAULT_MEMSTATUS=0',
-    '-DSQLITE_LIKE_DOESNT_MATCH_BLOBS',
-    '-DSQLITE_MAX_EXPR_DEPTH=0',
-    '-DSQLITE_OMIT_DECLTYPE',
-    '-DSQLITE_OMIT_DEPRECATED',
-    '-DSQLITE_OMIT_PROGRESS_CALLBACK',
-    '-DSQLITE_OMIT_SHARED_CACHE',
-    '-DSQLITE_USE_ALLOCA',
-]
-
-
-zig_wrapper = files('zig_build_lib_wrapper.py')
+cargo_wrapper = files('cargo_build_wrapper.py')
 custom_target(
     'libextern',
     input: [
-        # The following inputs are actually passed to zig build-lib
-        'impuls/extern/zig/root.zig',
-        'impuls/extern/vendor/sqlite3.c',
-        # The rest only serve as a trigger for meson to rebuild the library
-        'impuls/extern/zig/gtfs/conversion.zig',
-        'impuls/extern/zig/gtfs/conversion_from_gtfs.zig',
-        'impuls/extern/zig/gtfs/conversion_to_gtfs.zig',
-        'impuls/extern/zig/gtfs/root.zig',
-        'impuls/extern/zig/gtfs/load.zig',
-        'impuls/extern/zig/gtfs/save.zig',
-        'impuls/extern/zig/gtfs/table.zig',
-        'impuls/extern/zig/bounded_array.zig',
-        'impuls/extern/zig/csv.zig',
-        'impuls/extern/zig/logging.zig',
-        'impuls/extern/zig/sqlite3.zig',
+        # This list only serves as a trigger for rebuilding the library
+        'impuls/extern/Cargo.lock',
+        'impuls/extern/Cargo.toml',
+        'impuls/extern/db.rs',
+        'impuls/extern/error.rs',
+        'impuls/extern/gtfs/load.rs',
+        'impuls/extern/gtfs/mod.rs',
+        'impuls/extern/gtfs/save.rs',
+        'impuls/extern/gtfs/schema.rs',
+        'impuls/extern/gtfs/table.rs',
+        'impuls/extern/lib.rs',
+        'impuls/extern/logging.rs',
     ],
     output: lib_name,
     command: [
         py,
-        zig_wrapper,
-        '-o',
+        cargo_wrapper,
+        '--output',
         '@OUTPUT@',
+        '--source-dir',
+        '@CURRENT_SOURCE_DIR@/impuls/extern',
+        '--target-dir',
+        '@PRIVATE_DIR@',
         '--',
-        zig_lib_args,
-        zig_compile_args,
-        '@INPUT0@',
-        '@INPUT1@',
+        cargo_args,
     ],
     install: true,
     install_dir: py.get_install_dir() / 'impuls' / 'extern',
 )
 
-zig = find_program('zig')
+cargo = find_program('cargo')
 test(
     'libextern-test',
-    zig,
-    args: [
-        'test',
-        zig_compile_args,
-        files(
-            'impuls/extern/zig/root.zig',
-            'impuls/extern/vendor/sqlite3.c',
-        ),
-    ],
+    cargo,
+    args: ['test'],
     verbose: true,
-    workdir: meson.project_source_root(),
+    workdir: meson.project_source_root() / 'impuls' / 'extern',
 )
