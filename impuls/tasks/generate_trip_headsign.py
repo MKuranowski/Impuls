@@ -15,8 +15,7 @@ class GenerateTripHeadsign(Task):
     def execute(self, r: TaskRuntime) -> None:
         # mmm yes, nice correlated nested select statement :)
         # will break on trips with no stop times
-        r.db.raw_execute(
-            """
+        r.db.raw_execute("""
             UPDATE trips SET headsign = (
                 SELECT s.name FROM stop_times AS st
                 LEFT JOIN stops AS s ON (st.stop_id = s.stop_id)
@@ -25,5 +24,4 @@ class GenerateTripHeadsign(Task):
                 LIMIT 1
             )
             WHERE headsign ISNULL OR headsign = '';
-            """
-        )
+            """)

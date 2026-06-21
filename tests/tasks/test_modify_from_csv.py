@@ -12,16 +12,12 @@ ROUTES_CURATION = """route_id,route_long_name,route_color,route_text_color,route
 A1,Warszawa - Grodzisk Mazowiecki,DD0033,FFFFFF,0
 ZA1,Podkowa Leśna - Grodzisk Mazowiecki,3300DD,FFFFFF,1
 ZA12,Podkowa Leśna - Milanówek,3300DD,FFFFFF,2
-""".encode(
-    "utf-8"
-)
+""".encode("utf-8")
 
 ROUTES_DUPLICATE_ID = """route_id,route_long_name
 A1,Warszawa - Grodzisk Mazowiecki
 A1,Podkowa Leśna - Grodzisk Mazowiecki
-""".encode(
-    "utf-8"
-)
+""".encode("utf-8")
 
 ROUTES_INVALID_TYPE = b"""route_id,route_type
 A1,109

@@ -11,11 +11,13 @@ dependencies = ["requests ~= 2.32", "pyyaml ~= 6.0", "typing_extensions ~= 4.1"]
 authors = [{name = "Mikołaj Kuranowski", email = "mkuranowski@gmail.com"}]
 
 [tool.black]
-line-length = 99
+line-length = 100
+target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
-line_length = 99
+line_length = 100
+py_version = 310
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --ignore=examples"
