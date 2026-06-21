@@ -17,6 +17,9 @@ pub struct SaveOptions {
     /// Ensure consistent ordering in the output tables?
     /// Whether the [Table::order_clause] should be used when saving data.
     pub ensure_order: bool,
+
+    /// Emit empty/useless rows as well, by skipping the [Table::filter_clause].
+    pub emit_empty_rows: bool,
 }
 
 /// How to access data for a requested output table?
@@ -87,7 +90,7 @@ impl<'a> ResolvedTable<'a> {
     /// Extra columns (applied to all columns of extra tables) must match `[A-Za-z0-9_-]+`,
     /// otherwise they are replaced by NULL. NULLs are also used for tables without
     /// generic extra columns (see [Table::has_extra_fields_json]).
-    fn select(&self, header: &[&str], ensure_order: bool) -> String {
+    fn select(&self, header: &[&str], options: SaveOptions) -> String {
         // SELECT columns
         let mut stmt = String::from("SELECT ");
         for (i, &gtfs_column_name) in header.iter().enumerate() {
@@ -118,10 +121,17 @@ impl<'a> ResolvedTable<'a> {
             Self::Extra(_) => stmt.push_str("extra_table_rows WHERE table_name = ?"),
         }
 
+        // WHERE
+        if let Self::Standard(t) = self
+            && !options.emit_empty_rows
+        {
+            stmt.push_str(t.filter_clause);
+        }
+
         // ORDER BY
         match self {
             Self::Standard(t) => {
-                if ensure_order {
+                if options.ensure_order {
                     stmt.push_str(t.order_clause)
                 }
             }
@@ -228,7 +238,7 @@ pub fn save_table_to_writer(
     options: SaveOptions,
 ) -> Result<()> {
     // Prepare the SELECT statement and row iterator
-    let mut select = db.prepare(&table.select(header, options.ensure_order))?;
+    let mut select = db.prepare(&table.select(header, options))?;
     let mut rows = table.query(&mut select)?;
 
     // Dump header
@@ -434,7 +444,10 @@ mod tests {
                     "agency_timezone",
                     "agency_address"
                 ],
-                true,
+                SaveOptions {
+                    ensure_order: true,
+                    emit_empty_rows: false
+                },
             ),
             concat!(
                 "SELECT agency_id,name,url,timezone,",
@@ -453,7 +466,13 @@ mod tests {
         assert!(t.column_by_gtfs_name("route_id").is_none());
         assert_eq!(t.json_fields_column(), Some("fields_json"));
         assert_eq!(
-            t.select(&["variant_id", "route_id", "variant_code"], false),
+            t.select(
+                &["variant_id", "route_id", "variant_code"],
+                SaveOptions {
+                    ensure_order: true,
+                    emit_empty_rows: false
+                },
+            ),
             concat!(
                 "SELECT ",
                 "json_extract(fields_json,'$.variant_id'),",
