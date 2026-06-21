@@ -16,5 +16,5 @@ atoi = "2.0.0"
 csv = "1.4.0"
 itoa = "1.0.18"
 log = { version = "0.4.30" }
-rusqlite = { version = "0.40.0", features = ["functions"] }
+rusqlite = { version = "0.40.0", features = ["bundled", "functions"] }
 zmij = "1.0.21"
