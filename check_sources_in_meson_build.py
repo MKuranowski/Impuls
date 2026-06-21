@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2026 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # pyright: basic
@@ -7,7 +7,7 @@ from sys import exit
 
 from mesonbuild import mparser
 
-SOURCE_EXTENSIONS = ("c", "zig", "py")
+SOURCE_EXTENSIONS = ("py", "rs")
 
 
 def read_meson_build() -> mparser.CodeBlockNode:
@@ -35,8 +35,8 @@ def find_declared_python_sources(meson_build: mparser.CodeBlockNode) -> set[str]
     return python_sources
 
 
-def find_declared_zig_sources(meson_build: mparser.CodeBlockNode) -> set[str]:
-    zig_sources = set[str]()
+def find_declared_rust_sources(meson_build: mparser.CodeBlockNode) -> set[str]:
+    rust_sources = set[str]()
 
     for node in meson_build.lines:
         # Ignore anything other than "custom_target('libextern', ...)"
@@ -54,23 +54,27 @@ def find_declared_zig_sources(meson_build: mparser.CodeBlockNode) -> set[str]:
             ):
                 continue
 
-            zig_sources.update(
+            rust_sources.update(
                 arg.value for arg in value.args.arguments if isinstance(arg, mparser.StringNode)
             )
 
-    return zig_sources
+    return rust_sources
 
 
 def find_actual_sources() -> set[str]:
-    sources = {"impuls/py.typed"}
+    sources = {"impuls/py.typed", "impuls/extern/Cargo.toml", "impuls/extern/Cargo.lock"}
     for ext in SOURCE_EXTENSIONS:
-        sources.update(str(f) for f in Path("impuls").glob(f"**/*.{ext}"))
+        sources.update(
+            str(f)
+            for f in Path("impuls").glob(f"**/*.{ext}")
+            if f.parts[:3] != ("impuls", "extern", "target")  # ignore random rust junk
+        )
     return sources
 
 
 def main() -> int:
     build = read_meson_build()
-    defined_sources = find_declared_python_sources(build) | find_declared_zig_sources(build)
+    defined_sources = find_declared_python_sources(build) | find_declared_rust_sources(build)
     actual_sources = find_actual_sources()
 
     ok = True
