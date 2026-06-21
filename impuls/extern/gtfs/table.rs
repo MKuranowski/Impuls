@@ -52,6 +52,20 @@ impl<'a> Table<'a> {
                 .unwrap_or(ValueRef::Null)
         })
     }
+
+    /// Returns the indices into [Table::columns] (thus also into the array returned by
+    /// [Table::all_fallback_values]) whose fallback values are [FallbackValue::LineNum].
+    pub fn line_num_fallback_values(&self) -> Vec<u8> {
+        self.columns
+            .iter()
+            .enumerate()
+            .filter(|(_, col)| matches!(col.from_fallback, FallbackValue::LineNum))
+            .map(|(idx, _)| {
+                TryInto::<u8>::try_into(idx)
+                    .expect("there should be at most 255 columns in a table")
+            })
+            .collect()
+    }
 }
 
 /// Definition of a well-known GTFS/Impuls (SQL) column of a [Table]

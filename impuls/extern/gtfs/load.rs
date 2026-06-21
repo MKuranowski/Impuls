@@ -239,6 +239,10 @@ pub struct StandardInserter<'a> {
     /// 256 elements are chosen deliberately so that the compiler can omit bound checking
     /// when indexed with a u8.
     initial_params: [ValueRef<'a>; 256],
+
+    /// Indices into [StandardInserter::initial_params] which need to be set per-row with the value
+    /// of the current line number.
+    line_number_params: Vec<u8>,
 }
 
 impl<'a> Inserter<'a> for StandardInserter<'a> {
@@ -270,6 +274,7 @@ impl<'a> Inserter<'a> for StandardInserter<'a> {
                 None
             },
             initial_params: table.all_fallback_values(),
+            line_number_params: table.line_num_fallback_values(),
         })
     }
 
@@ -324,6 +329,11 @@ impl<'a> Inserter<'a> for StandardInserter<'a> {
         let mut params = self.initial_params;
         let mut pi_param = ValueRef::Null;
         self.clear_extra_fields();
+
+        // Fill fallback line number values
+        for &idx in &self.line_number_params {
+            params[idx as usize] = ValueRef::Integer(line as i64);
+        }
 
         // Push bindings
         for (cell, col) in row.into_iter().zip(columns) {
