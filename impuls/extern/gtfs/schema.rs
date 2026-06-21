@@ -10,7 +10,6 @@ pub const TABLES: &[Table<'static>] = &[
     Table {
         sql_name: "agencies",
         gtfs_name: "agency.txt",
-        required: true,
         columns: &[
             Column::with_fallback("agency_id", FALLBACK_AGENCY_ID),
             Column::with_names("name", "agency_name"),
@@ -20,6 +19,7 @@ pub const TABLES: &[Table<'static>] = &[
             Column::with_names("phone", "agency_phone"),
             Column::with_names("fare_url", "agency_fare_url"),
         ],
+        required: true,
         parent_implication: None,
         has_extra_fields_json: true,
         order_clause: " ORDER BY agency_id",
@@ -27,7 +27,6 @@ pub const TABLES: &[Table<'static>] = &[
     Table {
         sql_name: "attributions",
         gtfs_name: "attributions.txt",
-        required: true,
         columns: &[
             Column::with_fallback("attribution_id", FallbackValue::LineNum),
             Column::new("organization_name"),
@@ -39,6 +38,7 @@ pub const TABLES: &[Table<'static>] = &[
             Column::with_names("email", "attribution_email"),
             Column::with_names("phone", "attribution_phone"),
         ],
+        required: false,
         parent_implication: None,
         has_extra_fields_json: true,
         order_clause: " ORDER BY attribution_id",
@@ -56,14 +56,14 @@ pub const TABLES: &[Table<'static>] = &[
             Column::new("saturday"),
             Column::new("sunday"),
             Column {
-                _sql_name: "start_date",
+                sql_name: "start_date",
                 gtfs_name: "start_date",
                 to_gtfs: "replace(start_date, '-', '')",
                 from_gtfs: "parse_gtfs_date(?)",
                 from_fallback: FallbackValue::AsIs,
             },
             Column {
-                _sql_name: "end_date",
+                sql_name: "end_date",
                 gtfs_name: "end_date",
                 to_gtfs: "replace(end_date, '-', '')",
                 from_gtfs: "parse_gtfs_date(?)",
@@ -82,7 +82,7 @@ pub const TABLES: &[Table<'static>] = &[
         columns: &[
             Column::with_names("calendar_id", "service_id"),
             Column {
-                _sql_name: "date",
+                sql_name: "date",
                 gtfs_name: "date",
                 to_gtfs: "replace(date, '-', '')",
                 from_gtfs: "parse_gtfs_date(?)",
@@ -104,10 +104,10 @@ pub const TABLES: &[Table<'static>] = &[
         gtfs_name: "feed_info.txt",
         columns: &[
             Column {
-                _sql_name: "feed_info_id",
+                sql_name: "feed_info_id",
                 gtfs_name: "",
                 to_gtfs: "feed_info_id",
-                from_gtfs: "0",
+                from_gtfs: "COALESCE('0',?)",
                 from_fallback: FallbackValue::AsIs,
             },
             Column::with_names("publisher_name", "feed_publisher_name"),
@@ -117,14 +117,14 @@ pub const TABLES: &[Table<'static>] = &[
             Column::with_names("contact_email", "feed_contact_email"),
             Column::with_names("contact_url", "feed_contact_url"),
             Column {
-                _sql_name: "start_date",
+                sql_name: "start_date",
                 gtfs_name: "feed_start_date",
                 to_gtfs: "replace(start_date, '-', '')",
                 from_gtfs: "parse_gtfs_date(?)",
                 from_fallback: FallbackValue::AsIs,
             },
             Column {
-                _sql_name: "end_date",
+                sql_name: "end_date",
                 gtfs_name: "feed_end_date",
                 to_gtfs: "replace(end_date, '-', '')",
                 from_gtfs: "parse_gtfs_date(?)",
@@ -145,7 +145,7 @@ pub const TABLES: &[Table<'static>] = &[
             Column::with_names("short_name", "route_short_name"),
             Column::with_names("long_name", "route_long_name"),
             Column {
-                _sql_name: "type",
+                sql_name: "type",
                 gtfs_name: "route_type",
                 to_gtfs: "type",
                 from_gtfs: "parse_gtfs_route_type(?)",
@@ -173,7 +173,7 @@ pub const TABLES: &[Table<'static>] = &[
             Column::with_fallback("location_type", FallbackValue::Int(0)),
             Column::with_fallback("parent_station", FallbackValue::Null),
             Column {
-                _sql_name: "wheelchair_boarding",
+                sql_name: "wheelchair_boarding",
                 gtfs_name: "wheelchair_boarding",
                 to_gtfs: "CASE wheelchair_boarding WHEN 0 THEN 2 WHEN 1 THEN 1 ELSE 0 END",
                 from_gtfs: "CASE ? WHEN '1' THEN 1 WHEN '2' THEN 0 ELSE NULL END",
@@ -188,7 +188,7 @@ pub const TABLES: &[Table<'static>] = &[
     },
     Table {
         sql_name: "fare_attributes",
-        gtfs_name: "fare_attributes",
+        gtfs_name: "fare_attributes.txt",
         columns: &[
             Column::new("fare_id"),
             Column::new("price"),
@@ -250,14 +250,14 @@ pub const TABLES: &[Table<'static>] = &[
             Column::with_fallback("block_id", FallbackValue::Null),
             Column::with_fallback("shape_id", FallbackValue::Null),
             Column {
-                _sql_name: "wheelchair_accessible",
+                sql_name: "wheelchair_accessible",
                 gtfs_name: "wheelchair_accessible",
                 to_gtfs: "CASE wheelchair_accessible WHEN 0 THEN 2 WHEN 1 THEN 1 ELSE 0 END",
                 from_gtfs: "CASE ? WHEN '1' THEN 1 WHEN '2' THEN 0 ELSE NULL END",
                 from_fallback: FallbackValue::AsIs,
             },
             Column {
-                _sql_name: "bikes_allowed",
+                sql_name: "bikes_allowed",
                 gtfs_name: "bikes_allowed",
                 to_gtfs: "CASE bikes_allowed WHEN 0 THEN 2 WHEN 1 THEN 1 ELSE 0 END",
                 from_gtfs: "CASE ? WHEN '1' THEN 1 WHEN '2' THEN 0 ELSE NULL END",
@@ -278,14 +278,14 @@ pub const TABLES: &[Table<'static>] = &[
             Column::new("stop_id"),
             Column::new("stop_sequence"),
             Column {
-                _sql_name: "arrival_time",
+                sql_name: "arrival_time",
                 gtfs_name: "arrival_time",
                 to_gtfs: "format('%02u:%02u:%02u', arrival_time / 3600, arrival_time / 60 % 60, arrival_time % 60)",
                 from_gtfs: "parse_gtfs_time(?)",
                 from_fallback: FallbackValue::AsIs,
             },
             Column {
-                _sql_name: "departure_time",
+                sql_name: "departure_time",
                 gtfs_name: "departure_time",
                 to_gtfs: "format('%02u:%02u:%02u', departure_time / 3600, departure_time / 60 % 60, departure_time % 60)",
                 from_gtfs: "parse_gtfs_time(?)",
@@ -308,14 +308,14 @@ pub const TABLES: &[Table<'static>] = &[
         columns: &[
             Column::new("trip_id"),
             Column {
-                _sql_name: "start_time",
+                sql_name: "start_time",
                 gtfs_name: "start_time",
                 to_gtfs: "format('%02u:%02u:%02u', start_time / 3600, start_time / 60 % 60, start_time % 60)",
                 from_gtfs: "parse_gtfs_time(?)",
                 from_fallback: FallbackValue::AsIs,
             },
             Column {
-                _sql_name: "end_time",
+                sql_name: "end_time",
                 gtfs_name: "end_time",
                 to_gtfs: "format('%02u:%02u:%02u', end_time / 3600, end_time / 60 % 60, end_time % 60)",
                 from_gtfs: "parse_gtfs_time(?)",
