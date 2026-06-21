@@ -316,6 +316,7 @@ class HTTPResource(ConcreteResource):
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         # Set the conditional request headers
+        assert isinstance(self.request.headers, dict)
         if conditional and self.etag is not None:
             self.request.headers.pop("If-Modified-Since", None)
             self.request.headers["If-None-Match"] = self.etag
