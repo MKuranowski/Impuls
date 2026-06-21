@@ -50,9 +50,7 @@ class AbstractTestEntity:
             )
 
         def test_sql_set_clause(self) -> None:
-            self.assertRegex(
-                self.get_type().sql_set_clause(), r"^[a-z_]+ = \?(?:, [a-z_]+ = \?)*$"
-            )
+            self.assertRegex(self.get_type().sql_set_clause(), r"^[a-z_]+ = \?(?:, [a-z_]+ = \?)*$")
             self.assertEqual(
                 len(self.get_entity().sql_marshall()),
                 self.get_type().sql_set_clause().count("?"),

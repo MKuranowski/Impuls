@@ -29,9 +29,7 @@ class TestRemoveUnusedEntities(AbstractTestTask.Template):
         db.create(Agency("X", "Unused", "https://example.com", "UTC"))
         db.create(Route("X", "X", "X", "Unused", Route.Type.RAIL))
         db.create(
-            Stop(
-                "X_station", "Unused", 52.12497, 20.74968, location_type=Stop.LocationType.STATION
-            )
+            Stop("X_station", "Unused", 52.12497, 20.74968, location_type=Stop.LocationType.STATION)
         )
         db.create(
             Stop(
@@ -81,15 +79,9 @@ class TestRemoveUnusedEntities(AbstractTestTask.Template):
                 Date(2023, 5, 3),
             )
         )
-        db.create(
-            CalendarException("X_no_dates", Date(2023, 5, 1), CalendarException.Type.REMOVED)
-        )
-        db.create(
-            CalendarException("X_no_dates", Date(2023, 5, 2), CalendarException.Type.REMOVED)
-        )
-        db.create(
-            CalendarException("X_no_dates", Date(2023, 5, 3), CalendarException.Type.REMOVED)
-        )
+        db.create(CalendarException("X_no_dates", Date(2023, 5, 1), CalendarException.Type.REMOVED))
+        db.create(CalendarException("X_no_dates", Date(2023, 5, 2), CalendarException.Type.REMOVED))
+        db.create(CalendarException("X_no_dates", Date(2023, 5, 3), CalendarException.Type.REMOVED))
         db.create(Trip("X_no_stop_times", "X", "X_no_trips"))
         db.create(Trip("X_one_stop_time", "X", "X_no_trips"))
         db.create(

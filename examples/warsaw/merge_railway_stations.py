@@ -9,8 +9,7 @@ from impuls.model import Stop
 class MergeRailwayStations(impuls.Task):
     def execute(self, r: impuls.TaskRuntime) -> None:
         # Generate railway stations
-        result = r.db.raw_execute(
-            """
+        result = r.db.raw_execute("""
             WITH railway_stations AS (
                 SELECT DISTINCT substr(stop_id, 1, 4) AS new_stop_id
                 FROM stops WHERE substr(stop_id, 2, 2) IN ('90', '91', '92', '93')
@@ -33,18 +32,15 @@ class MergeRailwayStations(impuls.Task):
                     WHERE substr(s.stop_id, 1, 4) = r.new_stop_id LIMIT 1
                 )
             FROM railway_stations r
-            """
-        )
+            """)
         self.logger.info("Created %d merged stops", result.rowcount)
 
         # Update stop_times
-        result = r.db.raw_execute(
-            """
+        result = r.db.raw_execute("""
             UPDATE stop_times
             SET stop_id = substr(stop_id, 1, 4)
             WHERE substr(stop_id, 2, 2) IN ('90', '91', '92', '93')
-            """
-        )
+            """)
         self.logger.info("Updated %d stop times", result.rowcount)
 
         # NOTE: No need to drop unused stops - those will be removed by RemoveUnusedEntities later

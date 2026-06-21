@@ -4,8 +4,7 @@ import impuls
 class GenerateTripHeadsign(impuls.Task):
     def execute(self, r: impuls.TaskRuntime) -> None:
         # This is the most beautiful SQL statement I've every written :^)
-        result = r.db.raw_execute(
-            """
+        result = r.db.raw_execute("""
             WITH
                 destinations AS
                 (
@@ -31,6 +30,5 @@ class GenerateTripHeadsign(impuls.Task):
                 )
             UPDATE trips SET headsign = (SELECT new_headsign FROM headsigns
                                          WHERE trips.trip_id = headsigns.trip_id)
-            """
-        )
+            """)
         self.logger.info("Updated headsigns of %d trips", result.rowcount)
