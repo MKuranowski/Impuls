@@ -29,11 +29,13 @@ def cargo_build_type(args: List[str]) -> str:
 
 if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("-c", "--cross", default="")
     arg_parser.add_argument("-o", "--output", type=Path)
     arg_parser.add_argument("-s", "--source-dir", type=Path)
     arg_parser.add_argument("-t", "--target-dir", type=Path)
     arg_parser.add_argument("cargo_build_args", nargs="*")
     args = arg_parser.parse_args()
+    cross: str = args.cross
     output: Optional[Path] = args.output
     source_dir: Path = args.source_dir or Path.cwd()
     target_dir: Optional[Path] = args.target_dir
@@ -47,15 +49,36 @@ if __name__ == "__main__":
         target_dir = target_dir.resolve()
 
     with cwd(source_dir):
-        target_dir_args = ("--target-dir", str(target_dir)) if target_dir else tuple()
-        all_args = [cargo_path, "build", *target_dir_args, *cargo_build_args]
+        # Prepare compilation args
+
+        all_args = [cargo_path]
+
+        if "windows-msvc" in cross:
+            all_args.extend(("xwin", "build"))
+        elif cross:
+            all_args.append("zigbuild")
+        else:
+            all_args.append("build")
+
+        if target_dir:
+            all_args.extend(("--target-dir", str(target_dir)))
+
+        all_args.extend(cargo_build_args)
+        if cross:
+            all_args.extend(("--target", cross))
+
+        # Prepare compilation env
+        env = os.environ.copy()
+        if "linux-musl" in cross:
+            env["RUSTFLAGS"] = "-C target-feature=-crt-static"
+
         print("+", "cargo", *all_args[1:], file=sys.stderr)
-        subprocess.run(all_args, check=True)
+        subprocess.run(all_args, env=env, check=True)
 
     if output is not None:
         # Find the requested output file
         base_dir = target_dir or (source_dir / "target")
-        search_dir = base_dir / cargo_build_type(cargo_build_args)
+        search_dir = base_dir / cross / cargo_build_type(cargo_build_args)
 
         # Allow an alternative match on missing/present "lib". Usually meson expects
         # "libZZZ.so", but Rust produced "ZZZ.so", or vice versa.

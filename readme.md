@@ -24,17 +24,11 @@ A module for dealing with versioned, or _multi-file_ sources is also provided. I
 for easy and very flexible processing of schedules provided in discrete versions into
 a single coherent file.
 
-Installation and compilation
+Installation and Compilation
 ----------------------------
 
-Impuls is mainly written in python, however a performance-critical part of this library is written
-in zig and bundled alongside the shared library. To compile and install the library,
-first ensure that [zig](https://ziglang.org/learn/getting-started/) is installed, then
-run the following, preferably inside of a
-[virtual environment](https://docs.python.org/3/library/venv.html):
-
-Impuls is mainly written in python, however a performance-critical part of this library is written
-in zig and bundled alongside the shared library. To install the library run the following,
+Impuls is mainly written in Python, however a performance-critical part of this library is written
+in Rust and bundled alongside the shared library. To install, run the following,
 preferably inside of a [virtual environment](https://docs.python.org/3/library/venv.html):
 
 ```
@@ -42,7 +36,7 @@ pip install impuls
 ```
 
 Pre-built binaries are available for most platforms. To build from source
-[zig](https://ziglang.org/learn/getting-started/) needs to be installed.
+[Rust with Cargo](https://rust-lang.org/) and a C compiler needs to be installed.
 
 The `LoadBusManMDB` task additionally requires [mdbtools](https://github.com/mdbtools/mdbtools)
 to be installed. This package is available in most package managers.
@@ -144,7 +138,7 @@ License
 
 Impuls is distributed under GNU GPL v3 (or any later version).
 
-> © Copyright 2022-2025 Mikołaj Kuranowski
+> © Copyright 2022-2026 Mikołaj Kuranowski
 >
 > Impuls is free software: you can redistribute it and/or modify
 > it under the terms of the GNU General Public License as published by
@@ -159,7 +153,7 @@ Impuls is distributed under GNU GPL v3 (or any later version).
 > You should have received a copy of the GNU General Public License
 > along with Impuls. If not, see <http://www.gnu.org/licenses/>.
 
-Impuls source code and pre-built binaries come with [sqlite3](https://sqlite.org/),
+Impuls pre-built binaries come with [sqlite3](https://sqlite.org/),
 which [is placed in the public domain](https://www.sqlite.org/copyright.html).
 
 Development
@@ -167,15 +161,12 @@ Development
 
 Impuls uses [meson-python](https://meson-python.readthedocs.io/en/latest/index.html). The
 project layout is quite unorthodox, as Impuls in neither a pure-python module, nor a project
-with a bog-standard C/C++ extension. Instead, the zig code is compiled into a shared library
-which is bundled alongside the python module.
+with a bog-standard C/C++ extension. Instead, the Rust code is compiled into a shared library
+which is bundled alongside the Python module.
 
-Zig allows super easy cross-compilation, while using a shared library allows a single wheel
-to be used across multiple python versions and implementations.
-
-Development requires [python](https://python.org/), [zig](https://ziglang.org/learn/getting-started/)
-and [mdbtools](https://github.com/mdbtools/mdbtools/) (usually all 3 will be available in your
-package manager repositories) to be installed. To set up the environment on Linux, run:
+Development requires [Python](https://python.org/), [Rust with Cargo](https://rust-lang.org/),
+a C compiler, and [mdbtools](https://github.com/mdbtools/mdbtools/) (usually all will be available in your
+package manager repositories) to be installed. To then set up the environment on Linux, run:
 
 ```terminal
 $ python -m venv --upgrade-deps .venv
@@ -188,32 +179,35 @@ $ ln -s ../../builddir/libextern.so impuls/extern
 On MacOS, change the shared library file extension to `.dylib`. On Windows, change the extension
 of the shared library to `.dll`.
 
-To run python tests, simply execute `pytest`. To run zig tests, run `meson test -C builddir`.
+To run Python tests, simply execute `pytest`. To run Rust tests, run `meson test -C builddir`,
+or `cargo test` in the <impuls/extern/> subdirectory.
 
 To run the examples, install their dependencies first (`pip install -Ur requirements.examples.txt`),
 then execute the example module, e.g. `python -m examples.krakow`.
 
-meson-python will automatically recompile the zig library whenever an editable impuls install is
+meson-python will automatically recompile the Rust library whenever an editable Impuls install is
 imported; set the `MESONPY_EDITABLE_VERBOSE` environment variable to `1` to see meson logs for build
 details.
 
-By default, the extern zig library will be built in debug mode. To change that, run
-`meson configure --buildtype=debugoptimized builddir` (buildtype can also be set to `debug` or
-`release`). To recompile the library, run `meson compile -C builddir`.
+By default, the extern Rust library will be built in debug mode. To change that, run
+`meson configure --buildtype=release builddir` (buildtype can also be set to `debug`).
+To recompile the library, run `meson compile -C builddir`.
 
-Unfortunately, meson-python requires all python and zig source files in meson.build. Python
-files need to be listed for packaging to work, while zig source files need to be listed for
+Unfortunately, meson-python requires all Python and Rust source files listed in meson.build. Python
+files need to be listed for packaging to work, while Rust source files need to be listed for
 the build backend to properly detect whether libextern needs to be recompiled.
 
 ### Building wheels
 
-Zig has been chosen for its excellent cross-compilation support. Thanks to this, building
-all wheels for a release does not require tools like [cibuildwheel](https://github.com/pypa/cibuildwheel),
-virtual machines, or even any containers. As long as Zig is installed, all wheels can be
-build on that machine.
+Thanks to [cargo-zigbuild](https://github.com/rust-cross/cargo-zigbuild) and [cargo-xwin](https://github.com/rust-cross/cargo-xwin)
+wheels can be automatically cross-compiled to all major platforms.
 
-Before building wheels, install a few extra dependencies in the virtual environment:
-`pip install -U build wheel`.
+Cross-compilation however required multiple extra dependencies: [Zig](https://ziglang.org/),
+[clang](https://clang.llvm.org/) and [llvm-tools](https://llvm.org/) (mostly llvm-lib and llvm-strip).
+Rust should also be installed through [rustup](https://rustup.rs/), along with all of the
+targets from cross/*.ini files added with `rustup add target XXX`.
+
+Two extra dependencies need to be installed in the venv as well: `pip install -U build wheel`.
 
 To build the wheels, simply run `python build_wheels.py`.
 
