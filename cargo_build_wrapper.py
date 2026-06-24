@@ -49,8 +49,6 @@ if __name__ == "__main__":
         target_dir = target_dir.resolve()
 
     with cwd(source_dir):
-        # Prepare compilation args
-
         all_args = [cargo_path]
 
         if "windows-msvc" in cross:
@@ -67,15 +65,8 @@ if __name__ == "__main__":
         if cross:
             all_args.extend(("--target", cross))
 
-        # Prepare compilation env
-        env = os.environ.copy()
-        if "linux-musl" in cross:
-            env["RUSTFLAGS"] = "-C target-feature=-crt-static"
-        elif "apple-darwin" in cross:
-            env["MACOSX_DEPLOYMENT_TARGET"] = "11.0"
-
         print("+", "cargo", *all_args[1:], file=sys.stderr)
-        subprocess.run(all_args, env=env, check=True)
+        subprocess.run(all_args, check=True)
 
     if output is not None:
         # Find the requested output file
