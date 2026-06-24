@@ -28,16 +28,14 @@ class Configuration(NamedTuple):
 # NOTE: The platform tag version requirements must be kept in sync with
 #       Rust targets: https://doc.rust-lang.org/nightly/rustc/platform-support.html
 # NOTE: The platform tag version requirements must be kept in sync with
-#       platform/ABI version requirements in cross-compilation files.
-#       E.g. wheel platform tag "macosx_11_0" requires zig target platform "macos.11.0",
-#       wheel platform tag "manylinux_2_17" requires zig target abi "gnu.2.17".
-#       Zig doesn't allow to specify target abi version for musl, so we just make up 1.1 support.
-# NOTE: "manylinux2014" is a legacy alias for "manylinux_2_17".
+#       platform/ABI version requirements in cross-compilation files, and for MacOS
+#       with the MACOSX_DEPLOYMENT_TARGET value in cargo_build_wrapper.py.
+# NOTE: Musl doesn't version its ABI, so we just make up 1.1 support, lol.
 
 CONFIGURATIONS = {
     "aarch64-linux-gnu": Configuration(
         MESON_CROSS_FILES_DIR / "aarch64-linux-gnu.ini",
-        "manylinux2014_aarch64.manylinux_2_17_aarch64",
+        "manylinux_2_17_aarch64",
     ),
     "aarch64-linux-musl": Configuration(
         MESON_CROSS_FILES_DIR / "aarch64-linux-musl.ini",
@@ -53,7 +51,7 @@ CONFIGURATIONS = {
     ),
     "x86_64-linux-gnu": Configuration(
         MESON_CROSS_FILES_DIR / "x86_64-linux-gnu.ini",
-        "manylinux2014_x86_64.manylinux_2_17_x86_64",
+        "manylinux_2_17_x86_64",
     ),
     "x86_64-linux-musl": Configuration(
         MESON_CROSS_FILES_DIR / "x86_64-linux-musl.ini",
