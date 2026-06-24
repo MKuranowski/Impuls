@@ -28,8 +28,7 @@ class Configuration(NamedTuple):
 # NOTE: The platform tag version requirements must be kept in sync with
 #       Rust targets: https://doc.rust-lang.org/nightly/rustc/platform-support.html
 # NOTE: The platform tag version requirements must be kept in sync with
-#       platform/ABI version requirements in cross-compilation files, and for MacOS
-#       with the MACOSX_DEPLOYMENT_TARGET value in cargo_build_wrapper.py.
+#       platform/ABI version requirements in cross-compilation files.
 # NOTE: Musl doesn't version its ABI, so we just make up 1.1 support, lol.
 
 CONFIGURATIONS = {

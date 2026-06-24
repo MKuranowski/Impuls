@@ -124,6 +124,7 @@ custom_target(
         '--',
         cargo_args,
     ],
+    env: meson.get_external_property('cargo_env', []),
     install: true,
     install_dir: py.get_install_dir() / 'impuls' / 'extern',
 )
