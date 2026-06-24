@@ -83,11 +83,12 @@ else
 endif
 lib_name = 'libextern' + lib_suffix
 
-cargo_args = []
+cargo_wrapper_args = []
 if meson.is_cross_build()
-    cargo_args += ['--target', meson.get_external_property('cargo_target')]
+    cargo_wrapper_args += ['--cross', meson.get_external_property('cargo_target')]
 endif
 
+cargo_args = []
 if get_option('optimization') in ['s', '2', '3']
     cargo_args += ['--release']
 endif
@@ -119,6 +120,7 @@ custom_target(
         '@CURRENT_SOURCE_DIR@/impuls/extern',
         '--target-dir',
         '@PRIVATE_DIR@',
+        cargo_wrapper_args,
         '--',
         cargo_args,
     ],

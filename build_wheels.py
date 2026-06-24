@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2026 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import concurrent.futures
@@ -25,6 +25,8 @@ class Configuration(NamedTuple):
     wheel_platform_tag: str
 
 
+# NOTE: The platform tag version requirements must be kept in sync with
+#       Rust targets: https://doc.rust-lang.org/nightly/rustc/platform-support.html
 # NOTE: The platform tag version requirements must be kept in sync with
 #       platform/ABI version requirements in cross-compilation files.
 #       E.g. wheel platform tag "macosx_11_0" requires zig target platform "macos.11.0",
