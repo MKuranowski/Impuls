@@ -71,6 +71,8 @@ if __name__ == "__main__":
         env = os.environ.copy()
         if "linux-musl" in cross:
             env["RUSTFLAGS"] = "-C target-feature=-crt-static"
+        elif "apple-darwin" in cross:
+            env["MACOSX_DEPLOYMENT_TARGET"] = "11.0"
 
         print("+", "cargo", *all_args[1:], file=sys.stderr)
         subprocess.run(all_args, env=env, check=True)
@@ -78,7 +80,8 @@ if __name__ == "__main__":
     if output is not None:
         # Find the requested output file
         base_dir = target_dir or (source_dir / "target")
-        search_dir = base_dir / cross / cargo_build_type(cargo_build_args)
+        cross_dir = cross.partition(".")[0] if cross else ""
+        search_dir = base_dir / cross_dir / cargo_build_type(cargo_build_args)
 
         # Allow an alternative match on missing/present "lib". Usually meson expects
         # "libZZZ.so", but Rust produced "ZZZ.so", or vice versa.
