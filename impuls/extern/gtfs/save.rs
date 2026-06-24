@@ -100,14 +100,11 @@ impl<'a> ResolvedTable<'a> {
 
             if let Some(column) = self.column_by_gtfs_name(gtfs_column_name) {
                 stmt.push_str(column.to_gtfs);
-            } else if let Some(json_fields_column) = self.json_fields_column()
-                && !gtfs_column_name.is_empty()
-                && gtfs_column_name.chars().all(is_safe_object_path)
-            {
+            } else if let Some(json_fields_column) = self.json_fields_column() {
                 stmt.push_str("json_extract(");
                 stmt.push_str(json_fields_column);
                 stmt.push_str(",'$.");
-                stmt.push_str(gtfs_column_name);
+                push_json_key_object_path(&mut stmt, gtfs_column_name);
                 stmt.push_str("')");
             } else {
                 stmt.push_str("NULL");
@@ -271,10 +268,30 @@ pub fn save_table_to_writer(
     Ok(())
 }
 
-fn is_safe_object_path(c: char) -> bool {
-    match c {
-        'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' => true,
-        _ => false,
+/// Escapes an arbitrary JSON object key into a SQLite's JSON objectlabel, which can be embedded
+/// in an SQL string literal.
+///
+/// This means that most strings are pushed as-is, except for empty strings, or strings
+/// containing one of `.["'`. To escape weird keys, the `key` is wrapped in double quotes,
+/// double quotes are escaped JSON-style (by preceding with a backslash) and single quotes
+/// are escaped SQL-style (by doubling them).
+pub fn push_json_key_object_path(dst: &mut String, key: &str) {
+    if key.is_empty() {
+        dst.push_str("\"\"");
+    } else if key.contains(&['"', '.', '[', '\'', '\0']) {
+        dst.reserve(key.len() + 2);
+        dst.push('"');
+        for c in key.chars() {
+            match c {
+                '\0' => dst.push_str("\\u0000"),
+                '"' => dst.push_str("\\\""),
+                '\'' => dst.push_str("''"),
+                _ => dst.push(c),
+            }
+        }
+        dst.push('"');
+    } else {
+        dst.push_str(key);
     }
 }
 
@@ -482,6 +499,28 @@ mod tests {
                 "WHERE table_name = ? ",
                 "ORDER BY row_sort_order",
             ),
+        );
+    }
+
+    fn json_key_to_object_path(key: &str) -> String {
+        let mut s = String::new();
+        push_json_key_object_path(&mut s, key);
+        s
+    }
+
+    #[test]
+    fn test_json_key_to_object_path() {
+        assert_eq!(json_key_to_object_path("foo"), "foo");
+        assert_eq!(json_key_to_object_path("bar123_baz"), "bar123_baz");
+        assert_eq!(json_key_to_object_path(""), "\"\"");
+        assert_eq!(json_key_to_object_path("foo.bar"), "\"foo.bar\"");
+        assert_eq!(
+            json_key_to_object_path("why[are]there[brackets]"),
+            "\"why[are]there[brackets]\""
+        );
+        assert_eq!(
+            json_key_to_object_path("super.\"wonky\".'string'!!!"),
+            "\"super.\\\"wonky\\\".''string''!!!\""
         );
     }
 }
