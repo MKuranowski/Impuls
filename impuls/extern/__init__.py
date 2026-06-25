@@ -5,7 +5,7 @@ import ctypes
 import logging
 import os
 import sys
-from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_int, c_uint
+from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_int
 from pathlib import Path
 from typing import Mapping, Sequence
 
