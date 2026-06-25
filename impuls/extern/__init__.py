@@ -28,7 +28,7 @@ lib_path = Path(__file__).with_name(lib_filename)
 lib = ctypes.cdll.LoadLibrary(str(lib_path))
 
 
-# XXX: The declarations below must match zig/lib.zig
+# XXX: The declarations below must match lib.rs
 
 
 class _FileHeader(ctypes.Structure):

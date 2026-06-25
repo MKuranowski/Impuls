@@ -46,8 +46,8 @@ Impuls is published on `PyPI <https://pypi.org/project/impuls/>`_. Install by ru
 Impuls comes with a pre-compiled shared library for performance-critical tasks. Wheels
 are Python implementation and version agnostic, and are available for most common platforms
 (glibc Linux, musl Linux, MacOS, Windows; both x86_64 and ARM64). Installing on other platforms
-necessitate compilation form scratch, and for that `zig <https://ziglang.org/learn/getting-started/>`_
-needs to be installed.
+necessitate compilation form scratch, and for that `Rust, Cargo <https://rust-lang.org/>`_
+and a C compiler need to be installed.
 
 
 Table of Contents
