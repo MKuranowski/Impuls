@@ -50,16 +50,11 @@ jobs:
           pip install --no-build-isolation -Cbuild-dir=builddir --editable .
           ln -s ../../builddir/libextern.so impuls/extern
 
-      - name: Check Python formatting
-        run: black --check examples/ impuls/ tests/
-
-      - name: Check Python import ordering
-        run: isort --check examples/ impuls/ tests/
-        if: ${{ !cancelled() }}
-
       - name: Lint Python
-        run: flake8 examples/ impuls/ tests/
         if: ${{ !cancelled() }}
+        uses: astral-sh/ruff-action@v4.0.0
+        with:
+          src: "./examples ./impuls ./tests"
 
       - name: Type Check Python
         if: ${{ !cancelled() }}
