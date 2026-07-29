@@ -11,7 +11,7 @@ from dataclasses import InitVar, dataclass, field
 from itertools import pairwise
 from math import isfinite
 from pathlib import Path
-from typing import Any, Generic, Self, TypeAlias, TypeVar, cast
+from typing import Any, Generic, TypeAlias, TypeVar, cast
 
 import routx
 from typing_extensions import dataclass_transform
@@ -21,7 +21,7 @@ from ..db import DBConnection
 from ..model import Route
 from ..task import Task, TaskRuntime
 from ..tools.geo import earth_distance_m
-from ..tools.types import StrPath
+from ..tools.types import Self, StrPath
 
 StopKey: TypeAlias = tuple[str, int]
 """
