@@ -1,9 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -21,7 +20,7 @@ class Attribution(Entity, ExtraFieldsMixin):
     to the dataset.
 
     Equivalent to `GTFS's attributions.txt entries <https://gtfs.org/schedule/reference/#attributionstxt>`_.
-    """  # noqa: E501
+    """
 
     id: str
     organization_name: str
@@ -32,7 +31,7 @@ class Attribution(Entity, ExtraFieldsMixin):
     url: str = field(default="", repr=False)
     email: str = field(default="", repr=False)
     phone: str = field(default="", repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -94,7 +93,7 @@ class Attribution(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", str)

@@ -3,13 +3,14 @@
 
 import os
 import shutil
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from math import inf
 from operator import itemgetter
 from pathlib import Path
 from tempfile import mkstemp
-from typing import Generator, Iterable, NamedTuple, Type
+from typing import NamedTuple
 
 from ..db import DBConnection
 from ..model import FeedInfo, Route, Stop
@@ -49,7 +50,7 @@ class RouteHash:
     color: str
 
     @classmethod
-    def of(cls: Type[Self], r: Route) -> Self:
+    def of(cls, r: Route) -> Self:
         return cls(
             id=r.id,
             agency_id=r.agency_id,
@@ -75,7 +76,7 @@ class StopHash:
     platform_code: str
 
     @classmethod
-    def of(cls: Type[Self], s: Stop) -> Self:
+    def of(cls: type[Self], s: Stop) -> Self:
         return cls(
             id=s.id,
             name=s.name,
@@ -458,8 +459,7 @@ class Merge(Task):
         #       SQLite will automatically generate new ones (thanks to INTEGER PRIMARY KEY)
         columns = "route_id, origin_id, destination_id, contains_id"
         db.raw_execute(
-            f"INSERT OR ABORT INTO fare_rules ({columns}) "
-            f"SELECT {columns} FROM incoming.fare_rules"
+            f"INSERT OR ABORT INTO fare_rules ({columns}) SELECT {columns} FROM incoming.fare_rules"
         )
 
     def merge_shapes(self, db: DBConnection, incoming_prefix: str) -> None:

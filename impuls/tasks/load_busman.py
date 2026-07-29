@@ -5,8 +5,8 @@ import csv
 import json
 import shutil
 import subprocess
+from collections.abc import Generator, Mapping
 from pathlib import Path
-from typing import Generator, Mapping
 
 from ..db import DBConnection
 from ..model import Calendar, Date, Route, Stop, StopTime, TimePoint, Trip

@@ -6,26 +6,15 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
+from collections.abc import Generator, Iterator, Mapping, Sequence
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryFile
-from typing import (
-    Any,
-    BinaryIO,
-    ContextManager,
-    Generator,
-    Iterator,
-    Mapping,
-    Optional,
-    Sequence,
-    TextIO,
-    Type,
-    Union,
-)
+from typing import Any, BinaryIO, TextIO
 from urllib.parse import urlparse
 from zipfile import ZipFile, ZipInfo
 
@@ -76,7 +65,7 @@ class Resource(ABC):
 
     @last_modified.setter
     @abstractmethod
-    def last_modified(self, __new: datetime) -> None: ...
+    def last_modified(self, new: datetime, /) -> None: ...
 
     @property
     @abstractmethod
@@ -88,7 +77,7 @@ class Resource(ABC):
 
     @fetch_time.setter
     @abstractmethod
-    def fetch_time(self, __new: datetime) -> None: ...
+    def fetch_time(self, new: datetime, /) -> None: ...
 
     @abstractmethod
     def fetch(self, conditional: bool) -> Iterator[bytes]:
@@ -116,7 +105,6 @@ class Resource(ABC):
         """Invoked by Impuls resource mechanism to load extra metadata returned by
         :py:meth:`save_extra_metadata`. Not called if a resource has no extra metadata.
         """
-        pass
 
 
 class ConcreteResource(Resource):
@@ -252,12 +240,12 @@ class HTTPResource(ConcreteResource):
 
     request: requests.Request
     session: requests.Session
-    etag: Optional[str] | None
+    etag: str | None
 
     def __init__(
         self,
         request: requests.Request,
-        session: Optional[requests.Session] = None,
+        session: requests.Session | None = None,
     ) -> None:
         super().__init__()
         self.request = request
@@ -266,11 +254,11 @@ class HTTPResource(ConcreteResource):
 
     @classmethod
     def get(
-        cls: Type[Self],
+        cls: type[Self],
         url: str,
         /,
-        params: Union[Mapping[str, str], Sequence[tuple[str, str]], None] = None,
-        headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, str] | Sequence[tuple[str, str]] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> Self:
         """get creates a HTTPResource performing a GET request to the provided URL.
 
@@ -282,12 +270,12 @@ class HTTPResource(ConcreteResource):
 
     @classmethod
     def post(
-        cls: Type[Self],
+        cls: type[Self],
         url: str,
         /,
-        params: Union[Mapping[str, str], Sequence[tuple[str, str]], None] = None,
-        headers: Optional[Mapping[str, str]] = None,
-        data: Union[str, bytes, Mapping[str, str], Sequence[tuple[str, str]], None] = None,
+        params: Mapping[str, str] | Sequence[tuple[str, str]] | None = None,
+        headers: Mapping[str, str] | None = None,
+        data: str | bytes | Mapping[str, str] | Sequence[tuple[str, str]] | None = None,
         json: Any = None,
     ) -> Self:
         """post creates a HTTPResource performing a POST request to the provided URL.
@@ -347,8 +335,7 @@ class HTTPResource(ConcreteResource):
             else:
                 logger.error("%s did not send the Last-Modified header", urlparse(resp.url).netloc)
 
-            for chunk in resp.iter_content(FETCH_CHUNK_SIZE, decode_unicode=False):
-                yield chunk
+            yield from resp.iter_content(FETCH_CHUNK_SIZE, decode_unicode=False)
 
 
 class TimeLimitedResource(WrappedResource):
@@ -403,10 +390,13 @@ class ZippedResource(WrappedResource):
         self.save_zip_in_memory = save_zip_in_memory
 
     def fetch(self, conditional: bool) -> Iterator[bytes]:
-        with self.fetch_zip(conditional) as zip_buffer, ZipFile(zip_buffer) as zip:
-            with zip.open(self.pick_file(zip), mode="r") as buffer:
-                while chunk := buffer.read(FETCH_CHUNK_SIZE):
-                    yield chunk
+        with (
+            self.fetch_zip(conditional) as zip_buffer,
+            ZipFile(zip_buffer) as zip,
+            zip.open(self.pick_file(zip), mode="r") as buffer,
+        ):
+            while chunk := buffer.read(FETCH_CHUNK_SIZE):
+                yield chunk
 
     def pick_file(self, in_: ZipFile) -> ZipInfo:
         """Picks the file to decompress."""
@@ -421,7 +411,7 @@ class ZippedResource(WrappedResource):
         except KeyError as e:
             raise ValueError(f"Can't find file {self.file_name_in_zip!r} in ZIP") from e
 
-    def fetch_zip(self, conditional: bool) -> ContextManager[BinaryIO]:
+    def fetch_zip(self, conditional: bool) -> AbstractContextManager[BinaryIO]:
         """Fetches the bytes of the zip file, depending on the :py:attr:`.save_zip_in_memory`
         setting."""
         if self.save_zip_in_memory:
@@ -497,9 +487,9 @@ class ManagedResource:
     def open_text(
         self,
         buffering: int = -1,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
-        newline: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
+        newline: str | None = None,
     ) -> TextIO:
         """open_text opens the cached file in "r" mode, with the provided arguments"""
         return self.stored_at.open(
@@ -514,7 +504,7 @@ class ManagedResource:
         """open_text opens the cached file in "rb" mode, with the provided arguments"""
         return self.stored_at.open(mode="rb", buffering=buffering)
 
-    def text(self, encoding: Optional[str] = None, errors: Optional[str] = None) -> str:
+    def text(self, encoding: str | None = None, errors: str | None = None) -> str:
         """text reads the content of the file into a string.
         If encoding and errors are not defined, system settings are used.
         """
@@ -526,8 +516,8 @@ class ManagedResource:
 
     def json(
         self,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
         **json_load_kwargs: Any,
     ) -> Any:
         """json deserializes resource content using JSON.
@@ -540,7 +530,7 @@ class ManagedResource:
         with self.stored_at.open(mode="r", encoding=encoding, errors=errors) as f:
             return json.load(f, **json_load_kwargs)
 
-    def yaml(self, encoding: Optional[str] = None, errors: Optional[str] = None) -> Any:
+    def yaml(self, encoding: str | None = None, errors: str | None = None) -> Any:
         """yaml deserializes resource content using YAML, using yaml.safe_load.
 
         File is opened in "r" mode, and if encoding and errors are not defined,
@@ -551,8 +541,8 @@ class ManagedResource:
 
     def csv(
         self,
-        encoding: Optional[str] = None,
-        errors: Optional[str] = None,
+        encoding: str | None = None,
+        errors: str | None = None,
         **csv_dict_reader_kwargs: Any,
     ) -> Iterator[dict[str, str]]:
         """csv reads CSV records from the resource.

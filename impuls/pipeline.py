@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
-from typing import Mapping, Optional
 
 from .db import DBConnection
 from .errors import InputNotModified
@@ -41,7 +41,7 @@ class Pipeline:
         self,
         tasks: list[Task],
         resources: Mapping[str, Resource] | None = None,
-        options: PipelineOptions = PipelineOptions(),
+        options: PipelineOptions = PipelineOptions(),  # noqa: B008
         name: str = "",
         db_path: StrPath | None = None,
         run_on_existing_db: bool = False,
@@ -51,7 +51,7 @@ class Pipeline:
         self.name: str = name
         self.logger: logging.Logger = logging.getLogger(f"{name}.Pipeline" if name else "Pipeline")
         self.raw_resources: Mapping[str, Resource] = resources or {}
-        self.managed_resources: Optional[Mapping[str, ManagedResource]] = None
+        self.managed_resources: Mapping[str, ManagedResource] | None = None
         self.tasks: list[Task] = tasks
         self.options: PipelineOptions = options
         self.run_on_existing_db: bool = run_on_existing_db

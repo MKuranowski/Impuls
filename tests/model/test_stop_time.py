@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import StopTime, TimePoint
 
@@ -21,7 +20,7 @@ class TestStopTime(AbstractTestEntity.Template[StopTime]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[StopTime]:
+    def get_type(self) -> type[StopTime]:
         return StopTime
 
     def test_sql_marshall(self) -> None:

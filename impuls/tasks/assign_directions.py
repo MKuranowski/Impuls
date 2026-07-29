@@ -1,12 +1,15 @@
 # © Copyright 2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Iterable, Literal, cast
+from collections.abc import Iterable
+from typing import Literal, cast
 
 from .. import selector
 from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
 from ..task import Task, TaskRuntime
+
+ALL_ROUTES = selector.Routes()
 
 
 class AssignDirections(Task):
@@ -49,7 +52,7 @@ class AssignDirections(Task):
     def __init__(
         self,
         outbound_stop_pairs: Iterable[tuple[str, str]],
-        routes: selector.Routes = selector.Routes(),
+        routes: selector.Routes = ALL_ROUTES,
         overwrite: bool = False,
         task_name: str | None = None,
     ) -> None:
@@ -69,7 +72,7 @@ class AssignDirections(Task):
         )
         assigned_directions = MultipleDataErrors.catch_all(
             "direction assignment",
-            map(lambda trip_id: self.find_direction_of_trip(r.db, trip_id), trip_ids),
+            map(lambda trip_id: self.find_direction_of_trip(r.db, trip_id), trip_ids),  # noqa: C417
         )
 
         with r.db.transaction():

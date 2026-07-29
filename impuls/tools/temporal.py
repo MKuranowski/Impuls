@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from datetime import date
 from math import inf
-from typing import Any, Iterator, Union, final, overload
+from typing import Union, final, overload
 
 from ..model.meta.utility_types import Date
 
@@ -57,7 +58,7 @@ class _DateRangeABC(ABC):
     def __hash__(self) -> int: ...
 
     @abstractmethod
-    def __eq__(self, o: Any) -> bool: ...
+    def __eq__(self, o: object) -> bool: ...
 
     @abstractmethod
     def isdisjoint(self, o: "DateRange") -> bool:
@@ -123,12 +124,12 @@ class EmptyDateRange(_DateRangeABC):
         return 0
 
     def __iter__(self) -> Iterator[Date]:
-        yield from tuple()
+        yield from ()
 
     def __hash__(self) -> int:
         return hash(None)
 
-    def __eq__(self, o: Any) -> bool:
+    def __eq__(self, o: object) -> bool:
         return isinstance(o, EmptyDateRange)
 
     def isdisjoint(self, o: DateRange) -> bool:
@@ -170,7 +171,7 @@ class InfiniteDateRange(_DateRangeABC):
     def __hash__(self) -> int:
         return hash(None)
 
-    def __eq__(self, o: Any) -> bool:
+    def __eq__(self, o: object) -> bool:
         return isinstance(o, InfiniteDateRange)
 
     def isdisjoint(self, o: DateRange) -> bool:
@@ -228,7 +229,7 @@ class LeftUnboundedDateRange(_DateRangeABC):
     def __hash__(self) -> int:
         return hash((None, self.end))
 
-    def __eq__(self, o: Any) -> bool:
+    def __eq__(self, o: object) -> bool:
         return isinstance(o, LeftUnboundedDateRange) and self.end == o.end
 
     def isdisjoint(self, o: DateRange) -> bool:
@@ -332,7 +333,7 @@ class RightUnboundedDateRange(_DateRangeABC):
     def __hash__(self) -> int:
         return hash((self.start, None))
 
-    def __eq__(self, o: Any) -> bool:
+    def __eq__(self, o: object) -> bool:
         return isinstance(o, RightUnboundedDateRange) and o.start == self.start
 
     def isdisjoint(self, o: DateRange) -> bool:
@@ -453,7 +454,7 @@ class BoundedDateRange(_DateRangeABC):
     def __hash__(self) -> int:
         return hash((self.start, self.end))
 
-    def __eq__(self, o: Any) -> bool:
+    def __eq__(self, o: object) -> bool:
         return isinstance(o, BoundedDateRange) and o.start == self.start and o.end == self.end
 
     def isdisjoint(self, o: DateRange) -> bool:
@@ -632,7 +633,7 @@ def get_european_railway_schedule_revision(for_day: date | None = None) -> str:
     >>> get_european_railway_schedule_revision(date(2024, 12, 15))
     '2024-2025'
     """
-    for_day = for_day or date.today()
+    for_day = for_day or date.today()  # noqa: DTZ011
     base_year = for_day.year - 1
     if for_day.month == 12:
         # Calculate the change date - the day after the 2nd Saturday of december

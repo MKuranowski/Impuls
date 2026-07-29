@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -22,7 +21,7 @@ class FareAttribute(Entity, ExtraFieldsMixin):
     is applied, there may be multiple FareAttributes representing the same "ticket".
 
     Equivalent to `GTFS's fare_attributes.txt entries <https://gtfs.org/schedule/reference/#fare_attributestxt>`_.
-    """  # noqa: E501
+    """
 
     class PaymentMethod(IntEnum):
         ON_BOARD = 0
@@ -32,10 +31,10 @@ class FareAttribute(Entity, ExtraFieldsMixin):
     price: float
     currency_type: str = field(repr=False)
     payment_method: PaymentMethod = field(repr=False)
-    transfers: Optional[int]
+    transfers: int | None
     agency_id: str = field(repr=False)
-    transfer_duration: Optional[int] = field(default=None)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    transfer_duration: int | None = field(default=None)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -93,7 +92,7 @@ class FareAttribute(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", str)

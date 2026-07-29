@@ -3,11 +3,12 @@ import json
 import os
 import unittest
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Iterator
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from pathlib import Path
 from time import sleep
-from typing import Callable, Final, Iterable, Iterator
+from typing import Final
 from unittest.mock import patch
 
 import impuls.resource
@@ -32,7 +33,7 @@ def read_all(it: Iterable[bytes]) -> bytes:
 class MockExceptionResource(MockResource):
     def fetch(self, conditional: bool) -> Iterator[bytes]:
         yield b"Hello"
-        raise IOError()
+        raise OSError()
 
 
 class AbstractTestResource:

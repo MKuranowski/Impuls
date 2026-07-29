@@ -4,7 +4,7 @@
 from collections import defaultdict
 from collections.abc import Container, Sequence
 from datetime import date
-from typing import Final
+from typing import Final, cast
 
 from ..db import DBConnection
 from ..model import Calendar, CalendarException, Date
@@ -242,11 +242,13 @@ class ExtendCalendarsFromPolishExceptions(ExtendCalendars):
         return super().execute(r)
 
     def load_holidays(self, r: ManagedResource) -> None:
+        holidays = cast(set[Date], self.holidays)
         assert isinstance(self.holidays, set)
+
         exceptions = polish_calendar_exceptions.load_exceptions(r, self.region)
         for day, exception in exceptions.items():
             if polish_calendar_exceptions.CalendarExceptionType.HOLIDAY in exception.typ:
-                self.holidays.add(day)
+                holidays.add(day)
 
 
 def _max_date(a: Date, b: Date | None) -> Date:

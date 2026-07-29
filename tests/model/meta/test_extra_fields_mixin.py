@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 from unittest import TestCase
 
 from impuls.model.meta.extra_fields_mixin import ExtraFieldsMixin
@@ -7,7 +6,7 @@ from impuls.model.meta.extra_fields_mixin import ExtraFieldsMixin
 
 @dataclass
 class WithExtraFields(ExtraFieldsMixin):
-    extra_fields_json: Optional[str] = None
+    extra_fields_json: str | None = None
 
 
 class TestExtraFieldsMixin(TestCase):

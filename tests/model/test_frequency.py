@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Frequency, TimePoint
 
@@ -16,7 +15,7 @@ class TestFrequency(AbstractTestEntity.Template[Frequency]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[Frequency]:
+    def get_type(self) -> type[Frequency]:
         return Frequency
 
     def test_sql_marshall(self) -> None:

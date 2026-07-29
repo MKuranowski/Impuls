@@ -143,13 +143,13 @@ class TestWithModel(unittest.TestCase):
 
     def assertAgencies(self, *agencies: str) -> None:
         self.assertSetEqual(
-            set(cast(str, i[0]) for i in self.db.raw_execute("SELECT name FROM agencies;")),
+            {cast(str, i[0]) for i in self.db.raw_execute("SELECT name FROM agencies;")},
             set(agencies),
         )
 
     def assertRoutes(self, *short_names: str) -> None:
         self.assertSetEqual(
-            set(cast(str, i[0]) for i in self.db.raw_execute("SELECT short_name FROM routes;")),
+            {cast(str, i[0]) for i in self.db.raw_execute("SELECT short_name FROM routes;")},
             set(short_names),
         )
 
@@ -193,7 +193,7 @@ class TestWithModel(unittest.TestCase):
             Route,
             (3,),
         ).all()
-        self.assertSetEqual(set(i.short_name for i in routes), {"ZA1", "ZA12"})
+        self.assertSetEqual({i.short_name for i in routes}, {"ZA1", "ZA12"})
 
     def test_retrieve(self) -> None:
         self.assertEqual(

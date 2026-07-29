@@ -54,8 +54,8 @@ class TestAssignDirections(AbstractTestTask.Template):
         self.assertIn("no direction for trip D-5318", ctx.exception.args[0])
 
 
-def get_direction_id(db: DBConnection, trip_id: str) -> Literal[0, 1, None]:
+def get_direction_id(db: DBConnection, trip_id: str) -> Literal[0, 1] | None:
     row = db.raw_execute("SELECT direction FROM trips WHERE trip_id = ?", (trip_id,)).one_must(
         f"trip {trip_id} not found"
     )
-    return cast(Literal[0, 1, None], row[0])
+    return cast(Literal[0, 1] | None, row[0])

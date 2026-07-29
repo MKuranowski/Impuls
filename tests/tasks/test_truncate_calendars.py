@@ -193,7 +193,7 @@ class TestTruncateCalendars(AbstractTestTask.Template):
 
     def test_logs_no_services_left(self) -> None:
         task = TruncateCalendars(EmptyDateRange(), fail_on_empty=False)
-        with self.assertLogs(task.logger, logging.WARN) as logs:
+        with self.assertLogs(task.logger, logging.WARNING) as logs:
             task.execute(self.runtime)
 
         self.assertEqual(len(logs.output), 1)

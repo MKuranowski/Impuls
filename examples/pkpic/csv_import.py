@@ -1,7 +1,7 @@
+from collections.abc import Mapping
 from datetime import timedelta
 from itertools import groupby
 from operator import itemgetter
-from typing import Mapping
 
 from impuls import DBConnection, Task, TaskRuntime
 from impuls.model import Calendar, Date, Route, Stop, StopTime, TimePoint, Trip

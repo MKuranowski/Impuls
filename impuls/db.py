@@ -4,13 +4,14 @@
 import os
 import re
 import sqlite3
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
-from typing import Any, Generator, Generic, Iterable, Optional, Sequence, Type, cast
+from typing import Generic, cast
 
 from .model import ALL_MODEL_ENTITIES, Entity, EntityT
 from .tools.types import Self, SQLNativeType, StrPath
 
-__all__ = ["EmptyQueryResult", "UntypedQueryResult", "TypedQueryResult", "DBConnection"]
+__all__ = ["DBConnection", "EmptyQueryResult", "TypedQueryResult", "UntypedQueryResult"]
 
 
 SQLRow = tuple[SQLNativeType, ...]
@@ -20,7 +21,6 @@ class EmptyQueryResult(ValueError):
     """EmptyQueryResult is an exception used when an SQL query returned an empty result,
     even tough the application expected at least one row."""
 
-    pass
 
 
 class UntypedQueryResult:
@@ -40,7 +40,7 @@ class UntypedQueryResult:
     def __enter__(self: Self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         self._cur.close()
 
     def __iter__(self: Self) -> Self:
@@ -93,14 +93,14 @@ class TypedQueryResult(Generic[EntityT]):
     this can be automatically done using ``with`` statements.
     """
 
-    def __init__(self, db_cursor: sqlite3.Cursor, typ: Type[EntityT]) -> None:
+    def __init__(self, db_cursor: sqlite3.Cursor, typ: type[EntityT]) -> None:
         self._cur: sqlite3.Cursor = db_cursor
-        self._typ: Type[EntityT] = typ
+        self._typ: type[EntityT] = typ
 
     def __enter__(self: Self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         self.close()
 
     def __iter__(self: Self) -> Self:
@@ -114,7 +114,7 @@ class TypedQueryResult(Generic[EntityT]):
         """Read-only number of rows modified by INSERT, UPDATE or DELETE statement."""
         return self._cur.rowcount
 
-    def one(self) -> Optional[EntityT]:
+    def one(self) -> EntityT | None:
         """Returns the next row of the query result, or None if there are no more rows."""
         row = self._cur.fetchone()
         return self._typ.sql_unmarshall(row) if row else None
@@ -216,7 +216,7 @@ class DBConnection:
         self._con.create_function("re_sub", 3, re.sub, deterministic=True)
 
     @classmethod
-    def create_with_schema(cls: Type[Self], path: StrPath) -> Self:
+    def create_with_schema(cls: type[Self], path: StrPath) -> Self:
         """Opens a new DB connection and executes DDL statements
         to prepare the database to hold Impuls model data."""
         statements: list[str] = [typ.sql_create_table() for typ in ALL_MODEL_ENTITIES]
@@ -227,7 +227,7 @@ class DBConnection:
         return conn
 
     @classmethod
-    def cloned(cls: Type[Self], from_: StrPath, in_: StrPath) -> Self:
+    def cloned(cls: type[Self], from_: StrPath, in_: StrPath) -> Self:
         """Creates a new database inside ``in_`` with the contents of ``from_``.
         Returns a DBConnection to the new database.
         """
@@ -241,7 +241,7 @@ class DBConnection:
     def __enter__(self: Self) -> Self:
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         self.close()
 
     def close(self) -> None:
@@ -329,7 +329,7 @@ class DBConnection:
     # ":where" → "pk_col1=? AND pk_col2=? AND ..."
 
     @staticmethod
-    def _sql_substitute_typed(sql: str, typ: Type[Entity]) -> str:
+    def _sql_substitute_typed(sql: str, typ: type[Entity]) -> str:
         return (
             sql.replace(":table", typ.sql_table_name())
             .replace(":cols", typ.sql_columns())
@@ -352,7 +352,7 @@ class DBConnection:
         )
 
     def typed_in_execute_many(
-        self, sql: str, typ: Type[EntityT], parameters: Iterable[EntityT]
+        self, sql: str, typ: type[EntityT], parameters: Iterable[EntityT]
     ) -> UntypedQueryResult:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
@@ -375,7 +375,7 @@ class DBConnection:
         )
 
     def typed_out_execute(
-        self, sql: str, typ: Type[EntityT], parameters: Sequence[SQLNativeType] = ()
+        self, sql: str, typ: type[EntityT], parameters: Sequence[SQLNativeType] = ()
     ) -> TypedQueryResult[EntityT]:
         """Executes a "typed" SQL query - ORM substitutions are made to the query.
 
@@ -395,7 +395,7 @@ class DBConnection:
 
     # Simple methods for working on the entities form the model
 
-    def retrieve(self, typ: Type[EntityT], *pk: SQLNativeType) -> Optional[EntityT]:
+    def retrieve(self, typ: type[EntityT], *pk: SQLNativeType) -> EntityT | None:
         """Retrieves an object of type ``typ`` with given primary key (usually its ID)
         from the database.
 
@@ -403,7 +403,7 @@ class DBConnection:
         """
         return self.typed_out_execute("SELECT * FROM :table WHERE :where", typ, pk).one()
 
-    def retrieve_must(self, typ: Type[EntityT], *pk: SQLNativeType) -> EntityT:
+    def retrieve_must(self, typ: type[EntityT], *pk: SQLNativeType) -> EntityT:
         """Retrieves an object of type ``typ`` with given primary key (usually its ID)
         from the database.
 
@@ -413,7 +413,7 @@ class DBConnection:
             f"No {typ.__name__} with the following primary key: {pk}"
         )
 
-    def retrieve_all(self, typ: Type[EntityT]) -> TypedQueryResult[EntityT]:
+    def retrieve_all(self, typ: type[EntityT]) -> TypedQueryResult[EntityT]:
         """Retrieves all objects of specific type from the database"""
         return self.typed_out_execute("SELECT * FROM :table", typ)
 
@@ -421,7 +421,7 @@ class DBConnection:
         """Creates a new entity in the database"""
         self.typed_in_execute("INSERT INTO :table :cols VALUES :vals", entity)
 
-    def create_many(self, typ: Type[EntityT], entities: Iterable[EntityT]) -> None:
+    def create_many(self, typ: type[EntityT], entities: Iterable[EntityT]) -> None:
         """Creates multiple entries in the database"""
         self.typed_in_execute_many("INSERT INTO :table :cols VALUES :vals", typ, entities)
 
@@ -433,14 +433,14 @@ class DBConnection:
             (*entity.sql_marshall(), *entity.sql_primary_key()),
         )
 
-    def update_many(self, typ: Type[EntityT], entities: Iterable[EntityT]) -> None:
+    def update_many(self, typ: type[EntityT], entities: Iterable[EntityT]) -> None:
         """Updates the attributes of multiple entries in the database"""
         self.raw_execute_many(
             self._sql_substitute_typed("UPDATE :table SET :set WHERE :where", typ),
             ((*i.sql_marshall(), *i.sql_primary_key()) for i in entities),
         )
 
-    def count(self, typ: Type[EntityT]) -> int:
+    def count(self, typ: type[EntityT]) -> int:
         """Returns the amount of instances of the provided type"""
         return cast(
             int,

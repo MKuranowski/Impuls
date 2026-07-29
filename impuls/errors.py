@@ -1,7 +1,8 @@
 # © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Iterable, TypeVar
+from collections.abc import Iterable
+from typing import TypeVar
 
 _T = TypeVar("_T")
 
@@ -10,7 +11,6 @@ class InputNotModified(Exception):
     """InputNotModified is raised by the Pipeline when no resources have changed,
     preventing pointless processing of the same data."""
 
-    pass
 
 
 class DataError(ValueError):
@@ -21,7 +21,6 @@ class DataError(ValueError):
     DataError must not leave the pipeline in an undefined state.
     """
 
-    pass
 
 
 class ResourceNotCached(DataError):

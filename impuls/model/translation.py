@@ -1,8 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Sequence, final
+from typing import Literal, final
 
 from typing_extensions import LiteralString
 
@@ -27,7 +28,7 @@ class Translation(Entity, ExtraFieldsMixin):
     Translation entities are copied as-is to and from GTFS, and thus all of the selectors
     must use their GTFS equivalents. Due to the very generic nature of these entities, not all
     requirements are strictly enforced.
-    """  # noqa: E501
+    """
 
     table_name: Literal[
         "agency", "stops", "routes", "trips", "stop_times", "feed_info", "attributions"
@@ -95,7 +96,7 @@ class Translation(Entity, ExtraFieldsMixin):
     can't be empty and both fields can be simultaneously non-empty.
     """
 
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     id: int = field(default=0, repr=False)
     """This field is ignored on :py:meth:`impuls.DBConnection.create` -

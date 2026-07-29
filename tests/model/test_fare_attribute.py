@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import FareAttribute
 
@@ -18,7 +17,7 @@ class TestFareAttribute(AbstractTestEntity.Template[FareAttribute]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[FareAttribute]:
+    def get_type(self) -> type[FareAttribute]:
         return FareAttribute
 
     def test_sql_marshall(self) -> None:

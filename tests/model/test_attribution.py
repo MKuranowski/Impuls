@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Attribution
 
@@ -20,7 +19,7 @@ class TestAttribution(AbstractTestEntity.Template[Attribution]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[Attribution]:
+    def get_type(self) -> type[Attribution]:
         return Attribution
 
     def test_sql_marshall(self) -> None:

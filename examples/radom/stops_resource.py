@@ -1,7 +1,8 @@
 import csv
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from io import BytesIO, TextIOWrapper
-from typing import Any, Iterator, cast
+from typing import Any, cast
 
 import zeep
 

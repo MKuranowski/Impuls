@@ -1,8 +1,9 @@
-from contextlib import contextmanager
+from collections.abc import Generator, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import ContextManager, Generator, Iterator, TextIO
+from typing import TextIO
 
 from py7zr import SevenZipFile
 
@@ -94,7 +95,7 @@ class ImportZTM(impuls.Task):
                 self.load_routes(p, r.db)
                 self.update_stop_zones(r.db)
 
-    def open(self, r: ManagedResource) -> ContextManager[TextIO]:
+    def open(self, r: ManagedResource) -> AbstractContextManager[TextIO]:
         if not self.compressed:
             return r.open_text(encoding="windows-1250")
         else:
@@ -390,19 +391,14 @@ class ImportZTM(impuls.Task):
         # Never add town names if a word from the town name is included in the name,
         # This is to prevent names like "Stare Załubice Załubice - Szkoła" for
         # name="Załubice - Szkoła" town_name="Stare Załubice"
-        if any(part in name.casefold() for part in town_name.casefold().split()):
-            return False
-
-        return True
+        return not any(part in name.casefold() for part in town_name.casefold().split())
 
     @staticmethod
     def get_route_color_type(id: str, desc: str) -> tuple[Route.Type, str, str]:
         desc = desc.casefold()
         if "kolei" in desc:
             return Route.Type.RAIL, "009955", "FFFFFF"
-        elif "tram" in desc:
-            return Route.Type.TRAM, "B60000", "FFFFFF"
-        elif "specjalna" in desc and id in {"W", "M"}:
+        elif "tram" in desc or "specjalna" in desc and id in {"W", "M"}:
             return Route.Type.TRAM, "B60000", "FFFFFF"
         elif "nocna" in desc:
             return Route.Type.BUS, "000000", "FFFFFF"

@@ -246,9 +246,8 @@ class TestSaveGTFSWithExtraFields(AbstractTestTask.Template):
 
             t.execute(self.runtime)
 
-            with ZipFile(gtfs_path, mode="r") as gtfs:
-                with gtfs.open("agency.txt", "r") as f:
-                    content = TextIOWrapper(f, "utf-8", newline="").readlines()
+            with ZipFile(gtfs_path, mode="r") as gtfs, gtfs.open("agency.txt", "r") as f:
+                content = TextIOWrapper(f, "utf-8", newline="").readlines()
 
             self.assertListEqual(
                 content,
@@ -285,9 +284,8 @@ class TestSaveGTFSWithExtraFiles(AbstractTestTask.Template):
 
             t.execute(self.runtime)
 
-            with ZipFile(gtfs_path, mode="r") as gtfs:
-                with gtfs.open("foo.txt", "r") as f:
-                    content = TextIOWrapper(f, "utf-8", newline="").readlines()
+            with ZipFile(gtfs_path, mode="r") as gtfs, gtfs.open("foo.txt", "r") as f:
+                content = TextIOWrapper(f, "utf-8", newline="").readlines()
 
             self.assertListEqual(
                 content,

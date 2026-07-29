@@ -13,7 +13,7 @@ class TestInitializeLogging(unittest.TestCase):
     fake_root_logger: logging.Logger
 
     def setUp(self) -> None:
-        self.fake_root_logger = logging.Logger("FakeRootLogger")
+        self.fake_root_logger = logging.Logger("FakeRootLogger")  # noqa: LOG001
 
     def fake_get_logger(self, _name: str = "") -> logging.Logger:
         return self.fake_root_logger
@@ -91,7 +91,7 @@ class TestColoredFormatter(unittest.TestCase):
 
     def setUp(self) -> None:
         self.output = StringIO()
-        self.logger = logging.Logger(self.LOGGER_NAME)
+        self.logger = logging.Logger(self.LOGGER_NAME)  # noqa: LOG001
         handler = logging.StreamHandler(self.output)
         handler.setFormatter(logs.ColoredFormatter())
         self.logger.addHandler(handler)

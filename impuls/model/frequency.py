@@ -1,9 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -24,14 +23,14 @@ class Frequency(Entity, ExtraFieldsMixin):
     time differences are used as a pattern for multiple trips following the same pattern.
 
     Equivalent to `GTFS's frequencies.txt entries <https://gtfs.org/schedule/reference/#frequenciestxt>`_.
-    """  # noqa: E501
+    """
 
     trip_id: str
     start_time: TimePoint
     end_time: TimePoint = field(repr=False)
     headway: int
     exact_times: bool = field(default=False, repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -82,7 +81,7 @@ class Frequency(Entity, ExtraFieldsMixin):
         return (self.trip_id, int(self.start_time.total_seconds()))
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("trip_id", str)

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Mapping, Optional, Sequence, final
+from typing import final
 
 from typing_extensions import LiteralString
 
@@ -29,7 +30,7 @@ class ExtraTableRow(Entity):
 
     table_name: str
     fields_json: str = r"{}"
-    row_sort_order: Optional[int] = None
+    row_sort_order: int | None = None
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -96,7 +97,7 @@ class ExtraTableRow(Entity):
         """
         self.fields_json = json.dumps(fields, indent=None, separators=(",", ":"))
 
-    def get_field(self, field: str) -> Optional[str]:
+    def get_field(self, field: str) -> str | None:
         """get_field returns a specific field stored in :py:attr:`fields_json`.
 
         Invoking this function causes an unconditional parse of :py:attr:`fields_json`,
@@ -105,7 +106,7 @@ class ExtraTableRow(Entity):
         """
         return self.get_fields().get(field)
 
-    def set_field(self, field: str, value: Optional[str]) -> None:
+    def set_field(self, field: str, value: str | None) -> None:
         """set_field sets a specific field stored in :py:attr:`extra_fields_json`.
 
         Invoking this function causes an unconditional parse and serialization of

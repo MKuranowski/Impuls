@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Calendar, Date
 
@@ -22,7 +21,7 @@ class TestCalendar(AbstractTestEntity.Template[Calendar]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[Calendar]:
+    def get_type(self) -> type[Calendar]:
         return Calendar
 
     def test_sql_marshall(self) -> None:

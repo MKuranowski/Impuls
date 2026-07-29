@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -34,7 +33,7 @@ class Trip(Entity, ExtraFieldsMixin):
     calendar_id: str
     headsign: str = field(default="")
     short_name: str = field(default="", repr=False)
-    direction: Optional[Direction] = field(default=None, repr=False)
+    direction: Direction | None = field(default=None, repr=False)
 
     block_id: str = field(default="", repr=False)
     """block_id is used to group multiple trips where a rider can transfer without
@@ -49,10 +48,10 @@ class Trip(Entity, ExtraFieldsMixin):
     shape_id: str = field(default="", repr=False)
     """shape_id references :py:attr:`Shape.id`, with empty string mapping to SQL NULL."""
 
-    wheelchair_accessible: Optional[bool] = field(default=None, repr=False)
-    bikes_allowed: Optional[bool] = field(default=None, repr=False)
-    exceptional: Optional[bool] = field(default=None, repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    wheelchair_accessible: bool | None = field(default=None, repr=False)
+    bikes_allowed: bool | None = field(default=None, repr=False)
+    exceptional: bool | None = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -124,7 +123,7 @@ class Trip(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", str)

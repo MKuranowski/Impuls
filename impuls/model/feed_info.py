@@ -1,9 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -29,9 +28,9 @@ class FeedInfo(Entity, ExtraFieldsMixin):
     version: str = field(default="")
     contact_email: str = field(default="", repr=False)
     contact_url: str = field(default="", repr=False)
-    start_date: Optional[Date] = field(default=None)
-    end_date: Optional[Date] = field(default=None)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    start_date: Date | None = field(default=None)
+    end_date: Date | None = field(default=None)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     id: int = field(default=0, repr=False)
     """id of the FeedInfo must be always 0, as there can only be
@@ -97,7 +96,7 @@ class FeedInfo(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", int)

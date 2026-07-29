@@ -1,4 +1,5 @@
-from typing import Any, Callable, Optional, Sequence, Type, TypeVar
+from collections.abc import Callable, Sequence
+from typing import Any, TypeVar
 
 from ...tools.types import Self, SQLNativeType
 
@@ -35,8 +36,8 @@ class DataclassSQLBuilder:
     def field(
         self: Self,
         field: str,
-        incoming_type: Type[SQL_T],
-        converter: Optional[Callable[[SQL_T], Any]] = None,
+        incoming_type: type[SQL_T],
+        converter: Callable[[SQL_T], Any] | None = None,
     ) -> Self:
         """field consumes next element from the SQL row and adds it to the kwargs under the
         ``field`` name.
@@ -72,8 +73,8 @@ class DataclassSQLBuilder:
     def nullable_field(
         self,
         field: str,
-        incoming_type: Type[SQL_T],
-        converter: Optional[Callable[[SQL_T], Any]] = None,
+        incoming_type: type[SQL_T],
+        converter: Callable[[SQL_T], Any] | None = None,
     ) -> Self:
         """nullable_field consumes next element from the SQL row and adds it to the kwargs
         under the ``field`` name.
@@ -113,8 +114,8 @@ class DataclassSQLBuilder:
     def optional_field(
         self,
         field: str,
-        incoming_type: Type[SQL_T],
-        converter: Callable[[Optional[SQL_T]], Any],
+        incoming_type: type[SQL_T],
+        converter: Callable[[SQL_T | None], Any],
     ) -> Self:
         """optional_field consumes next element from the SQL row and adds it to the kwargs
         under the ``field`` name.

@@ -5,9 +5,9 @@ import ctypes
 import logging
 import os
 import sys
+from collections.abc import Mapping, Sequence
 from ctypes import CFUNCTYPE, POINTER, c_bool, c_char_p, c_int
 from pathlib import Path
-from typing import Mapping, Sequence
 
 from ..tools.types import StrPath
 

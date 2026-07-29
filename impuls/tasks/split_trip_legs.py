@@ -11,6 +11,8 @@ from ..db import DBConnection
 from ..model import Route, StopTime, Transfer, Trip
 from ..task import Task, TaskRuntime
 
+RAIL_SELECTOR = selector.Routes(type=Route.Type.RAIL)
+
 
 class SplitTripLegs(Task):
     """SplitTripLegs splits :py:class:`Trips <impuls.model.Trip>` into multiple legs
@@ -44,7 +46,7 @@ class SplitTripLegs(Task):
 
     def __init__(
         self,
-        route_selector: selector.Routes = selector.Routes(type=Route.Type.RAIL),
+        route_selector: selector.Routes = RAIL_SELECTOR,
         replacement_bus_short_name_pattern: re.Pattern[str] | None = None,
         leg_trip_id_infix: str = "_",
     ) -> None:

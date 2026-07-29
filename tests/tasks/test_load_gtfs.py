@@ -25,7 +25,7 @@ FIXTURES = Path(__file__).with_name("fixtures")
 
 class TestLoadGTFS(AbstractTestTask.Template):
     db_name = None
-    resources = {
+    resources = {  # noqa: RUF012
         "wkd.zip": LocalResource(FIXTURES / "wkd.zip"),
         "wkd-attribution-without-id.zip": LocalResource(
             FIXTURES / "wkd-attribution-without-id.zip"

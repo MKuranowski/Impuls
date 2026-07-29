@@ -1,9 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -46,7 +45,7 @@ class FareRule(Entity):
     Essentially, ``origin_id`` and ``destination_id`` applied to the :py:attr:`Stop.zone_id`
     of the embarking and disembarking stops of a user's journey leg; while ``contains_id``
     applies to all :py:attr:`Stop.zone_id` between the embarking and disembarking stops, inclusive.
-    """  # noqa: E501
+    """
 
     fare_id: str
     route_id: str = ""
@@ -112,7 +111,7 @@ class FareRule(Entity):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", int)

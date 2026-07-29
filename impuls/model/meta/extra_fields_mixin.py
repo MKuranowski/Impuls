@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import json
-from typing import Mapping, Optional
+from collections.abc import Mapping
 
 
 class ExtraFieldsMixin:
@@ -10,7 +10,7 @@ class ExtraFieldsMixin:
     :py:attr:`.extra_fields_json` ``Optional[str]`` fields.
     """
 
-    extra_fields_json: Optional[str]
+    extra_fields_json: str | None
 
     def get_extra_fields(self) -> dict[str, str]:
         """get_extra_fields returns a dictionary of all extra fields stored
@@ -20,7 +20,7 @@ class ExtraFieldsMixin:
             return json.loads(self.extra_fields_json)
         return {}
 
-    def set_extra_fields(self, extra_fields: Optional[Mapping[str, str]]) -> None:
+    def set_extra_fields(self, extra_fields: Mapping[str, str] | None) -> None:
         """get_extra_fields sets the extra fields stored in :py:attr:`.extra_fields_json`
         to the provided mapping.
         """
@@ -29,7 +29,7 @@ class ExtraFieldsMixin:
         else:
             self.extra_fields_json = None
 
-    def get_extra_field(self, field: str) -> Optional[str]:
+    def get_extra_field(self, field: str) -> str | None:
         """get_extra_fields returns a specific of extra field stored
         in :py:attr:`.extra_fields_json`.
 
@@ -39,7 +39,7 @@ class ExtraFieldsMixin:
         """
         return self.get_extra_fields().get(field)
 
-    def set_extra_field(self, field: str, value: Optional[str]) -> None:
+    def set_extra_field(self, field: str, value: str | None) -> None:
         """set_extra_field sets a specific of extra field stored
         in :py:attr:`.extra_fields_json`.
 

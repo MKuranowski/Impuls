@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -54,9 +53,9 @@ class Stop(Entity, ExtraFieldsMixin):
     Optional for stops, forbidden for stations and mandatory for exits.
     """
 
-    wheelchair_boarding: Optional[bool] = field(default=None, repr=False)
+    wheelchair_boarding: bool | None = field(default=None, repr=False)
     platform_code: str = field(default="", repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -121,7 +120,7 @@ class Stop(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", str)

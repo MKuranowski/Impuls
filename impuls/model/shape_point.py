@@ -1,9 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -32,7 +31,7 @@ class ShapePoint(Entity):
     sequence: int
     lat: float = field(repr=False)
     lon: float = field(repr=False)
-    shape_dist_traveled: Optional[float] = field(default=None, repr=False)
+    shape_dist_traveled: float | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -73,7 +72,7 @@ class ShapePoint(Entity):
         return (self.shape_id, self.sequence)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("shape_id", str)

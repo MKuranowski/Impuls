@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Route
 
@@ -19,7 +18,7 @@ class TestRoute(AbstractTestEntity.Template[Route]):
             extra_fields_json=r'{"route_url":"https://example.com/","operator_id":"42"}',
         )
 
-    def get_type(self) -> Type[Route]:
+    def get_type(self) -> type[Route]:
         return Route
 
     def test_sql_marshall(self) -> None:

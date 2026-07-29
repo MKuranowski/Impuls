@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -22,7 +21,7 @@ class StopTime(Entity, ExtraFieldsMixin):
     """StopTime represents a stoppage/passage of a :py:class:`Trip` at/through a :py:class:`Stop`.
 
     Equivalent to `GTFS's stop_times.txt entries <https://gtfs.org/schedule/reference/#stop_timestxt>`_.
-    """  # noqa: E501
+    """
 
     class PassengerExchange(IntEnum):
         SCHEDULED_STOP = 0
@@ -41,9 +40,9 @@ class StopTime(Entity, ExtraFieldsMixin):
     pickup_type: PassengerExchange = field(default=PassengerExchange.SCHEDULED_STOP, repr=False)
     drop_off_type: PassengerExchange = field(default=PassengerExchange.SCHEDULED_STOP, repr=False)
     stop_headsign: str = field(default="", repr=False)
-    shape_dist_traveled: Optional[float] = field(default=None, repr=False)
+    shape_dist_traveled: float | None = field(default=None, repr=False)
     platform: str = field(default="", repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -109,7 +108,7 @@ class StopTime(Entity, ExtraFieldsMixin):
         return (self.trip_id, self.stop_sequence)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("trip_id", str)

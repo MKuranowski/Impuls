@@ -90,10 +90,10 @@ class WarsawGTFS(App):
             ],
             additional_resources={
                 "stop_names.json": HTTPResource.get(
-                    "https://raw.githubusercontent.com/MKuranowski/WarsawGTFS/master/data_curated/stop_names.json"  # noqa: E501
+                    "https://raw.githubusercontent.com/MKuranowski/WarsawGTFS/master/data_curated/stop_names.json"
                 ),
                 "stop_locations.json": HTTPResource.get(
-                    "https://raw.githubusercontent.com/MKuranowski/WarsawGTFS/master/data_curated/missing_stop_locations.json"  # noqa: E501
+                    "https://raw.githubusercontent.com/MKuranowski/WarsawGTFS/master/data_curated/missing_stop_locations.json"
                 ),
             },
         )

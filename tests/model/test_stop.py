@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Stop
 
@@ -21,7 +20,7 @@ class TestStop(AbstractTestEntity.Template[Stop]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[Stop]:
+    def get_type(self) -> type[Stop]:
         return Stop
 
     def test_sql_marshall(self) -> None:

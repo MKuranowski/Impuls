@@ -67,20 +67,18 @@ class App(ABC):
         The first two options are used to create :py:class:`~impuls.PipelineOptions`,
         while the last one is used when setting up logging.
         """
-        pass  # Default to no extra arguments
+        # default to no extra arguments
 
     def before_run(self) -> None:
         """before_run may be overwritten to execute arbitrary actions after
         :py:meth:`~impuls.App.prepare` is called, but before the Pipeline(s) are run.
         Default is to do nothing.
         """
-        pass
 
     def after_run(self) -> None:
         """after_run may be overwritten to execute arbitrary actions after the Pipeline(s)
         are run. Default is to do nothing.
         """
-        pass
 
     @final
     def _get_arg_parser_with_default_options(self) -> ArgumentParser:

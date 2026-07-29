@@ -1,6 +1,6 @@
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from ftplib import FTP
-from typing import Iterator
 
 from impuls.errors import InputNotModified
 from impuls.model import Date

@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import ShapePoint
 
@@ -14,7 +13,7 @@ class TestShapePoint(AbstractTestEntity.Template[ShapePoint]):
             lon=-3.14,
         )
 
-    def get_type(self) -> Type[ShapePoint]:
+    def get_type(self) -> type[ShapePoint]:
         return ShapePoint
 
     def test_sql_marshall(self) -> None:

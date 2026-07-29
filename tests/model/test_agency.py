@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Agency
 
@@ -18,7 +17,7 @@ class TestAgency(AbstractTestEntity.Template[Agency]):
             extra_fields_json=r'{"agency_email":"foo@example.com"}',
         )
 
-    def get_type(self) -> Type[Agency]:
+    def get_type(self) -> type[Agency]:
         return Agency
 
     def test_sql_marshall(self) -> None:

@@ -1,6 +1,6 @@
 import re
 from datetime import date, timedelta
-from typing import ClassVar, Type
+from typing import ClassVar
 
 from ...tools.types import Self
 
@@ -26,7 +26,7 @@ class TimePoint(timedelta):
         return f"{h:0>2}:{m:0>2}:{s:0>2}"
 
     @classmethod
-    def from_str(cls: Type[Self], x: str) -> Self:
+    def from_str(cls: type[Self], x: str) -> Self:
         """Parses a TimePoint from a HH:MM:SS strings
 
         >>> TimePoint.from_str("8:30:00").total_seconds()
@@ -63,7 +63,7 @@ class Date(date):
         return self.strftime("%Y-%m-%d")
 
     @classmethod
-    def from_ymd_str(cls: Type[Self], x: str) -> Self:
+    def from_ymd_str(cls: type[Self], x: str) -> Self:
         """Parses a YYYY-MM-DD string into a Date.
         The separator may be omitted, or may be any non-word characters.
 

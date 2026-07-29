@@ -1,8 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from collections.abc import Sized
-from typing import Any, Iterable, TypeVar
+from collections.abc import Iterable, Sized
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 

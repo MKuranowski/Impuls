@@ -1,7 +1,7 @@
 import re
 import unittest
 from abc import ABC, abstractmethod
-from typing import Generic, Type
+from typing import Generic
 
 from impuls.model import EntityT
 
@@ -19,7 +19,7 @@ class AbstractTestEntity:
             raise NotImplementedError
 
         @abstractmethod
-        def get_type(self) -> Type[EntityT]:
+        def get_type(self) -> type[EntityT]:
             raise NotImplementedError
 
         def test_sql_table_name(self) -> None:

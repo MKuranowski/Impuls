@@ -1,4 +1,5 @@
-from typing import Protocol, Sequence, Type, TypeVar
+from collections.abc import Sequence
+from typing import Protocol, TypeVar
 
 from typing_extensions import LiteralString
 
@@ -62,6 +63,6 @@ class Entity(Protocol):
         ...
 
     @classmethod
-    def sql_unmarshall(cls: Type[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         """sql_unmarshall creates an entity from its SQL representation."""
         ...

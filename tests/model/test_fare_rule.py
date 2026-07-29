@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import FareRule
 
@@ -14,7 +13,7 @@ class TestFareRule(AbstractTestEntity.Template[FareRule]):
             id=1,
         )
 
-    def get_type(self) -> Type[FareRule]:
+    def get_type(self) -> type[FareRule]:
         return FareRule
 
     def test_sql_marshall(self) -> None:

@@ -1,7 +1,7 @@
 # © Copyright 2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Iterable, Mapping
+from collections.abc import Iterable, Mapping
 
 from ..db import DBConnection
 from ..model import Calendar, CalendarException, Date

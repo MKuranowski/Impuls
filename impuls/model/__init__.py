@@ -1,8 +1,6 @@
 # © Copyright 2022-2025 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Type as TypeOf
-
 from .agency import Agency
 from .attribution import Attribution
 from .calendar import Calendar
@@ -24,20 +22,20 @@ from .translation import Translation
 from .trip import Trip
 
 __all__ = [
-    "Agency",
     "ALL_MODEL_ENTITIES",
+    "Agency",
     "Attribution",
     "Calendar",
     "CalendarException",
     "Date",
+    "Entity",
+    "EntityT",
+    "ExtraFieldsMixin",
     "ExtraTableRow",
     "FareAttribute",
     "FareRule",
     "FeedInfo",
     "Frequency",
-    "Entity",
-    "EntityT",
-    "ExtraFieldsMixin",
     "Route",
     "ShapePoint",
     "Stop",
@@ -50,7 +48,7 @@ __all__ = [
 
 # NOTE: Ordering of classes represents loading order -
 #       e.g. Trip is before StopTime, as StopTime references Trip.id
-ALL_MODEL_ENTITIES: list[TypeOf[Entity]] = [
+ALL_MODEL_ENTITIES: list[type[Entity]] = [
     Agency,
     Attribution,
     Calendar,

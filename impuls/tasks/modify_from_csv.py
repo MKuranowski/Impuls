@@ -3,8 +3,9 @@
 
 import csv
 from abc import abstractmethod
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Any, Callable, Iterator, Mapping, Optional, Type, cast
+from typing import Any, cast
 
 from ..db import DBConnection
 from ..errors import DataError, MultipleDataErrors
@@ -20,7 +21,7 @@ class CSVFieldData:
     """
 
     entity_field: str
-    converter: Optional[Callable[[str], Any]] = None
+    converter: Callable[[str], Any] | None = None
 
 
 class ModifyFromCSV(Task):
@@ -62,7 +63,7 @@ class ModifyFromCSV(Task):
 
     @staticmethod
     @abstractmethod
-    def model_class() -> Type[Entity]:
+    def model_class() -> type[Entity]:
         """model_class returns the type from impuls.model
         whose entities are going to be modified"""
         raise NotImplementedError
@@ -156,7 +157,7 @@ class ModifyFromCSV(Task):
         self.seen_ids.add(id)
 
     def check_if_all_entities_were_curated(self, db: DBConnection) -> None:
-        all_ids = set(cast(str, i[0]) for i in db.raw_execute(self.query_for_all_ids()))
+        all_ids = {cast(str, i[0]) for i in db.raw_execute(self.query_for_all_ids())}
         not_curated = all_ids - self.seen_ids
         if not_curated:
             not_curated_str = "\n\t".join(sorted(not_curated))
@@ -169,7 +170,7 @@ class ModifyFromCSV(Task):
         # Try to curate every entity
         MultipleDataErrors.catch_all(
             self.name,
-            map(lambda i: self.try_curate(r.db, i[0], i[1]), self.csv_rows(resource)),
+            map(lambda i: self.try_curate(r.db, i[0], i[1]), self.csv_rows(resource)),  # noqa: C417
         )
 
         # Check if all entities were curated
@@ -215,7 +216,7 @@ class ModifyStopsFromCSV(ModifyFromCSV):
     """
 
     @staticmethod
-    def model_class() -> Type[Entity]:
+    def model_class() -> type[Entity]:
         return Stop
 
     @staticmethod
@@ -266,7 +267,7 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
     """
 
     @staticmethod
-    def model_class() -> Type[Entity]:
+    def model_class() -> type[Entity]:
         return Route
 
     @staticmethod
@@ -290,7 +291,7 @@ class ModifyRoutesFromCSV(ModifyFromCSV):
         return "SELECT route_id FROM routes"
 
 
-def _parse_optional_bool(s: str) -> Optional[bool]:
+def _parse_optional_bool(s: str) -> bool | None:
     if s == "" or s == "0":
         return None
     elif s == "1":

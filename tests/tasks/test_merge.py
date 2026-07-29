@@ -12,7 +12,7 @@ from .template_testcase import FIXTURES_DIR, AbstractTestTask
 
 class TestMergeIntoEmpty(AbstractTestTask.Template):
     db_name = None
-    resources = {
+    resources = {  # noqa: RUF012
         "wkd-old.db": LocalResource(FIXTURES_DIR / "wkd.db"),
         "wkd-new.db": LocalResource(FIXTURES_DIR / "wkd-next.db"),
     }
@@ -40,22 +40,22 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
         )
 
         # The calendars should not be merged
-        calendar_ids = list(
+        calendar_ids = [
             cast(str, i[0])
             for i in self.runtime.db.raw_execute(
                 "SELECT calendar_id FROM calendars ORDER BY calendar_id",
             )
-        )
+        ]
         self.assertListEqual(
             ["1:C", "1:D", "2:C", "2:D"],
             calendar_ids,
         )
 
         # Calendar exceptions shouldn't be merged as well
-        calendar_exceptions = list(
+        calendar_exceptions = [
             cast(str, i[0])
             for i in self.runtime.db.raw_execute("SELECT calendar_id FROM calendar_exceptions")
-        )
+        ]
         self.assertEqual(len(calendar_exceptions), 26)
         self.assertEqual(walk_len(i for i in calendar_exceptions if i.startswith("1:")), 14)
         self.assertEqual(walk_len(i for i in calendar_exceptions if i.startswith("2:")), 12)
@@ -104,7 +104,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
         # Stops should be merged
         stops = list(self.runtime.db.raw_execute("SELECT stop_id FROM stops ORDER BY stop_id"))
         self.assertListEqual(
-            list(cast(str, i[0]) for i in stops),
+            [cast(str, i[0]) for i in stops],
             # cSpell: disable
             [
                 "brzoz",
@@ -140,9 +140,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
         )
 
         # Trips - should not be merged
-        trips = list(
-            cast(str, i[0]) for i in self.runtime.db.raw_execute("SELECT trip_id FROM trips")
-        )
+        trips = [cast(str, i[0]) for i in self.runtime.db.raw_execute("SELECT trip_id FROM trips")]
         self.assertEqual(len(trips), 744)
         self.assertEqual(walk_len(i for i in trips if i.startswith("1:")), 372)
         self.assertEqual(walk_len(i for i in trips if i.startswith("2:")), 372)
@@ -166,7 +164,7 @@ class TestMergeIntoEmpty(AbstractTestTask.Template):
 
 class TestMergeIntoExisting(AbstractTestTask.Template):
     db_name = "wkd.db"
-    resources = {
+    resources = {  # noqa: RUF012
         "wkd-new.db": LocalResource(FIXTURES_DIR / "wkd-next.db"),
     }
 
@@ -193,22 +191,22 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
         )
 
         # The calendars should not be merged
-        calendar_ids = list(
+        calendar_ids = [
             cast(str, i[0])
             for i in self.runtime.db.raw_execute(
                 "SELECT calendar_id FROM calendars ORDER BY calendar_id",
             )
-        )
+        ]
         self.assertListEqual(
             ["1:C", "1:D", "C", "D"],
             calendar_ids,
         )
 
         # Calendar exceptions shouldn't be merged as well
-        calendar_exceptions = list(
+        calendar_exceptions = [
             cast(str, i[0])
             for i in self.runtime.db.raw_execute("SELECT calendar_id FROM calendar_exceptions")
-        )
+        ]
         self.assertEqual(len(calendar_exceptions), 26)
         self.assertEqual(walk_len(i for i in calendar_exceptions if not i.startswith("1:")), 14)
         self.assertEqual(walk_len(i for i in calendar_exceptions if i.startswith("1:")), 12)
@@ -257,7 +255,7 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
         # Stops should be merged
         stops = list(self.runtime.db.raw_execute("SELECT stop_id FROM stops ORDER BY stop_id"))
         self.assertListEqual(
-            list(cast(str, i[0]) for i in stops),
+            [cast(str, i[0]) for i in stops],
             # cSpell: disable
             [
                 "brzoz",
@@ -293,9 +291,7 @@ class TestMergeIntoExisting(AbstractTestTask.Template):
         )
 
         # Trips - should not be merged
-        trips = list(
-            cast(str, i[0]) for i in self.runtime.db.raw_execute("SELECT trip_id FROM trips")
-        )
+        trips = [cast(str, i[0]) for i in self.runtime.db.raw_execute("SELECT trip_id FROM trips")]
         self.assertEqual(len(trips), 744)
         self.assertEqual(walk_len(i for i in trips if not i.startswith("1:")), 372)
         self.assertEqual(walk_len(i for i in trips if i.startswith("1:")), 372)

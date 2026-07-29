@@ -10,7 +10,9 @@ from .template_testcase import FIXTURES_DIR, AbstractTestTask
 
 class TestLoadDb(AbstractTestTask.Template):
     db_name = None
-    resources = {"wkd.db": LocalResource(FIXTURES_DIR / "wkd.db")}
+    resources = {  # noqa: RUF012
+        "wkd.db": LocalResource(FIXTURES_DIR / "wkd.db"),
+    }
 
     def test(self) -> None:
         self.assertEqual(self.runtime.db.count(Agency), 0)

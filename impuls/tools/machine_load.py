@@ -4,7 +4,6 @@
 import sys
 from math import nan
 from time import perf_counter
-from typing import Any
 
 from .types import Self
 
@@ -121,7 +120,7 @@ class LoadTracker:
         self.start_rss = memory_usage_kb()
         return self
 
-    def __exit__(self, *_: Any) -> None:
+    def __exit__(self, *_: object) -> None:
         self.end_time = perf_counter()
         self.end_rss = memory_usage_kb()
 

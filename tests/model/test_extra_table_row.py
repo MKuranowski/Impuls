@@ -1,7 +1,6 @@
 # © Copyright 2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Type
 
 from impuls.model import ExtraTableRow
 
@@ -16,7 +15,7 @@ class TestExtraTableRow(AbstractTestEntity.Template[ExtraTableRow]):
             fields_json=r'{"city_id":"0","city_name":"Warszawa"}',
         )
 
-    def get_type(self) -> Type[ExtraTableRow]:
+    def get_type(self) -> type[ExtraTableRow]:
         return ExtraTableRow
 
     def test_sql_marshall(self) -> None:

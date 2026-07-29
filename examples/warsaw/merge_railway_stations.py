@@ -92,7 +92,4 @@ def merged_stop(id: str, stops: list[Stop]) -> Stop:
 def combine_wheelchair_accessibility(lhs: bool | None, rhs: bool | None) -> bool | None:
     if lhs is None or rhs is None:
         return None
-    elif lhs is False or rhs is False:
-        return False
-    else:
-        return True
+    return lhs and rhs

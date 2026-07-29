@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Iterable, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -24,7 +23,7 @@ class CalendarException(Entity):
 
     Contrary to GTFS, :py:class:`Calendar` entries are mandatory (even if empty), as
     :py:attr:`calendar_id` is **always** a foreign key referencing :py:attr:`Calendar.id`.
-    """  # noqa: E501
+    """
 
     class Type(IntEnum):
         ADDED = 1
@@ -75,7 +74,7 @@ class CalendarException(Entity):
         return (self.calendar_id, str(self.date))
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("calendar_id", str)

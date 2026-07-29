@@ -1,5 +1,6 @@
+from collections.abc import Mapping
 from pathlib import Path
-from typing import ClassVar, Mapping, Optional
+from typing import ClassVar
 from unittest import TestCase
 
 from impuls import DBConnection, LocalResource, PipelineOptions, TaskRuntime
@@ -15,7 +16,7 @@ class AbstractTestTask:
     #       See https://stackoverflow.com/a/50176291.
 
     class Template(TestCase):
-        db_name: ClassVar[Optional[str]] = "wkd.db"
+        db_name: ClassVar[str | None] = "wkd.db"
         resources: ClassVar[Mapping[str, MockResource | LocalResource]] = {}
         options: ClassVar[PipelineOptions] = PipelineOptions()
 

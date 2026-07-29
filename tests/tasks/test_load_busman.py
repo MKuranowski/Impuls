@@ -11,7 +11,7 @@ FIXTURES = Path(__file__).with_name("fixtures")
 
 class TestLoadBusmanMDB(AbstractTestTask.Template):
     db_name = None
-    resources = {
+    resources = {  # noqa: RUF012
         "wkd.mdb": LocalResource(FIXTURES / "wkd.mdb"),
     }
 

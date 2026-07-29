@@ -1,5 +1,4 @@
 import sqlite3
-from typing import Type
 from unittest import TestCase
 
 from impuls.model import Transfer
@@ -21,7 +20,7 @@ class TestTransfer(AbstractTestEntity.Template[Transfer]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[Transfer]:
+    def get_type(self) -> type[Transfer]:
         return Transfer
 
     def test_sql_marshall(self) -> None:

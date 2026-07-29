@@ -5,12 +5,13 @@ import itertools
 import operator
 import os
 import unittest.mock
+from collections.abc import Generator, Iterable, Iterator, Mapping
 from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from shutil import rmtree
 from tempfile import mkdtemp, mkstemp
-from typing import Any, Generator, Iterable, Iterator, Mapping, Optional, Protocol, Type
+from typing import Any, Protocol
 
 import requests
 
@@ -20,7 +21,7 @@ from .types import Self
 
 
 class DatetimeNowLike(Protocol):
-    def __call__(self, tz: Optional[tzinfo] = ...) -> datetime: ...
+    def __call__(self, tz: tzinfo | None = ...) -> datetime: ...
 
 
 class MockDatetimeNow:
@@ -53,16 +54,16 @@ class MockDatetimeNow:
     def __init__(self, times: Iterable[datetime]) -> None:
         self.it = iter(times)
 
-    def now(self, tz: Optional[tzinfo] = None) -> datetime:
+    def now(self, tz: tzinfo | None = None) -> datetime:
         dt = next(self.it)
         return dt.astimezone(tz) if tz else dt
 
     @classmethod
-    def constant(cls: Type[Self], t: datetime) -> Self:
+    def constant(cls: type[Self], t: datetime) -> Self:
         return cls(itertools.repeat(t))
 
     @classmethod
-    def evenly_spaced(cls: Type[Self], start: datetime, delta: timedelta) -> Self:
+    def evenly_spaced(cls: type[Self], start: datetime, delta: timedelta) -> Self:
         """evenly_spaced provides an infinite MockDatetimeNow
         which returns (start, start + delta, start + 2*delta, ...).
 
@@ -106,14 +107,14 @@ class MockHTTPResponse:
         self,
         status_code: int,
         content: bytes = b"",
-        headers: Optional[Mapping[str, str]] = {},
+        headers: Mapping[str, str] | None = {},
     ) -> None:
         self.status_code = status_code
         self.content = content
         self.headers = headers or {}
         self.url = ""
 
-    def __enter__(self) -> "MockHTTPResponse":
+    def __enter__(self) -> Self:
         """
         The context manager for MockHTTPResponse does nothing.
         >>> with MockHTTPResponse(200, b"Hello!") as r:
@@ -122,7 +123,7 @@ class MockHTTPResponse:
         """
         return self
 
-    def __exit__(self, *_: Any) -> bool:
+    def __exit__(self, *_: object) -> bool:
         return False
 
     def raise_for_status(self) -> None:
@@ -220,7 +221,7 @@ class MockFile:
     path: Path
 
     def __init__(
-        self, prefix: str = "impuls-test", suffix: Optional[str] = None, directory: bool = False
+        self, prefix: str = "impuls-test", suffix: str | None = None, directory: bool = False
     ) -> None:
         if directory:
             path = mkdtemp(prefix=prefix, suffix=suffix)
@@ -232,7 +233,7 @@ class MockFile:
     def __enter__(self) -> Path:
         return self.path
 
-    def __exit__(self, *_: Any) -> bool:
+    def __exit__(self, *_: object) -> bool:
         self.cleanup()
         return False
 

@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Translation
 
@@ -17,7 +16,7 @@ class TestTranslation(AbstractTestEntity.Template[Translation]):
             extra_fields_json=None,
         )
 
-    def get_type(self) -> Type[Translation]:
+    def get_type(self) -> type[Translation]:
         return Translation
 
     def test_sql_marshall(self) -> None:

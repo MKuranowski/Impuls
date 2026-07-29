@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -28,7 +27,7 @@ class Calendar(Entity, ExtraFieldsMixin):
     using :py:class:`CalendarException` instances. If this is the case, all weekdays should be set
     to ``False`` and :py:attr:`start_date` and :py:attr:`end_date` should be set to
     :py:const:`Date.SIGNALS_EXCEPTIONS`.
-    """  # noqa: E501
+    """
 
     id: str
     monday: bool = field(default=False, repr=False)
@@ -41,7 +40,7 @@ class Calendar(Entity, ExtraFieldsMixin):
     start_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
     end_date: Date = field(default=Date.SIGNALS_EXCEPTIONS)
     desc: str = field(default="", repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     @staticmethod
     def sql_table_name() -> LiteralString:
@@ -107,7 +106,7 @@ class Calendar(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls: type[Self], row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", str)

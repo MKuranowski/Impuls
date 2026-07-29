@@ -1,8 +1,8 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from tempfile import TemporaryDirectory
-from typing import Sequence
 from zipfile import ZipFile
 
 from .. import extern

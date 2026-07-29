@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Date, FeedInfo
 
@@ -18,7 +17,7 @@ class TestFeedInfo(AbstractTestEntity.Template[FeedInfo]):
             extra_fields_json=r"{}",
         )
 
-    def get_type(self) -> Type[FeedInfo]:
+    def get_type(self) -> type[FeedInfo]:
         return FeedInfo
 
     def test_sql_marshall(self) -> None:

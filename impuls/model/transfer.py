@@ -1,10 +1,9 @@
 # © Copyright 2022-2024 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional, Sequence
-from typing import Type as TypeOf
 from typing import final
 
 from typing_extensions import LiteralString
@@ -21,7 +20,7 @@ class Transfer(Entity, ExtraFieldsMixin):
     """Transfer represent special rules for transferring between vehicles on the network.
 
     Equivalent to `GTFS's transfers.txt entries <https://gtfs.org/schedule/reference/#transferstxt>`_.
-    """  # noqa: E501
+    """
 
     class Type(IntEnum):
         RECOMMENDED = 0
@@ -38,8 +37,8 @@ class Transfer(Entity, ExtraFieldsMixin):
     from_trip_id: str = ""
     to_trip_id: str = ""
     type: Type = Type.RECOMMENDED
-    min_transfer_time: Optional[int] = field(default=None, repr=False)
-    extra_fields_json: Optional[str] = field(default=None, repr=False)
+    min_transfer_time: int | None = field(default=None, repr=False)
+    extra_fields_json: str | None = field(default=None, repr=False)
 
     id: int = field(default=0, repr=False)
     """This field is ignored on :py:meth:`DBConnection.create` -
@@ -123,7 +122,7 @@ class Transfer(Entity, ExtraFieldsMixin):
         return (self.id,)
 
     @classmethod
-    def sql_unmarshall(cls: TypeOf[Self], row: Sequence[SQLNativeType]) -> Self:
+    def sql_unmarshall(cls, row: Sequence[SQLNativeType]) -> Self:
         return cls(
             **DataclassSQLBuilder(row)
             .field("id", int)

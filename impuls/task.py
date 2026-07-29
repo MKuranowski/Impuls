@@ -3,8 +3,8 @@
 
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping, Optional
 
 from .db import DBConnection
 from .options import PipelineOptions
@@ -30,7 +30,7 @@ class Task(ABC):
     name: str
     logger: logging.Logger
 
-    def __init__(self, name: Optional[str] = None) -> None:
+    def __init__(self, name: str | None = None) -> None:
         self.name = name or type(self).__name__
         self.logger = logging.getLogger(f"Task.{self.name}")
 

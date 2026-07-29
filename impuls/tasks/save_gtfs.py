@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Mapping, Sequence
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from .. import extern
@@ -40,7 +40,7 @@ class SaveGTFS(Task):
 
     When ``ensure_order`` is set to True (most) output tables will be sorted by their primary key.
     This might slow down the task. The default is False, which saves tables in arbitrary order.
-    """  # noqa: E501
+    """
 
     headers: GTFSHeaders
     target: Path

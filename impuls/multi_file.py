@@ -3,12 +3,13 @@
 
 import json
 from bisect import bisect_right
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from logging import getLogger
 from operator import attrgetter
 from pathlib import Path
-from typing import Any, Callable, Generic, Mapping, NamedTuple, Protocol, TypedDict, TypeVar
+from typing import Any, Generic, NamedTuple, Protocol, TypedDict, TypeVar
 
 from .errors import InputNotModified
 from .model import Date

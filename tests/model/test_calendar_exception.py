@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import CalendarException, Date
 
@@ -13,7 +12,7 @@ class TestCalendarException(AbstractTestEntity.Template[CalendarException]):
             exception_type=CalendarException.Type.ADDED,
         )
 
-    def get_type(self) -> Type[CalendarException]:
+    def get_type(self) -> type[CalendarException]:
         return CalendarException
 
     def test_sql_marshall(self) -> None:

@@ -1,4 +1,3 @@
-from typing import Type
 
 from impuls.model import Trip
 
@@ -22,7 +21,7 @@ class TestAgency(AbstractTestEntity.Template[Trip]):
             extra_fields_json=r'{"hidden_block_id":"B0"}',
         )
 
-    def get_type(self) -> Type[Trip]:
+    def get_type(self) -> type[Trip]:
         return Trip
 
     def test_sql_marshall(self) -> None:
