@@ -34,6 +34,7 @@ py.install_sources(
     'impuls/tasks/assign_directions.py',
     'impuls/tasks/exec_sql.py',
     'impuls/tasks/extend_calendars.py',
+    'impuls/tasks/generate_shapes.py',
     'impuls/tasks/generate_trip_headsign.py',
     'impuls/tasks/load_busman.py',
     'impuls/tasks/load_db.py',
