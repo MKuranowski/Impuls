@@ -414,6 +414,10 @@ class LegPlanner:
 
     The default implementation doesn't add any waypoints, and simply returns
     a single `LegContext(start, end)`.
+
+    If the LegPlanner knows the exact nodes corresponding to waypoints, it may
+    fill in their :py:attr:`Waypoint.node` attributes. This will in turn bypass
+    :py:class:`stop snapping <StopSnapper>` for those waypoints.
     """
 
     def plan_waypoints(self, start: Waypoint, end: Waypoint) -> Iterable[LegContext]:
@@ -509,8 +513,11 @@ class ShapeBuilder:
         and :py:class:`FallbackPolicy`.
         """
         # Snap stops to nodes
-        ctx.start.node = self.snapper.snap(ctx.start)
-        ctx.end.node = self.snapper.snap(ctx.end)
+        if ctx.start.node == 0:
+            ctx.start.node = self.snapper.snap(ctx.start)
+        if ctx.end.node == 0:
+            ctx.end.node = self.snapper.snap(ctx.end)
+
         if ctx.start.node == 0 or ctx.end.node == 0:
             return self.on_error(ctx, "unsnapped_waypoint", [])
 
