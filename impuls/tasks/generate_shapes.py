@@ -424,7 +424,7 @@ class LegPlanner:
 
 class ShapeValidator:
     """
-    Base class for shape validators - objects which decide if a generate shape leg looks correct.
+    Base class for shape validators - objects which decide if a generated shape leg looks correct.
 
     The default implementation allows all shapes.
     """
@@ -444,7 +444,7 @@ class ShapeValidator:
 
 class MultiShapeValidator(ShapeValidator):
     """
-    MultiShapeValidator is a :py:class`ShapeValidator` delegating the validation to multiple other
+    MultiShapeValidator is a :py:class:`ShapeValidator` delegating the validation to multiple other
     validators, returning the first encountered error (short circuiting), if any.
     """
 
@@ -691,7 +691,7 @@ class AbstractGenerateShapes(Task, Generic[GraphT]):
 
     def create_shape_builder(self, r: TaskRuntime, graph: GraphT) -> ShapeBuilder:
         """
-        Instantiates a :py:class:`ShapeBuilder`, by calling all other ``create_xxx``` methods.
+        Instantiates a :py:class:`ShapeBuilder`, by calling all other ``create_xxx`` methods.
 
         This should not really by overridden - if there's a need for that, file an issue.
         """
@@ -738,7 +738,7 @@ class AbstractGenerateShapes(Task, Generic[GraphT]):
         Gets identifiers of all trips to generate shapes for.
 
         This returns all trips of routes selected by :py:attr:`the provided selector <routes>`;
-        that don't already have shapes (``shape_id IS NULL``) unless :py:attr:`Options.overwrite`
+        that don't already have shapes (``shape_id IS NULL``) unless :py:attr:`overwrite`
         is set.
         """
 
@@ -953,7 +953,7 @@ class RoutxLegRouter(LegRouter):
 
 class GenerateShapes(AbstractGenerateShapes[routx.Graph]):
     """
-    Generates shapes based on an routing data stored in an
+    Generates shapes based on routing data stored in an
     `OpenStreetMap XML <https://wiki.openstreetmap.org/wiki/OSM_XML>`_ or
     an `OpenStreetMap PBF <https://wiki.openstreetmap.org/wiki/PBF_Format>`_ file
     using the `routx library <https://pypi.org/project/routx/>`_.
@@ -979,7 +979,7 @@ class GenerateShapes(AbstractGenerateShapes[routx.Graph]):
     to nodes, and find the cheapest route between those nodes. Extra behavior can be
     obtained by subclassing this task and `injecting <https://en.wikipedia.org/wiki/Dependency_injection>`_
     extra behavior by overriding the ``create_xxx`` methods. See the documentation for
-    :py:class:`AbstractGenerateShapes` for more details.
+    :py:class:`~impuls.tasks.generate_shapes.AbstractGenerateShapes` for more details.
     """
 
     osm_resource: str
