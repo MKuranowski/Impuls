@@ -115,10 +115,8 @@ class GeneratedShape:
         if isinstance(ctx.end.id, tuple):
             self.distances[ctx.end.id[1]] = self.points[-1][2]
 
-    def round(self, coord_precision: int = 6, dist_precision: int | None = 3) -> None:
+    def round(self, coord_precision: int = 6, dist_precision: int = 3) -> None:
         """Rounds all stored coordinates and distances to the provided number of decimal places."""
-        dist_precision = coord_precision if dist_precision is None else dist_precision
-
         self.points = [
             (round(lat, coord_precision), round(lon, coord_precision), round(dist, dist_precision))
             for (lat, lon, dist) in self.points
@@ -305,7 +303,7 @@ class ErrorLogger(ErrorObserver):
 
     logger: logging.Logger
 
-    def __init__(self, logger: logging.Logger | None) -> None:
+    def __init__(self, logger: logging.Logger | None = None) -> None:
         self.logger = logger or logging.getLogger("Task.GenerateShapes")
 
     def on_error(self, ctx: LegContext, error: Any, points: Sequence[ShapePoint]) -> None:
@@ -413,7 +411,7 @@ class LegPlanner:
     representing stops; but that might not hold if planners are composed/nested.
 
     The default implementation doesn't add any waypoints, and simply returns
-    a single `LegContext(start, end)`.
+    a single ``LegContext(start, end)``.
 
     If the LegPlanner knows the exact nodes corresponding to waypoints, it may
     fill in their :py:attr:`Waypoint.node` attributes. This will in turn bypass
@@ -714,7 +712,7 @@ class AbstractGenerateShapes(Task, Generic[GraphT]):
         1. gathering trips to process,
         2. creating the routing graph,
         3. creating the shape builder,
-        4. generating shapes and inserting the into the database.
+        4. generating shapes and inserting them into the database.
         """
 
         self.logger.info("Getting trips to process")
@@ -1016,7 +1014,7 @@ class GenerateShapes(AbstractGenerateShapes[routx.Graph]):
     osm_bbox: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     """
     Bounding box for OpenStreetMap data. Any features outside of this box are ignored.
-    Useful when loading a big OSM extract to route for a smaller area, to reduce memory usage.
+    Useful when loading a big OSM extract to route over a smaller area, to reduce memory usage.
 
     In order: left (min lon), bottom (min lat), right (max lon), top (max lat).
 
@@ -1047,7 +1045,7 @@ class GenerateShapes(AbstractGenerateShapes[routx.Graph]):
         super().__post_init__(task_name)
         self.osm_profile_resolved = self.resolve_osm_profile(self.routes, osm_profile)
 
-    def get_routing_graph(self, r: TaskRuntime) -> routx.Graph:
+    def create_routing_graph(self, r: TaskRuntime) -> routx.Graph:
         g = routx.Graph()
         g.add_from_osm_file(
             r.resources[self.osm_resource].stored_at,
