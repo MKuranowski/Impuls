@@ -327,6 +327,7 @@ class GeoJSONErrorWriter(ErrorObserver):
 
     def __init__(self, directory: StrPath, /, clear: bool = False) -> None:
         self.directory = Path(directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
 
         if clear:
             for f in self.directory.iterdir():
