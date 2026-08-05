@@ -1,4 +1,4 @@
-# © Copyright 2022-2024 Mikołaj Kuranowski
+# © Copyright 2022-2026 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 from . import db, errors, model, multi_file, resource, selector, tasks, tools
@@ -31,9 +31,9 @@ __title__ = "Impuls"
 __description__ = "Framework for processing static public transportation data"
 __url__ = "https://github.com/MKuranowski/Impuls"
 __author__ = "Mikołaj Kuranowski"
-__copyright__ = "© Copyright 2022-2025 Mikołaj Kuranowski"
+__copyright__ = "© Copyright 2022-2026 Mikołaj Kuranowski"
 __license__ = "GPL-3.0-or-later"
-__version__ = "2.4.1"
+__version__ = "2.5.0"
 __email__ = "mkuranowski+pypackages@gmail.com"
 
 DBConnection = db.DBConnection
