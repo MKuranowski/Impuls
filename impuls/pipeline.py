@@ -1,8 +1,8 @@
-# © Copyright 2022-2025 Mikołaj Kuranowski
+# © Copyright 2022-2026 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from types import MappingProxyType
 
@@ -86,7 +86,14 @@ class Pipeline:
             self.options.from_cache,
         )
 
-        if not should_continue and not self.options.force_run:
+        # Force this pipeline to run if previous run had fresh files and failed;
+        # and force further pipelines to run if we have fresh files, until this run succeeds.
+        is_implied = ImpliedRun(self.options.workspace_directory).is_set()
+        files_changed = should_continue and self.raw_resources and not self.options.from_cache
+        if files_changed:
+            ImpliedRun(self.options.workspace_directory).set()
+
+        if not should_continue and not self.options.force_run and not is_implied:
             raise InputNotModified
         self.managed_resources = MappingProxyType(managed)
 
@@ -125,8 +132,56 @@ class Pipeline:
                     with machine_load.LoadTracker() as resource_usage:
                         task.execute(runtime)
                     self.logger.debug(f"Task {task.name} finished; {resource_usage}")
+
                 self.logger.info("All tasks finished")
+                ImpliedRun(self.options.workspace_directory).clear()
         except Exception:
             if self.remove_db_on_failure:
                 self.db_path.unlink(missing_ok=True)
             raise
+
+
+class ImpliedRun:
+    """ImpliedRun manages a persistent flag, which implies if a :py:class:`Pipeline` should run.
+
+    For example, when a Pipeline pulls new resources, but then subsequently fails;
+    the next run will be *implied* to run. This is to avoid spurious
+    :py:class:`~impuls.errors.InputNotModified` if the output was not fully processed.
+
+    Persistence is achieved by storing a ``implied_run.txt`` file in the workspace directory.
+    """
+
+    def __init__(self, workspace: StrPath) -> None:
+        self.file = Path(workspace, "implied_run.txt")
+
+    def set(self, intermediate_versions: Iterable[str] = ()) -> None:
+        """Sets the subsequent runs to be implied, creating the persistent file.
+
+        Optional ``intermediate_versions`` can be set to force specific
+        :py:class:`~impuls.multi_file.MultiFile` intermediate pipelines to run as well.
+        """
+
+        with self.file.open("w", encoding="utf-8") as f:
+            for version in intermediate_versions:
+                f.write(version)
+                f.write("\n")
+
+    def clear(self) -> None:
+        """Completely removes the flag to imply any subsequent runs."""
+        self.file.unlink(missing_ok=True)
+
+    def is_set(self) -> bool:
+        """Checks if the implied run flag is set."""
+        return self.file.exists()
+
+    def implied_versions(self) -> "set[str]":
+        """Returns the names of all ``intermediate_versions`` that were provided to the last call
+        to :py:meth:`set`.
+
+        Note that it's possible that ``implied_run.is_set() and len(implied_run.implied_versions()) == 0``,
+        which would only imply the final pipeline to run.
+        """
+        try:
+            return set(self.file.read_text("utf-8").splitlines())
+        except FileNotFoundError:
+            return set()

@@ -1,4 +1,4 @@
-# © Copyright 2022-2025 Mikołaj Kuranowski
+# © Copyright 2022-2026 Mikołaj Kuranowski
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import json
@@ -14,7 +14,7 @@ from typing import Any, Generic, NamedTuple, Protocol, TypedDict, TypeVar
 from .errors import InputNotModified
 from .model import Date
 from .options import PipelineOptions
-from .pipeline import Pipeline
+from .pipeline import ImpliedRun, Pipeline
 from .resource import (
     DATETIME_MAX_UTC,
     DATETIME_MIN_UTC,
@@ -53,9 +53,18 @@ class Pipelines(NamedTuple):
 
     def run(self) -> None:
         """run runs all pipelines in order"""
-        for intermediate in self.intermediates:
-            intermediate.run()
+        implied_runs = ImpliedRun(self.final.options.workspace_directory)
+        new_implied_runs = implied_runs.implied_versions()
+
+        try:
+            for intermediate in self.intermediates:
+                intermediate.run()
+                new_implied_runs.discard(intermediate.name)
+        finally:
+            implied_runs.set(new_implied_runs)
+
         self.final.run()
+        implied_runs.clear()
 
 
 class CachedFeedMetadata(TypedDict):
@@ -315,12 +324,18 @@ class MultiFile(Generic[ResourceT_co]):
             updated = set()
 
         # 6. Prepare intermediate pipelines
+        implied_run = ImpliedRun(self.options.workspace_directory)
         intermediates = self._prepare_intermediate_pipelines(local, resources, updated)
-        if not intermediates and not self.options.from_cache:
+        if not intermediates and not self.options.from_cache and not implied_run.is_set():
             raise InputNotModified
 
         # 7. Create the final pipeline
         final = self._prepare_final_pipeline(local, resources)
+
+        # 8. Mark all pipelines for implied run in case they fail.
+        #    This will be cleared by Pipelines.run.
+        if not self.options.from_cache:
+            implied_run.set(i.name for i in intermediates)
 
         return Pipelines(intermediates, final)
 
@@ -410,6 +425,10 @@ class MultiFile(Generic[ResourceT_co]):
             else:
                 versions_up_to_date.add(db_file.stem)
 
+        # Check if any of the intermediate pipelines are implied to run,
+        # as they have not succeeded after their last update.
+        versions_up_to_date -= ImpliedRun(self.options.workspace_directory).implied_versions()
+
         # Log how many intermediate databases are up to date,
         # unless force_run (in this case those dbs are ignored anyway)
         if not self.options.force_run:
@@ -443,7 +462,6 @@ class MultiFile(Generic[ResourceT_co]):
                 options=self.options,
                 name=feed.version,
                 db_path=path / f"{feed.version}.db",
-                remove_db_on_failure=True,
             )
 
             # Make the intermediate input and additional resources available

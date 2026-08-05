@@ -21,28 +21,85 @@ from impuls.multi_file import (
     _save_to_cache,
     prune_outdated_feeds,
 )
+from impuls.pipeline import ImpliedRun
 from impuls.tasks import TruncateCalendars, merge
 from impuls.tools.temporal import date_range
 from impuls.tools.testing_mocks import MockDatetimeNow, MockFile, MockResource
 
 
 class TestPipelines(TestCase):
-    @staticmethod
-    def pipeline_with_mock_run() -> Pipeline:
-        p = Pipeline([])
+    def setUp(self) -> None:
+        self.workspace_dir = MockFile(directory=True)
+
+    def tearDown(self) -> None:
+        self.workspace_dir.cleanup()
+
+    def pipeline_with_mock_run(self, name: str = "") -> Pipeline:
+        p = Pipeline(
+            [],
+            name=name,
+            options=PipelineOptions(workspace_directory=self.workspace_dir.path),
+        )
         p.run = Mock()
         return p
 
     def test_run(self) -> None:
+        implied_run = ImpliedRun(self.workspace_dir.path)
+        implied_run.set("AB")
+
         p = Pipelines(
-            [self.pipeline_with_mock_run(), self.pipeline_with_mock_run()],
-            self.pipeline_with_mock_run(),
+            [self.pipeline_with_mock_run("A"), self.pipeline_with_mock_run("B")],
+            self.pipeline_with_mock_run("Final"),
         )
         p.run()
 
         cast(Mock, p.intermediates[0].run).assert_called_once()
         cast(Mock, p.intermediates[1].run).assert_called_once()
         cast(Mock, p.final.run).assert_called_once()
+
+        self.assertFalse(implied_run.is_set())
+
+    def test_leaves_implied_run(self) -> None:
+        implied_run = ImpliedRun(self.workspace_dir.path)
+        implied_run.set("ABC")
+
+        a = self.pipeline_with_mock_run("A")
+        b = self.pipeline_with_mock_run("B")
+        cast(Mock, b.run).side_effect = ValueError
+        c = self.pipeline_with_mock_run("C")
+        final = self.pipeline_with_mock_run()
+
+        with self.assertRaises(ValueError):
+            Pipelines([a, b, c], final).run()
+
+        cast(Mock, a.run).assert_called_once()
+        cast(Mock, b.run).assert_called_once()
+        cast(Mock, c.run).assert_not_called()
+        cast(Mock, final.run).assert_not_called()
+
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), set("BC"))
+
+    def test_leaves_final_implied_run(self) -> None:
+        implied_run = ImpliedRun(self.workspace_dir.path)
+        implied_run.set("ABC")
+
+        a = self.pipeline_with_mock_run("A")
+        b = self.pipeline_with_mock_run("B")
+        c = self.pipeline_with_mock_run("C")
+        final = self.pipeline_with_mock_run()
+        cast(Mock, final.run).side_effect = ValueError
+
+        with self.assertRaises(ValueError):
+            Pipelines([a, b, c], final).run()
+
+        cast(Mock, a.run).assert_called_once()
+        cast(Mock, b.run).assert_called_once()
+        cast(Mock, c.run).assert_called_once()
+        cast(Mock, final.run).assert_called_once()
+
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), set())
 
 
 class TestIntermediateFeed(TestCase):
@@ -387,7 +444,6 @@ class TestMultiFile(TestCase):
 
         db_path = self.workspace.path / "intermediate_dbs" / f"{version}.db"
         self.assertEqual(p.db_path, db_path)
-        self.assertTrue(p.remove_db_on_failure)
 
         assert p.managed_resources is not None
         self.assertEqual(len(p.managed_resources), 1)
@@ -469,6 +525,10 @@ class TestMultiFile(TestCase):
         self.check_intermediate_pipeline(intermediates[1], "v3")
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
 
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), {"v2", "v3"})
+
     def test_skips_cached_dbs(self) -> None:
         self.mock_input("v2")
         self.mock_db("v2")
@@ -478,6 +538,10 @@ class TestMultiFile(TestCase):
         self.assertEqual(len(intermediates), 1)
         self.check_intermediate_pipeline(intermediates[0], "v3")
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), {"v3"})
 
     def test_overwrites_cached_db_if_fetched(self) -> None:
         # NOTE: This test is particularly nasty, simulating a situation
@@ -502,6 +566,10 @@ class TestMultiFile(TestCase):
         self.check_intermediate_pipeline(intermediates[1], "v3")
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
 
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), {"v2", "v3"})
+
     def test_removes_stale_inputs(self) -> None:
         self.mock_input("v1")
         self.mock_db("v1")
@@ -519,6 +587,43 @@ class TestMultiFile(TestCase):
 
         with self.assertRaises(InputNotModified):
             self.multi_file.prepare()
+
+    def test_implied_runs(self) -> None:
+        implied_run = ImpliedRun(self.workspace.path)
+        implied_run.set(("v3",))
+
+        self.mock_input("v2")
+        self.mock_input("v3")
+        self.mock_db("v2")
+        self.mock_db("v3")
+
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 1)
+        self.check_intermediate_pipeline(intermediates[0], "v3")
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), {"v3"})
+
+    def test_implied_final_run(self) -> None:
+        implied_run = ImpliedRun(self.workspace.path)
+        implied_run.set()
+
+        self.mock_input("v2")
+        self.mock_input("v3")
+        self.mock_db("v2")
+        self.mock_db("v3")
+
+        intermediates, final = self.multi_file.prepare()
+
+        self.assertEqual(len(intermediates), 0)
+        self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), set())
 
     def test_pre_merge_pipeline(self) -> None:
         self.multi_file.pre_merge_pipeline_tasks_factory = mock_task_factory
@@ -595,6 +700,10 @@ class TestMultiFile(TestCase):
         self.check_intermediate_pipeline(intermediates[0], "v2")
         self.check_intermediate_pipeline(intermediates[1], "v3")
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
+
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), {"v2", "v3"})
 
     def test_from_cache(self) -> None:
         self.options = PipelineOptions(workspace_directory=self.workspace.path, from_cache=True)
@@ -679,11 +788,15 @@ class TestMultiFile(TestCase):
         self.check_intermediate_pipeline(intermediates[1], "v3")
         self.check_final_pipeline(final, has_pre_merge_dummy_tasks=False)
 
-    def test_removes_failed_intermediate_dbs(self) -> None:
+    def test_test_implies_run_on_failure(self) -> None:
+        implied_run = ImpliedRun(self.workspace.path)
+        self.assertFalse(implied_run.is_set())
+
         self.multi_file.intermediate_pipeline_tasks_factory = mock_broken_task_factory
         pipelines = self.multi_file.prepare()
 
         with self.assertRaises(ValueError):
             pipelines.run()
 
-        self.assertListEqual(list(self.multi_file.intermediate_dbs_path().iterdir()), [])
+        self.assertTrue(implied_run.is_set())
+        self.assertSetEqual(implied_run.implied_versions(), {"v2", "v3"})

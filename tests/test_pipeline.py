@@ -265,3 +265,77 @@ class TestPipeline(TestCase):
             p.run()
 
         self.assertFalse(p.db_path.exists())
+
+    def test_sets_implied_run(self) -> None:
+        with self.assertRaises(ValueError):
+            Pipeline(
+                tasks=[BrokenTask()],
+                resources={"hello.txt": MockResource(b"Hello, world!\n")},
+                options=PipelineOptions(workspace_directory=self.workspace_dir.path),
+            ).run()
+
+        self.assertTrue(Path(self.workspace_dir.path, "implied_run.txt").exists())
+
+    def test_clears_implied_run(self) -> None:
+        Pipeline(
+            tasks=[DummyTask()],
+            resources={"hello.txt": MockResource(b"Hello, world!\n")},
+            options=PipelineOptions(workspace_directory=self.workspace_dir.path),
+        ).run()
+
+        self.assertFalse(Path(self.workspace_dir.path, "implied_run.txt").exists())
+
+    def test_implied_run(self) -> None:
+        # Pretend the resource is cached
+        self.workspace_dir.path.joinpath("hello.txt").write_bytes(b"Hello, world!\n")
+        with self.workspace_dir.path.joinpath("hello.txt.metadata").open(mode="w") as f:
+            json.dump(
+                {
+                    "last_modified": datetime.fromisoformat(
+                        "2023-04-01T11:30:00+00:00"
+                    ).timestamp(),
+                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00+00:00").timestamp(),
+                },
+                f,
+            )
+
+        # But set the implied_run flag
+        implied_run_file = self.workspace_dir.path / "implied_run.txt"
+        implied_run_file.write_bytes(b"")
+
+        task = DummyTask()
+        Pipeline(
+            tasks=[task],
+            resources={"hello.txt": MockResource(b"Hello, world!\n")},
+            options=PipelineOptions(workspace_directory=self.workspace_dir.path),
+        ).run()
+
+        self.assertEqual(task.executed_count, 1)
+        self.assertFalse(implied_run_file.exists())
+
+    def test_implied_run_failure(self) -> None:
+        # Pretend the resource is cached
+        self.workspace_dir.path.joinpath("hello.txt").write_bytes(b"Hello, world!\n")
+        with self.workspace_dir.path.joinpath("hello.txt.metadata").open(mode="w") as f:
+            json.dump(
+                {
+                    "last_modified": datetime.fromisoformat(
+                        "2023-04-01T11:30:00+00:00"
+                    ).timestamp(),
+                    "fetch_time": datetime.fromisoformat("2023-04-01T12:00:00+00:00").timestamp(),
+                },
+                f,
+            )
+
+        # But set the implied_run flag
+        implied_run_file = self.workspace_dir.path / "implied_run.txt"
+        implied_run_file.write_bytes(b"")
+
+        with self.assertRaises(ValueError):
+            Pipeline(
+                tasks=[BrokenTask()],
+                resources={"hello.txt": MockResource(b"Hello, world!\n")},
+                options=PipelineOptions(workspace_directory=self.workspace_dir.path),
+            ).run()
+
+        self.assertTrue(implied_run_file.exists())
