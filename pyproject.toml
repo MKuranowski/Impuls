@@ -4,7 +4,7 @@ build-backend = "mesonpy"
 
 [project]
 name = "impuls"
-version = "2.5.0"
+version = "2.5.1"
 readme = "readme.md"
 requires-python = "~=3.10"
 dependencies = [
