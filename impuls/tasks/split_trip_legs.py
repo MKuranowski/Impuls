@@ -190,6 +190,7 @@ class SplitTripLegs(Task):
         db.raw_execute("DELETE FROM trips WHERE trip_id = ?", (original_trip.id,))
 
         previous_trip: Trip | None = None
+        previous_trip_last_stop_id = ""
 
         for idx, (stop_times, data) in enumerate(legs):
             # Create a trip for the current leg
@@ -205,11 +206,17 @@ class SplitTripLegs(Task):
 
             # Insert a transfer between this and the previous leg
             if previous_trip is not None:
-                t = self.get_transfer(previous_trip, trip, stop_times[0].stop_id)
+                t = self.get_transfer(
+                    previous_trip,
+                    trip,
+                    previous_trip_last_stop_id,
+                    stop_times[0].stop_id,
+                )
                 if t is not None:
                     db.create(t)
 
             previous_trip = trip
+            previous_trip_last_stop_id = stop_times[-1].stop_id
 
     def update_trip(self, trip: Trip, data: Any, db: DBConnection) -> None:
         """Modifies the attributes of a :py:class:`~impuls.model.Trip` representing
@@ -313,13 +320,19 @@ class SplitTripLegs(Task):
             and self.replacement_bus_short_name_pattern.search(trip.short_name) is not None
         )
 
-    def get_transfer(self, trip_a: Trip, trip_b: Trip, transfer_stop_id: str) -> Transfer | None:
+    def get_transfer(
+        self,
+        trip_a: Trip,
+        trip_b: Trip,
+        trip_a_last_stop_id: str,
+        trip_b_first_stop_id: str,
+    ) -> Transfer | None:
         """Creates a :py:class:`~impuls.model.Transfer` object linking to legs of a trip.
         Defaults to creating a :py:obj:`~impuls.model.Transfer.Type.TIMED` transfer.
         """
         return Transfer(
-            from_stop_id=transfer_stop_id,
-            to_stop_id=transfer_stop_id,
+            from_stop_id=trip_a_last_stop_id,
+            to_stop_id=trip_b_first_stop_id,
             from_trip_id=trip_a.id,
             to_trip_id=trip_b.id,
             type=Transfer.Type.TIMED,
