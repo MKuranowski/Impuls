@@ -89,11 +89,11 @@ class RemoveUnusedEntities(Task):
             "DELETE FROM routes WHERE NOT EXISTS "
             "(SELECT trip_id FROM trips WHERE trips.route_id = routes.route_id)"
         )
-        self.logger.info("Dropped %d calendar(s) without any trips", result.rowcount)
+        self.logger.info("Dropped %d routes(s) without any trips", result.rowcount)
 
     def drop_agencies_without_routes(self, db: DBConnection) -> None:
         result = db.raw_execute(
             "DELETE FROM agencies WHERE NOT EXISTS "
             "(SELECT route_id FROM routes WHERE routes.agency_id = agencies.agency_id)"
         )
-        self.logger.info("Dropped %d calendar(s) without any trips", result.rowcount)
+        self.logger.info("Dropped %d agencies(s) without any routes", result.rowcount)
